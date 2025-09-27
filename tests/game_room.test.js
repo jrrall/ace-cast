@@ -1,16 +1,18 @@
 // Mock the TestGame to isolate GameRoom tests
+const mockTestGame = {
+  getInitialState: jest.fn(() => ({
+    gameType: 'test',
+    message: 'Test game started',
+    phase: 'waiting',
+    players: {},
+  })),
+  handlePlayerAction: jest.fn(),
+  handlePlayerLeave: jest.fn(),
+  cleanup: jest.fn(),
+};
+
 jest.mock('../src/game/games/TestGame', () => {
-  return jest.fn().mockImplementation(() => ({
-    getInitialState: jest.fn(() => ({
-      gameType: 'test',
-      message: 'Test game started',
-      phase: 'waiting',
-      players: {},
-    })),
-    handlePlayerAction: jest.fn(),
-    handlePlayerLeave: jest.fn(),
-    cleanup: jest.fn(),
-  }));
+  return jest.fn().mockImplementation(() => mockTestGame);
 });
 
 const GameRoom = require('../src/game/GameRoom');
@@ -24,6 +26,12 @@ describe('GameRoom', () => {
     gameRoom = new GameRoom('TEST');
     mockSocket = createMockSocket();
     TestGame.mockClear();
+    // Reset all mock functions
+    Object.values(mockTestGame).forEach(mock => {
+      if (jest.isMockFunction(mock)) {
+        mock.mockClear();
+      }
+    });
   });
 
   describe('constructor', () => {

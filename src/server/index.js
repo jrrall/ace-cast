@@ -4,7 +4,7 @@ const socketIo = require('socket.io');
 const cors = require('cors');
 const path = require('path');
 const QRCode = require('qrcode');
-const { v4: uuidv4 } = require('uuid');
+// const { v4: uuidv4 } = require('uuid'); // TODO: Use when needed
 const os = require('os');
 
 const app = express();
@@ -17,7 +17,6 @@ const io = socketIo(server, {
 });
 
 // Import game management modules
-const GameRoom = require('../game/GameRoom');
 const gameManager = require('../game/GameManager');
 
 const PORT = process.env.PORT || 3000;
@@ -25,15 +24,16 @@ const PORT = process.env.PORT || 3000;
 // Function to get local network IP
 function getNetworkIP() {
   const interfaces = os.networkInterfaces();
-  for (const name of Object.keys(interfaces)) {
-    for (const interface of interfaces[name]) {
-      // Skip over internal (i.e. 127.0.0.1) and non-ipv4 addresses
-      if (interface.family === 'IPv4' && !interface.internal) {
-        return interface.address;
-      }
-    }
-  }
-  return 'localhost';
+  const networkInterfaces = Object.keys(interfaces).reduce(
+    (acc, name) => acc.concat(interfaces[name]),
+    [],
+  );
+
+  const externalInterface = networkInterfaces.find(
+    (networkInterface) => networkInterface.family === 'IPv4' && !networkInterface.internal,
+  );
+
+  return externalInterface ? externalInterface.address : 'localhost';
 }
 
 const NETWORK_IP = getNetworkIP();
@@ -75,7 +75,7 @@ app.get('/tv/:roomCode', (req, res) => {
     });
   }
 
-  res.render('tv/index', {
+  return res.render('tv/index', {
     title: 'Ace Cast - TV Display',
     roomCode,
   });
@@ -85,7 +85,7 @@ app.get('/tv/:roomCode', (req, res) => {
 app.post('/api/create-room', async (req, res) => {
   try {
     const roomCode = gameManager.generateRoomCode();
-    const room = gameManager.createRoom(roomCode);
+    gameManager.createRoom(roomCode);
 
     // Generate QR code for easy joining
     const baseUrl = `http://${NETWORK_IP}:${PORT}`;
@@ -110,7 +110,7 @@ app.get('/api/room/:roomCode/status', (req, res) => {
     return res.status(404).json({ error: 'Room not found' });
   }
 
-  res.json({
+  return res.json({
     roomCode: room.code,
     playerCount: room.players.size,
     gameState: room.gameState,
@@ -220,9 +220,9 @@ server.listen(PORT, '0.0.0.0', () => {
   console.log(`🎮 Ace Cast Server running on port ${PORT}`);
   console.log(`🌐 Local Host interface: http://localhost:${PORT}`);
   console.log(`📱 Local Player join: http://localhost:${PORT}/player`);
-  console.log(``);
-  console.log(`📲 Network URLs (for phones/tablets):`);
-  console.log(`🌐 Network Host interface: http://${NETWORK_IP}:${PORT}`);
+  console.log('');
+  console.log('📲 Network URLs (for phones/tablets):');
+  console.log('🌐 Network Host interface:', `http://${NETWORK_IP}:${PORT}`);
   console.log(`📱 Network Player join: http://${NETWORK_IP}:${PORT}/player`);
   console.log(`📺 Network TV display: http://${NETWORK_IP}:${PORT}/tv/[ROOM_CODE]`);
 });

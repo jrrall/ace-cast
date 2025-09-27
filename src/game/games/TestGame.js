@@ -11,14 +11,14 @@ class TestGame {
     };
 
     // Initialize players in game state
-    for (const player of room.getAllPlayers()) {
+    room.getAllPlayers().forEach((player) => {
       this.state.players[player.id] = {
         id: player.id,
         name: player.name,
         score: 0,
         ready: false,
       };
-    }
+    });
   }
 
   getInitialState() {
@@ -97,8 +97,8 @@ class TestGame {
   }
 
   handleIncrementAction(playerId) {
-    this.state.testCounter++;
-    this.state.players[playerId].score++;
+    this.state.testCounter += 1;
+    this.state.players[playerId].score += 1;
     this.state.lastAction = {
       type: 'increment',
       playerId,

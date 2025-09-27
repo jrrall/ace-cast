@@ -364,17 +364,44 @@ describe('ComponentName', () => {
 });
 ```
 
+## 🔄 CI/CD Pipeline
+
+This project uses **Trunk-Based Development** with automated semantic versioning:
+
+### Workflows
+- **CI**: Runs tests and linting on all pushes and PRs
+- **Release**: Automatic versioning and releases on main branch
+- **Quality Gates**: ESLint, tests, and coverage must pass
+
+### Conventional Commits
+Use conventional commit format for automatic versioning:
+
+```bash
+# Feature (minor version bump)
+git commit -m "feat: add new card game"
+
+# Bug fix (patch version bump) 
+git commit -m "fix: resolve disconnection issue"
+
+# Breaking change (major version bump)
+git commit -m "feat!: redesign game API
+
+BREAKING CHANGE: API structure changed"
+```
+
+See [CI/CD Documentation](docs/CI_CD.md) for complete details.
+
 ## 🤝 Contributing
 
 ### Development Workflow
 
 1. **Fork and clone** the repository
-2. **Create feature branch**: `git checkout -b feature/awesome-game`
-3. **Make changes** following code style guidelines
+2. **Create feature branch**: `git checkout -b feat/awesome-game`
+3. **Make changes** with conventional commits
 4. **Add tests** for new functionality
 5. **Run quality checks**: `npm run lint && npm test`
-6. **Commit and push** changes
-7. **Create pull request**
+6. **Push branch** - CI will run automatically
+7. **Create pull request** to main
 
 ### Code Style Requirements
 

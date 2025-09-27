@@ -1,5 +1,3 @@
-const GameRoom = require('../src/game/GameRoom');
-
 // Mock GameRoom to isolate GameManager tests
 jest.mock('../src/game/GameRoom', () => {
   return jest.fn().mockImplementation((code) => ({
@@ -9,6 +7,8 @@ jest.mock('../src/game/GameRoom', () => {
     lastActivity: Date.now(),
   }));
 });
+
+const GameRoom = require('../src/game/GameRoom');
 
 describe('GameManager', () => {
   let GameManager;

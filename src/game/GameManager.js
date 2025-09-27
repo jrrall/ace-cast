@@ -13,10 +13,10 @@ class GameManager {
 
     do {
       code = '';
-      for (let i = 0; i < 4; i++) {
+      for (let i = 0; i < 4; i += 1) {
         code += chars.charAt(Math.floor(Math.random() * chars.length));
       }
-      attempts++;
+      attempts += 1;
     } while (this.rooms.has(code) && attempts < 100);
 
     if (attempts >= 100) {
@@ -66,11 +66,11 @@ class GameManager {
     const now = Date.now();
     const inactiveThreshold = 2 * 60 * 60 * 1000; // 2 hours
 
-    for (const [roomCode, room] of this.rooms.entries()) {
+    Array.from(this.rooms.entries()).forEach(([roomCode, room]) => {
       if (room.players.size === 0 && (now - room.lastActivity) > inactiveThreshold) {
         this.removeRoom(roomCode);
       }
-    }
+    });
   }
 }
 

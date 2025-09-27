@@ -1,3 +1,8 @@
+const TestGame = require('./games/TestGame');
+// TODO: Add these when implemented
+// const PokerGame = require('./games/PokerGame');
+// const CAHGame = require('./games/CAHGame');
+
 class GameRoom {
   constructor(code) {
     this.code = code;
@@ -77,21 +82,25 @@ class GameRoom {
     // Initialize game engine based on game type
     switch (gameType.toLowerCase()) {
     case 'poker':
-    case 'texas-holdem':
-      const PokerGame = require('./games/PokerGame');
-      this.gameEngine = new PokerGame(this, options);
-      break;
-    case 'cards-against-humanity':
-    case 'cah':
-      const CAHGame = require('./games/CAHGame');
-      this.gameEngine = new CAHGame(this, options);
-      break;
-    case 'test':
-    default:
-      // Simple test game for development
-      const TestGame = require('./games/TestGame');
+    case 'texas-holdem': {
+      // TODO: Implement PokerGame - using TestGame for now
+      // this.gameEngine = new PokerGame(this, options);
       this.gameEngine = new TestGame(this, options);
       break;
+    }
+    case 'cards-against-humanity':
+    case 'cah': {
+      // TODO: Implement CAHGame - using TestGame for now
+      // this.gameEngine = new CAHGame(this, options);
+      this.gameEngine = new TestGame(this, options);
+      break;
+    }
+    case 'test':
+    default: {
+      // Simple test game for development
+      this.gameEngine = new TestGame(this, options);
+      break;
+    }
     }
 
     this.gameState = this.gameEngine.getInitialState();
@@ -115,9 +124,9 @@ class GameRoom {
     }
 
     // Reset player hands
-    for (const player of this.players.values()) {
+    Array.from(this.players.values()).forEach((player) => {
       player.hand = [];
-    }
+    });
 
     this.gameState = {};
 
@@ -142,11 +151,11 @@ class GameRoom {
   }
 
   broadcastToPlayers(event, data) {
-    for (const player of this.players.values()) {
+    Array.from(this.players.values()).forEach((player) => {
       if (player.socket && player.isActive) {
         player.socket.emit(event, data);
       }
-    }
+    });
   }
 
   sendToPlayer(playerId, event, data) {
@@ -175,11 +184,11 @@ class GameRoom {
 
   cleanup() {
     // Disconnect all players
-    for (const player of this.players.values()) {
+    Array.from(this.players.values()).forEach((player) => {
       if (player.socket) {
         player.socket.disconnect();
       }
-    }
+    });
 
     // End any active game
     if (this.isGameActive) {
