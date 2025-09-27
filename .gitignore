@@ -343,3 +343,14 @@ user-data/
 # Performance and monitoring
 newrelic_agent.log
 .monitor/
+
+# Semantic Release
+.nyc_output
+dist/
+build/
+CHANGELOG.md
+
+# CI/CD
+# Allow GitHub workflows
+!.github/
+!.github/workflows/
