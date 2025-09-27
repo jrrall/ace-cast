@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title><%= title %></title>
+    <link rel="stylesheet" href="/css/tv.css">
+</head>
+<body>
+    <div class="tv-container">
+        <header class="tv-header">
+            <div class="game-title">
+                <h1>🎮 Ace Cast</h1>
+                <span class="room-code">Room: <%= roomCode %></span>
+            </div>
+            <div class="player-counter">
+                <span id="tv-player-count">0</span> Players
+            </div>
+        </header>
+
+        <main class="tv-main">
+            <div id="tv-lobby-screen" class="tv-screen active">
+                <div class="waiting-content">
+                    <div class="game-logo">
+                        🎲🃏🎯
+                    </div>
+                    <h2>Waiting for Players</h2>
+                    <p class="join-instructions">
+                        Players scan the QR code or visit the room code to join
+                    </p>
+                    
+                    <div class="connected-players">
+                        <h3>Connected Players</h3>
+                        <div id="tv-players-grid" class="players-grid">
+                            <!-- Players will be added dynamically -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="tv-game-screen" class="tv-screen">
+                <div class="game-display">
+                    <div class="game-header">
+                        <h2 id="tv-game-type">Game Type</h2>
+                        <div id="tv-game-status" class="game-status-display"></div>
+                    </div>
+
+                    <div class="game-board">
+                        <div id="tv-game-message" class="central-message">
+                            Game in progress...
+                        </div>
+
+                        <div id="tv-game-content" class="game-content-area">
+                            <!-- Game-specific content will be added here -->
+                        </div>
+
+                        <div id="tv-action-feed" class="action-feed">
+                            <h4>Recent Actions</h4>
+                            <div id="tv-actions-list" class="actions-list">
+                                <!-- Recent actions will be displayed here -->
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="scoreboard-tv">
+                        <h3>Scoreboard</h3>
+                        <div id="tv-scoreboard" class="scoreboard-grid">
+                            <!-- Scores will be displayed here -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="tv-error-screen" class="tv-screen">
+                <div class="error-display">
+                    <h2>Connection Error</h2>
+                    <p id="tv-error-message">Unable to connect to game room</p>
+                    <div class="error-icon">⚠️</div>
+                </div>
+            </div>
+        </main>
+
+        <footer class="tv-footer">
+            <div class="connection-info">
+                <span id="tv-connection-status" class="connection-status">Connected</span>
+            </div>
+            <div class="game-info">
+                <span id="tv-game-timer" class="game-timer"></span>
+            </div>
+        </footer>
+    </div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+        // Pass room code to the client-side script
+        window.ROOM_CODE = '<%= roomCode %>';
+    </script>
+    <script src="/js/tv.js"></script>
+</body>
+</html>

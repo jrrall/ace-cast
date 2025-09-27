@@ -1,0 +1,78 @@
+module.exports = {
+  env: {
+    browser: true,
+    es2021: true,
+    node: true,
+    jest: true,
+  },
+  extends: [
+    'airbnb-base',
+  ],
+  parserOptions: {
+    ecmaVersion: 'latest',
+    sourceType: 'module',
+  },
+  rules: {
+    // Enforce strict code quality
+    'no-console': 'off', // Allow console.log for server logging
+    'no-underscore-dangle': 'off',
+    'class-methods-use-this': 'off',
+    'max-len': ['error', { code: 120 }],
+    'indent': ['error', 2],
+    'quotes': ['error', 'single'],
+    'semi': ['error', 'always'],
+    'comma-dangle': ['error', 'always-multiline'],
+    'no-trailing-spaces': 'error',
+    'eol-last': 'error',
+    'no-unused-vars': ['error', { argsIgnorePattern: '^_' }],
+    'prefer-const': 'error',
+    'no-var': 'error',
+    'object-shorthand': 'error',
+    'prefer-arrow-callback': 'error',
+    'arrow-spacing': 'error',
+    'prefer-template': 'error',
+    'template-curly-spacing': 'error',
+    'prefer-destructuring': ['error', {
+      array: false,
+      object: true,
+    }],
+    'no-param-reassign': ['error', { props: false }],
+    'consistent-return': 'error',
+    'no-else-return': 'error',
+    'no-nested-ternary': 'error',
+    'no-unneeded-ternary': 'error',
+    'operator-linebreak': ['error', 'before'],
+    'newline-per-chained-call': ['error', { ignoreChainWithDepth: 2 }],
+    'no-whitespace-before-property': 'error',
+    'space-in-parens': 'error',
+    'array-bracket-spacing': 'error',
+    'object-curly-spacing': ['error', 'always'],
+    'computed-property-spacing': 'error',
+    'func-call-spacing': 'error',
+    'key-spacing': 'error',
+    'keyword-spacing': 'error',
+    'space-before-blocks': 'error',
+    'space-before-function-paren': ['error', {
+      anonymous: 'always',
+      named: 'never',
+      asyncArrow: 'always',
+    }],
+    'space-infix-ops': 'error',
+    'space-unary-ops': 'error',
+    'spaced-comment': 'error',
+    'brace-style': 'error',
+    'comma-spacing': 'error',
+    'comma-style': 'error',
+  },
+  overrides: [
+    {
+      files: ['src/test/**/*.js', '**/*.test.js'],
+      env: {
+        jest: true,
+      },
+      rules: {
+        'no-undef': 'off',
+      },
+    },
+  ],
+};

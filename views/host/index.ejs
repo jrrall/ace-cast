@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title><%= title %></title>
+    <link rel="stylesheet" href="/css/host.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🎮 Ace Cast</h1>
+            <p>Turn any space into game night central</p>
+        </header>
+
+        <main>
+            <div id="setup-screen" class="screen active">
+                <div class="setup-card">
+                    <h2>Start Your Game</h2>
+                    <button id="create-room-btn" class="primary-btn">Create Room</button>
+                    <p class="help-text">This will create a room code for players to join</p>
+                </div>
+            </div>
+
+            <div id="room-screen" class="screen">
+                <div class="room-info">
+                    <h2>Room Created!</h2>
+                    <div class="room-code-display">
+                        <span class="label">Room Code:</span>
+                        <span id="room-code" class="room-code"></span>
+                    </div>
+                    
+                    <div class="qr-section">
+                        <h3>Players can scan to join:</h3>
+                        <div id="qr-code-container"></div>
+                        <p class="join-url">Or visit: <span id="join-url"></span></p>
+                    </div>
+
+                    <div class="tv-section">
+                        <h3>Cast to TV:</h3>
+                        <a id="tv-url" href="#" target="_blank" class="tv-link">Open TV Display</a>
+                        <p class="help-text">Open this link on your Chromecast or TV browser</p>
+                    </div>
+                </div>
+
+                <div class="players-section">
+                    <h3>Connected Players (<span id="player-count">0</span>)</h3>
+                    <ul id="players-list"></ul>
+                </div>
+
+                <div class="game-controls">
+                    <h3>Game Options</h3>
+                    <div class="game-selection">
+                        <label for="game-type">Choose Game:</label>
+                        <select id="game-type">
+                            <option value="test">Test Game (Development)</option>
+                            <option value="poker" disabled>Texas Hold'em (Coming Soon)</option>
+                            <option value="cah" disabled>Cards Against Humanity (Coming Soon)</option>
+                        </select>
+                    </div>
+                    <button id="start-game-btn" class="primary-btn" disabled>Start Game</button>
+                    <button id="end-game-btn" class="secondary-btn" style="display: none;">End Game</button>
+                </div>
+
+                <div class="game-status">
+                    <h3>Game Status</h3>
+                    <div id="game-status-content">
+                        <p>Waiting for players to join...</p>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="/js/host.js"></script>
+</body>
+</html>

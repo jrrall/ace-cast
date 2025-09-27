@@ -1,0 +1,196 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: #333;
+    min-height: 100vh;
+}
+
+.container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 20px;
+}
+
+header {
+    text-align: center;
+    margin-bottom: 40px;
+    color: white;
+}
+
+header h1 {
+    font-size: 3em;
+    margin-bottom: 10px;
+}
+
+header p {
+    font-size: 1.2em;
+    opacity: 0.9;
+}
+
+.screen {
+    display: none;
+}
+
+.screen.active {
+    display: block;
+}
+
+.setup-card, .room-info, .players-section, .game-controls, .game-status {
+    background: white;
+    border-radius: 15px;
+    padding: 30px;
+    margin-bottom: 20px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+}
+
+.setup-card {
+    text-align: center;
+    max-width: 400px;
+    margin: 0 auto;
+}
+
+.primary-btn, .secondary-btn {
+    background: #667eea;
+    color: white;
+    border: none;
+    padding: 15px 30px;
+    border-radius: 8px;
+    font-size: 16px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    margin: 10px;
+}
+
+.primary-btn:hover {
+    background: #5a6fd8;
+    transform: translateY(-2px);
+}
+
+.primary-btn:disabled {
+    background: #ccc;
+    cursor: not-allowed;
+    transform: none;
+}
+
+.secondary-btn {
+    background: #f39c12;
+}
+
+.secondary-btn:hover {
+    background: #e67e22;
+}
+
+.room-code-display {
+    text-align: center;
+    margin: 20px 0;
+}
+
+.room-code {
+    font-size: 2.5em;
+    font-weight: bold;
+    color: #667eea;
+    background: #f8f9ff;
+    padding: 15px 25px;
+    border-radius: 10px;
+    display: inline-block;
+    letter-spacing: 0.1em;
+}
+
+.qr-section, .tv-section {
+    text-align: center;
+    margin: 30px 0;
+}
+
+#qr-code-container {
+    margin: 20px 0;
+}
+
+.tv-link {
+    display: inline-block;
+    background: #27ae60;
+    color: white;
+    text-decoration: none;
+    padding: 12px 25px;
+    border-radius: 8px;
+    transition: all 0.3s ease;
+}
+
+.tv-link:hover {
+    background: #2ecc71;
+    transform: translateY(-2px);
+}
+
+.help-text {
+    color: #666;
+    font-size: 0.9em;
+    margin-top: 10px;
+}
+
+.join-url {
+    color: #666;
+    font-size: 0.9em;
+}
+
+#players-list {
+    list-style: none;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 15px;
+    margin-top: 15px;
+}
+
+.player-item {
+    background: #f8f9ff;
+    padding: 15px;
+    border-radius: 8px;
+    border-left: 4px solid #667eea;
+}
+
+.game-selection {
+    margin-bottom: 20px;
+}
+
+.game-selection label {
+    display: block;
+    margin-bottom: 5px;
+    font-weight: bold;
+}
+
+.game-selection select {
+    width: 100%;
+    padding: 10px;
+    border: 2px solid #e0e0e0;
+    border-radius: 8px;
+    font-size: 16px;
+}
+
+#game-status-content {
+    background: #f8f9ff;
+    padding: 20px;
+    border-radius: 8px;
+    border-left: 4px solid #667eea;
+}
+
+@media (max-width: 768px) {
+    .container {
+        padding: 15px;
+    }
+    
+    header h1 {
+        font-size: 2em;
+    }
+    
+    .setup-card, .room-info, .players-section, .game-controls, .game-status {
+        padding: 20px;
+    }
+    
+    .room-code {
+        font-size: 1.8em;
+    }
+}

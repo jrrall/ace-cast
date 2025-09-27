@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title><%= title %></title>
+    <link rel="stylesheet" href="/css/player.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🎮 Ace Cast</h1>
+            <div id="room-info" style="display: none;">
+                <span class="room-code">Room: <span id="current-room-code"></span></span>
+            </div>
+        </header>
+
+        <main>
+            <div id="join-screen" class="screen active">
+                <div class="join-card">
+                    <h2>Join Game</h2>
+                    <form id="join-form">
+                        <div class="form-group">
+                            <label for="player-name">Your Name:</label>
+                            <input type="text" id="player-name" placeholder="Enter your name" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="room-code-input">Room Code:</label>
+                            <input type="text" id="room-code-input" placeholder="ABCD" maxlength="4" value="<%= roomCode %>" required>
+                        </div>
+                        <button type="submit" class="primary-btn">Join Game</button>
+                    </form>
+                </div>
+            </div>
+
+            <div id="lobby-screen" class="screen">
+                <div class="lobby-info">
+                    <h2>Waiting for Game to Start</h2>
+                    <p id="player-status">You've joined the game!</p>
+                    
+                    <div class="players-section">
+                        <h3>Players in Game (<span id="player-count">0</span>)</h3>
+                        <ul id="players-list"></ul>
+                    </div>
+                </div>
+            </div>
+
+            <div id="game-screen" class="screen">
+                <div class="game-info">
+                    <h3 id="game-type-display">Game Type</h3>
+                    <div id="game-status" class="game-status"></div>
+                </div>
+
+                <div class="game-content">
+                    <div id="game-message" class="game-message">
+                        Welcome to the game!
+                    </div>
+
+                    <div id="player-area" class="player-area">
+                        <!-- Player-specific content will be dynamically added here -->
+                    </div>
+
+                    <div id="game-actions" class="game-actions">
+                        <!-- Available actions will be dynamically added here -->
+                    </div>
+                </div>
+
+                <div class="scoreboard">
+                    <h4>Scores</h4>
+                    <div id="scores-list"></div>
+                </div>
+            </div>
+
+            <div id="error-screen" class="screen">
+                <div class="error-card">
+                    <h2>Oops!</h2>
+                    <p id="error-message">Something went wrong.</p>
+                    <button id="retry-btn" class="primary-btn">Try Again</button>
+                </div>
+            </div>
+        </main>
+
+        <div class="connection-status" id="connection-status">
+            <span class="status-indicator"></span>
+            <span class="status-text">Connecting...</span>
+        </div>
+    </div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="/js/player.js"></script>
+</body>
+</html>
