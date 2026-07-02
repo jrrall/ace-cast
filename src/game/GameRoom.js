@@ -1,6 +1,5 @@
 const TestGame = require('./games/TestGame');
-// TODO: Add these when implemented
-// const PokerGame = require('./games/PokerGame');
+const PokerGame = require('./games/PokerGame');
 // const CAHGame = require('./games/CAHGame');
 
 class GameRoom {
@@ -83,9 +82,8 @@ class GameRoom {
     switch (gameType.toLowerCase()) {
     case 'poker':
     case 'texas-holdem': {
-      // TODO: Implement PokerGame - using TestGame for now
-      // this.gameEngine = new PokerGame(this, options);
-      this.gameEngine = new TestGame(this, options);
+      // Implemented PokerGame - using full poker logic now
+      this.gameEngine = new PokerGame(this, options);
       break;
     }
     case 'cards-against-humanity':
