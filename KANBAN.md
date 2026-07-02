@@ -18,14 +18,14 @@ Status Legend:
 - [x] Wire into `GameRoom.startGame()` switch
 - [ ] Write tests
 
-### [B2] 🔄 Complete CAHGame engine
-- [ ] Create `CAHGame.js` extending `BaseGameEngine`
-- [ ] White card / black card deck structure
-- [ ] Round card-curator (judge) rotation
-- [ ] Blind voting on TV
-- [ ] Scoring: +1 per vote, loser discards white card
-- [ ] Custom deck support
-- [ ] Wire into `GameRoom.startGame()` switch
+### [B2] ✅ Complete CAHGame engine
+- [x] Create `CAHGame.js` extending game engine
+- [x] White card / black card deck structure
+- [x] Round card-curator (judge) rotation
+- [x] Blind voting on TV
+- [x] Scoring: +1 per vote, loser discards white card
+- [x] Custom deck support
+- [x] Wire into `GameRoom.startGame()` switch
 - [ ] Write tests
 
 ---
@@ -83,7 +83,7 @@ Status Legend:
 
 ## ✅ DONE
 
-_PokerGame implementation complete!_
+_PokerGame and CAHGame implementations complete!_
 
 ---
 

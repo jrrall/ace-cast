@@ -1,6 +1,6 @@
 const TestGame = require('./games/TestGame');
 const PokerGame = require('./games/PokerGame');
-// const CAHGame = require('./games/CAHGame');
+const CAHGame = require('./games/CAHGame');
 
 class GameRoom {
   constructor(code) {
@@ -82,20 +82,16 @@ class GameRoom {
     switch (gameType.toLowerCase()) {
     case 'poker':
     case 'texas-holdem': {
-      // Implemented PokerGame - using full poker logic now
       this.gameEngine = new PokerGame(this, options);
       break;
     }
     case 'cards-against-humanity':
     case 'cah': {
-      // TODO: Implement CAHGame - using TestGame for now
-      // this.gameEngine = new CAHGame(this, options);
-      this.gameEngine = new TestGame(this, options);
+      this.gameEngine = new CAHGame(this, options);
       break;
     }
     case 'test':
     default: {
-      // Simple test game for development
       this.gameEngine = new TestGame(this, options);
       break;
     }
