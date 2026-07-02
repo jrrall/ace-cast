@@ -84,7 +84,9 @@ Status Legend:
 
 ## ✅ DONE
 
-_PokerGame, CAHGame, BaseGameEngine wiring, real player stats, and QR code complete!_
+_All core games implemented! PokerGame and CAHGame are fully wired up with BaseGameEngine. Real player statistics tracking gamesPlayed and gamesWon. QR code player join is working._
+
+_Next steps: Write tests for new games, then tackle B6-B10._
 
 ---
 
