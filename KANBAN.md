@@ -40,15 +40,16 @@ Status Legend:
 - [x] Display stats in player/TV UI
 - [ ] Write tests
 
+### [B5] ✅ QR code player join
+- [x] Add QR code generation on host page
+- [x] Use `qrcode` npm package
+- [x] Host URL auto-embedded in QR
+- [x] Display on host UI alongside room code
+- [x] Update game options (enable poker and CAH)
+
 ---
 
 ## 📋 BACKLOG
-
-### [B5] QR code player join
-- [ ] Add QR code generation on host page
-- [ ] Use `qrcode` npm package
-- [ ] Host URL auto-embedded in QR
-- [ ] Display on host UI alongside room code
 
 ### [B6] Custom deck config
 - [ ] JSON-based deck definitions
@@ -83,7 +84,7 @@ Status Legend:
 
 ## ✅ DONE
 
-_PokerGame, CAHGame, BaseGameEngine wiring, and real player stats complete!_
+_PokerGame, CAHGame, BaseGameEngine wiring, real player stats, and QR code complete!_
 
 ---
 
