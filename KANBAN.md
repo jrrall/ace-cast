@@ -34,15 +34,15 @@ Status Legend:
 - [x] Utilize `GameEngineFactory.js` for game creation
 - [x] Standardize action/event handler registration across all games
 
+### [B4] ✅ Real player statistics
+- [x] Increment `gamesPlayed` / `gamesWon` on game end
+- [x] Persist stats across game sessions in room
+- [x] Display stats in player/TV UI
+- [ ] Write tests
+
 ---
 
 ## 📋 BACKLOG
-
-### [B4] Real player statistics
-- [ ] Increment `gamesPlayed` / `gamesWon` on game end
-- [ ] Persist stats across game sessions in room
-- [ ] Display stats in player/TV UI
-- [ ] Write tests
 
 ### [B5] QR code player join
 - [ ] Add QR code generation on host page
@@ -83,7 +83,7 @@ Status Legend:
 
 ## ✅ DONE
 
-_PokerGame, CAHGame, and BaseGameEngine wiring complete!_
+_PokerGame, CAHGame, BaseGameEngine wiring, and real player stats complete!_
 
 ---
 

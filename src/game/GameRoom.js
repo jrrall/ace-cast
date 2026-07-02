@@ -112,6 +112,14 @@ class GameRoom {
     this.gameType = null;
     this.lastActivity = Date.now();
 
+    // Update player statistics
+    Array.from(this.players.values()).forEach((player) => {
+      if (player.isActive) {
+        player.stats.gamesPlayed += 1;
+        player.stats.gamesWon += 1; // All active players get a win
+      }
+    });
+
     if (this.gameEngine) {
       this.gameEngine.cleanup();
       this.gameEngine = null;
@@ -172,6 +180,7 @@ class GameRoom {
         id: p.id,
         name: p.name,
         isActive: p.isActive,
+        stats: p.stats,
       })),
     };
   }
