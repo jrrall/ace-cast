@@ -5,20 +5,20 @@ Status Legend:
 
 ---
 
-## 📋 BACKLOG
+## ✅ COMPLETED
 
-### [B1] Complete PokerGame engine
-- [x] Create `PokerGame.js` extending `BaseGameEngine`
-- [ ] Card deck logic (52-card deck, betting rounds)
-- [ ] Hand evaluation (pair, two-pair, flush, straight, full house, etc.)
-- [ ] Player actions: check, call, raise, fold, all-in
-- [ ] Pot management and betting rounds
-- [ ] Community cards (flop, turn, river)
-- [ ] Dealer order and blinds
-- [ ] Wire into `GameRoom.startGame()` switch
+### [B1] ✅ Complete PokerGame engine
+- [x] Create `PokerGame.js` extending game engine
+- [x] Card deck logic (52-card deck, betting rounds)
+- [x] Hand evaluation (pair, two-pair, flush, straight, full house, etc.)
+- [x] Player actions: check, call, raise, fold, all-in
+- [x] Pot management and betting rounds
+- [x] Community cards (flop, turn, river)
+- [x] Dealer order and blinds
+- [x] Wire into `GameRoom.startGame()` switch
 - [ ] Write tests
 
-### [B2] Complete CAHGame engine
+### [B2] 🔄 Complete CAHGame engine
 - [ ] Create `CAHGame.js` extending `BaseGameEngine`
 - [ ] White card / black card deck structure
 - [ ] Round card-curator (judge) rotation
@@ -27,6 +27,10 @@ Status Legend:
 - [ ] Custom deck support
 - [ ] Wire into `GameRoom.startGame()` switch
 - [ ] Write tests
+
+---
+
+## 📋 BACKLOG
 
 ### [B3] Wire up BaseGameEngine (all games use it)
 - [x] `BaseGameEngine` is built ✅
@@ -79,7 +83,7 @@ Status Legend:
 
 ## ✅ DONE
 
-_No items done yet — let's knock some out!_
+_PokerGame implementation complete!_
 
 ---
 
