@@ -1,24 +1,34 @@
-class TestGame {
+const BaseGame = require('./BaseGame');
+
+/**
+ * TestGame — the reference implementation of the game engine contract.
+ *
+ * It is the canonical, copy-me template for building a new game: a minimal but
+ * complete engine that extends BaseGame, declares its own MIN_PLAYERS, and
+ * overrides every required contract method. It intentionally has no win
+ * condition, so it inherits BaseGame's default getWinnerId() (returns null).
+ * Registered as a dev-only game (hidden from the public list).
+ */
+class TestGame extends BaseGame {
+  static get MIN_PLAYERS() {
+    return 1;
+  }
+
   constructor(room, options = {}) {
-    this.room = room;
-    this.options = options;
+    super(room, options);
     this.state = {
       phase: 'waiting',
       currentPlayer: null,
-      players: {},
-      testCounter: 0,
-      lastAction: null,
-    };
-
-    // Initialize players in game state
-    room.getAllPlayers().forEach((player) => {
-      this.state.players[player.id] = {
+      // Build the players map from the room roster via the shared helper.
+      players: this.mapPlayers((player) => ({
         id: player.id,
         name: player.name,
         score: 0,
         ready: false,
-      };
-    });
+      })),
+      testCounter: 0,
+      lastAction: null,
+    };
   }
 
   getInitialState() {
