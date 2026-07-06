@@ -8,6 +8,12 @@ JS file into that database, read through a deck service into a still-pure engine
 **Out of scope here** (later epics, but the schema is designed to accept them):
 sprite assets (E3), users/auth (E4), entitlements/orders (E5).
 
+**Folded in for consistency:** the **engine `serialize()` / `restore()` contract**
+from the Sessions epic (**S1.2**, `docs/sessions-and-scale-backlog.md`) is *defined*
+here (§6) and recommended to land opportunistically during the E2.3b engine refactor —
+because that refactor is what makes MadLad's state cleanly serializable. The DB
+session/snapshot tables and the persist/rehydrate wiring (S1.1, S1.3–S1.5) remain in S1.
+
 ---
 
 ## 1. Decisions
@@ -22,6 +28,7 @@ sprite assets (E3), users/auth (E4), entitlements/orders (E5).
 | Card tags | **deferred** (no column yet) | No E2/E5 story consumes per-card tags; cards inherit pack context. Add when a story needs it (YAGNI). |
 | Deck shape | `buildDeck()` returns **card objects** `{id,text,…}`, not bare strings | Forward-compatible with E3 sprites (need card id); pay the engine refactor once, now. |
 | Engine ↔ DB | Engine never touches the DB; deck is **injected** via `options.deck` | Keeps `MadLadGame` a pure unit; DB access stays in the async socket/service layer. |
+| Serialize/restore | Define the **additive, opt-in** `serialize()`/`static restore()` contract now (S1.2); implement the hooks during the E2.3b refactor | The card-object refactor makes state plain-data & id-keyed → serialization is nearly free right then. Reused later by both resume (S1.4) and the shared-state scale model (S3.2b). |
 
 **Still open (decide at implementation time, low-risk):**
 - Default pack maturity for `madlad-core` (recommend `2 = mature`, matching the current deck's tone).
@@ -275,6 +282,49 @@ socket.on('start-game', async ({ gameType, options }) => {
   game stays deck-less). `startGame` remains synchronous and engine stays pure.
 - `options.packIds` is unused until E6; `[]` → default pack keeps today's behavior.
 
+### Engine contract: `serialize()` / `restore()` — folded from S1.2
+
+The E2.3b refactor rewrites MadLad's live state into plain, id-keyed card objects.
+That is exactly the shape a snapshot needs, so we define the persistence hooks on the
+contract **now** and implement them while the engine is already open — but keep all DB
+wiring in S1. This is **additive and opt-in**: it does not change the required contract
+(`getInitialState`/`handlePlayerAction`/`handlePlayerLeave`/`cleanup` + static `MIN_PLAYERS`).
+
+**Contract shape (extends `BaseGame`):**
+```js
+// Instance: return a plain-JSON snapshot of everything needed to rebuild the game.
+serialize() { /* returns a structured-clone-safe object */ }
+
+// Static: rebuild an engine from a snapshot (deck is embedded in the snapshot,
+// so no DB/deck fetch is needed on restore).
+static restore(room, snapshot, options = {}) { /* returns an engine instance */ }
+```
+
+- **`BaseGame` defaults:** provide a non-implemented `serialize()` stub (returns
+  `null` / throws "not resumable") and no `restore`. Engines are resumable only when
+  they override **both**. Add a capability check to `src/game/contract.js`:
+  `isResumable(EngineClass)` → `typeof proto.serialize === 'function' && proto.serialize !== BaseGame.prototype.serialize && typeof EngineClass.restore === 'function'`.
+- **`MadLadGame`:** `serialize()` returns `{ version: 1, state, seatOrder, drawPile,
+  discardPile, blackPile }` — all already plain data once cards are `{id,text}` objects.
+  `static restore(room, snapshot, options)` news up the instance, assigns those fields,
+  and re-seats players by id. **Do not** call `startRound()` on restore (that would
+  redeal); restore is a pure state assignment.
+- **`TestGame`:** trivial `serialize()`/`restore()` over its small `state` — also proves
+  the contract on a second engine.
+- **Deck vs snapshot:** `buildDeck()` supplies cards at *game start*; a snapshot already
+  contains the drawn/remaining cards, so `restore()` ignores `options.deck`. (A future
+  optimization could store only card ids + rehydrate text via the DB; not now — embed
+  the objects, it's simplest and self-contained.)
+
+**Round-trip compliance test** (added to `tests/contract.test.js`, reusing the C6 harness):
+for every resumable registered engine, build a game, drive a few actions, then
+`restore(room, engine.serialize())` and assert the rebuilt engine's `getPublicState()`
+(and each player view) deep-equals the original. Non-resumable engines are skipped, not failed.
+
+**Scope boundary:** this section covers only the *engine-level* hooks + their test.
+The `sessions`/`session_snapshots` tables, write-through persistence, lazy rehydrate,
+and reconnect (S1.1, S1.3–S1.5) stay in the Sessions epic and consume these hooks.
+
 ---
 
 ## 7. Seeding the default pack (E2.2)
@@ -402,9 +452,14 @@ Goal: fast, hermetic, and the engine stays a pure unit.
 4. **E2.3a — repos + DeckService.** `PackRepository`, `CardRepository`,
    `DeckService.buildDeck`; unit tests on in-memory SQLite. *Verify:* default-pack
    fallback + maturity filter + empty-deck guard.
-5. **E2.3b — engine injection.** `MadLadGame` reads `options.deck` (card objects);
-   update `madlad_game.test.js` to fixture decks. *Verify:* engine suite green, no
-   DB import in the engine.
+5. **E2.3b — engine injection (+ serialize/restore, folded from S1.2).** `MadLadGame`
+   reads `options.deck` (card objects); update `madlad_game.test.js` to fixture decks.
+   While the engine state is being rewritten to card objects, add the opt-in
+   `serialize()`/`static restore()` hooks to `BaseGame`/`MadLadGame`/`TestGame` +
+   `contract.isResumable()` + the round-trip compliance test (§6). *Verify:* engine
+   suite green, no DB import in the engine, serialize→restore round-trips to equal
+   public state. *(If deferred, this becomes the first task of S1 — but it's far cheaper
+   here, alongside the same refactor.)*
 6. **E2.3c — socket wiring.** `cardBacked` flag on the madlad registry entry; async
    `start-game` builds+injects the deck; `start()` bootstrap; `/healthz` DB probe;
    `shutdown` closes the pool; fix `socket_e2e` startup. *Verify:* play a full round
@@ -427,11 +482,18 @@ Goal: fast, hermetic, and the engine stays a pure unit.
 - [ ] Engine unit tests run with fixture decks (no DB); full Jest suite green on SQLite.
 - [ ] CI proves migration/query parity on Postgres.
 - [ ] `/healthz` reports DB connectivity; graceful shutdown closes the pool.
+- [ ] *(If serialize/restore folded in)* resumable engines round-trip:
+      `restore(room, engine.serialize())` yields equal public + per-player state;
+      `contract.isResumable()` correctly classifies MadLad/Test (yes) and any hook-less engine (no).
 
 ## 13. Risks / watch-items
 - **Engine object-refactor blast radius** (E2.3b) is the biggest single change —
   strings → `{id,text}` through hands/submissions/state. Land it behind the passing
-  engine suite; that's the safety net.
+  engine suite; that's the safety net. *Upside:* the same refactor makes state
+  serializable, which is why the S1.2 hooks are folded in here rather than redone later.
+- **`restore()` must not redeal.** The tempting bug is to reuse constructor/`startRound`
+  logic on restore; restore is pure state assignment (the round already happened).
+  The round-trip test guards this.
 - **`listen`-on-require → `start()`** must not break `socket_e2e`; treat as a first-
   class task, not an afterthought.
 - **Native module builds** (`better-sqlite3`) on `node:22-alpine` — validate the

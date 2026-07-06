@@ -61,6 +61,9 @@ Legend: `S`≈1–2 days · `M`≈3–5 days · `L`≈1–2 weeks · `XL`≈mult
 - [ ] Index by room_code + status (find the active session for a room fast).
 
 ### [S1.2] Engine serialize/restore contract  — `M`
+> **Specified & recommended to land early** in `docs/madlad-card-platform-e1-e2-spec.md` §6
+> (task E2.3b): the hooks are cheapest to add during the E2 engine object-refactor. If not
+> folded there, this is S1's first task. The DB/persistence wiring below stays here in S1.
 **Value:** any engine can be turned into plain data and rebuilt — cleanly, via the contract.
 - [ ] Extend the game engine contract (`BaseGame`) with **optional** hooks:
       `serialize()` → plain JSON, and `static restore(room, snapshot, options)` → engine.
