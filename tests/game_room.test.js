@@ -23,6 +23,9 @@ describe('GameRoom', () => {
   let mockSocket;
 
   beforeEach(() => {
+    // The timing tests below use advanceTimersByTime; fake timers also mock
+    // Date.now so lastActivity updates are observable deterministically.
+    jest.useFakeTimers();
     gameRoom = new GameRoom('TEST');
     mockSocket = createMockSocket();
     TestGame.mockClear();
@@ -406,6 +409,10 @@ describe('GameRoom', () => {
           id: 'player1',
           name: 'Test Player',
           isActive: true,
+          stats: {
+            gamesPlayed: 0,
+            gamesWon: 0,
+          },
         }],
       });
     });

@@ -1,5 +1,4 @@
 const TestGame = require('./games/TestGame');
-const PokerGame = require('./games/PokerGame');
 const CAHGame = require('./games/CAHGame');
 
 class GameRoom {
@@ -70,6 +69,13 @@ class GameRoom {
       throw new Error('Game is already active in this room');
     }
 
+    const normalizedType = gameType.toLowerCase();
+    const isCAH = normalizedType === 'cah' || normalizedType === 'cards-against-humanity';
+
+    if (isCAH && this.getActivePlayerCount() < CAHGame.MIN_PLAYERS) {
+      throw new Error(`Cards Against Humanity needs at least ${CAHGame.MIN_PLAYERS} players`);
+    }
+
     if (this.players.size < 1) {
       throw new Error('Not enough players to start game');
     }
@@ -79,12 +85,7 @@ class GameRoom {
     this.lastActivity = Date.now();
 
     // Initialize game engine based on game type
-    switch (gameType.toLowerCase()) {
-    case 'poker':
-    case 'texas-holdem': {
-      this.gameEngine = new PokerGame(this, options);
-      break;
-    }
+    switch (normalizedType) {
     case 'cards-against-humanity':
     case 'cah': {
       this.gameEngine = new CAHGame(this, options);
@@ -112,11 +113,18 @@ class GameRoom {
     this.gameType = null;
     this.lastActivity = Date.now();
 
-    // Update player statistics
+    // Determine the winner (if the engine tracks one) before cleanup.
+    const winnerId = this.gameEngine && typeof this.gameEngine.getWinnerId === 'function'
+      ? this.gameEngine.getWinnerId()
+      : null;
+
+    // Update player statistics: everyone who played gets a game, winner gets the win.
     Array.from(this.players.values()).forEach((player) => {
       if (player.isActive) {
         player.stats.gamesPlayed += 1;
-        player.stats.gamesWon += 1; // All active players get a win
+        if (player.id === winnerId) {
+          player.stats.gamesWon += 1;
+        }
       }
     });
 

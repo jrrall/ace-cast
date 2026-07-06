@@ -5,89 +5,68 @@ Status Legend:
 
 ---
 
-## ✅ COMPLETED
+## ✅ COMPLETED — Playable Cards Against Humanity prototype
 
-### [B1] ✅ Complete PokerGame engine
-- [x] Create `PokerGame.js` extending `BaseGameEngine`
-- [x] Card deck logic (52-card deck, betting rounds)
-- [x] Hand evaluation (pair, two-pair, flush, straight, full house, etc.)
-- [x] Player actions: check, call, raise, fold, all-in
-- [x] Pot management and betting rounds
-- [x] Community cards (flop, turn, river)
-- [x] Dealer order and blinds
-- [x] Wire into `GameRoom.startGame()` switch
-- [ ] Write tests
+Ace Cast now has one game that works end-to-end for friends playing in person:
+**Cards Against Humanity**. The lobby, QR join, TV display, and private phone
+hands are all wired and covered by tests (`npm test`, 5 suites).
 
-### [B2] ✅ Complete CAHGame engine
-- [x] Create `CAHGame.js` extending `BaseGameEngine`
-- [x] White card / black card deck structure
-- [x] Round card-curator (judge) rotation
-- [x] Blind voting on TV
-- [x] Scoring: +1 per vote, loser discards white card
-- [x] Custom deck support
-- [x] Wire into `GameRoom.startGame()` switch
-- [ ] Write tests
+### [C1] ✅ Working CAH game engine
+- [x] Standalone `CAHGame.js` engine (no half-built abstraction)
+- [x] Judge (Card Czar) rotation each round
+- [x] Answer submission → anonymous judging → winner + scoring
+- [x] Play to a target score, then game over
+- [x] Built-in party-friendly deck (`src/game/data/cahCards.js`, ~50 black / ~140 white)
+- [x] Deck reshuffles from the discard pile when it runs low
+- [x] Handles players joining/leaving mid-game (judge bail restarts the round)
+- [x] Unit tests (`tests/cah_game.test.js`, 15 tests)
 
-### [B3] ✅ Wire up BaseGameEngine (all games use it)
-- [x] `BaseGameEngine` is built ✅
-- [x] Ensure PokerGame and CAHGame extend it (not standalone)
-- [x] Utilize `GameEngineFactory.js` for game creation
-- [x] Standardize action/event handler registration across all games
+### [C2] ✅ Per-player private state
+- [x] Players receive their own hand privately (socket-to-socket)
+- [x] Spectators (TV + host) only ever see public state — no hand leaks
+- [x] Submissions stay anonymous until the judge picks
+- [x] End-to-end socket test proves the flow (`tests/socket_e2e.test.js`)
 
-### [B4] ✅ Real player statistics
-- [x] Increment `gamesPlayed` / `gamesWon` on game end
-- [x] Persist stats across game sessions in room
-- [x] Display stats in player/TV UI
-- [ ] Write tests
+### [C3] ✅ Game lifecycle wiring
+- [x] `start-game` validates minimum players and reports errors to the host
+- [x] `end-game` handler actually ends the game and returns clients to the lobby
+- [x] Player stats: `gamesPlayed` for all, `gamesWon` for the winner only
 
-### [B5] ✅ QR code player join
-- [x] Add QR code generation on host page
-- [x] Use `qrcode` npm package
-- [x] Host URL auto-embedded in QR
-- [x] Display on host UI alongside room code
-- [x] Update game options (enable poker and CAH)
+### [C4] ✅ CAH client UIs
+- [x] Player phone UI: black prompt, tap-to-play hand, judge picker
+- [x] TV UI: big prompt, submission reveal, winner highlight, scoreboard
+- [x] Host UI: CAH enabled + selected by default, error + end-game handling
+
+### [C5] ✅ Codebase cleanup
+- [x] Removed abandoned parallel track (`GameManagerRefactored`, `socketHandlers`,
+      `GameEngineFactory`, `utils/validation`, `BaseGameEngine`)
+- [x] Removed the non-functional `PokerGame` stub
+- [x] Fixed the 2 stale failing tests
 
 ---
 
 ## 📋 BACKLOG
 
+### [B1] Poker (Texas Hold'em)
+- [ ] Real betting rounds, turn order, and hand evaluation
+- [ ] Deferred — was a broken stub; needs a proper build if desired
+
 ### [B6] Custom deck config
-- [ ] JSON-based deck definitions
-- [ ] Card type schema
-- [ ] House rules configuration
+- [ ] JSON-based deck definitions / house rules
 - [ ] Load custom decks dynamically
 
-### [B7] Multiple simultaneous game rooms
-- [ ] UI to create & switch rooms
-- [ ] Backend support for multi-room routing
-- [ ] Host can run multiple rooms
-
+### [B7] Multiple simultaneous game rooms UI
 ### [B8] Game replay & highlights
-- [ ] Hook into `exportData()` on BaseGameEngine
-- [ ] Store game history
-- [ ] Replay UI component
-- [ ] Write tests
-
 ### [B9] Card theme / cosmetic packs
-- [ ] CSS variable theming system
-- [ ] Card back styles
-- [ ] UI skin toggles
-- [ ] Theme store integration (local or config)
-
 ### [B10] Tournament modes
-- [ ] Multi-room tournament bracket logic
-- [ ] Player movement between rooms
-- [ ] Tournament state machine
-- [ ] Write tests
 
 ---
 
-## ✅ DONE
-
-_All core games implemented! PokerGame and CAHGame are fully wired up with BaseGameEngine. Real player statistics tracking gamesPlayed and gamesWon. QR code player join is working._
-
-_Next steps: Write tests for new games, then tackle B6-B10._
+## 🔎 Nice-to-haves noticed during the CAH build
+- Pick-2 / pick-3 black cards (currently single-blank only)
+- "Play again" from the game-over screen without recreating the room
+- Reconnect handling if a phone drops mid-round
 
 ---
 
-*Last updated: 2026-07-01*
+*Last updated: 2026-07-06*

@@ -124,6 +124,11 @@ class PlayerController {
         this.socket.on('game-update', (data) => {
             this.handleGameUpdate(data);
         });
+
+        this.socket.on('game-ended', () => {
+            this.gameState = null;
+            this.showLobbyScreen();
+        });
     }
 
     joinGame() {
@@ -200,15 +205,21 @@ class PlayerController {
     }
 
     handleGameStarted(data) {
-        this.gameState = data.gameState;
-        this.gameTypeDisplay.textContent = data.gameType || 'Unknown Game';
+        this.gameTypeDisplay.textContent = this.prettyGameType(data.gameType);
         this.showGameScreen();
-        this.updateGameDisplay(data.gameState);
     }
 
     handleGameUpdate(data) {
         this.gameState = data.gameState || data;
+        this.gameTypeDisplay.textContent = this.prettyGameType(this.gameState.gameType);
+        this.showGameScreen();
         this.updateGameDisplay(this.gameState);
+    }
+
+    prettyGameType(type) {
+        if (type === 'cah') return 'Cards Against Humanity';
+        if (type === 'test') return 'Test Game';
+        return type || 'Game';
     }
 
     updatePlayersList(players) {
@@ -229,97 +240,154 @@ class PlayerController {
 
     updateGameDisplay(gameState) {
         if (!gameState) return;
-        
-        // Update game message
-        if (gameState.message) {
-            this.gameMessage.textContent = gameState.message;
+
+        if (gameState.gameType === 'cah') {
+            this.renderCAH(gameState);
+            return;
         }
-        
-        // Update game status
-        if (gameState.status) {
-            this.gameStatus.textContent = gameState.status;
-        }
-        
-        // Update player-specific area
-        this.updatePlayerArea(gameState);
-        
-        // Update available actions
-        this.updateGameActions(gameState);
-        
-        // Update scores if available
-        this.updateScores(gameState.scores);
+
+        // Generic fallback (e.g. test game)
+        this.gameStatus.textContent = '';
+        this.gameMessage.textContent = gameState.message || '';
+        this.playerArea.innerHTML = '';
+        this.renderActionButtons(gameState.availableActions);
+        this.renderScores(gameState.scores);
     }
 
-    updatePlayerArea(gameState) {
-        // This will be customized based on game type
-        if (gameState.playerData && gameState.playerData[this.playerId]) {
-            const playerData = gameState.playerData[this.playerId];
-            this.playerArea.innerHTML = `
-                <div class="player-info">
-                    <h4>Your Info:</h4>
-                    <pre>${JSON.stringify(playerData, null, 2)}</pre>
-                </div>
-            `;
-        }
-    }
+    renderCAH(state) {
+        const you = state.you || {};
+        this.gameStatus.textContent = `Round ${state.round} · First to ${state.targetScore}`;
+        this.gameMessage.innerHTML = state.blackCard
+            ? `<div class="cah-black-card">${this.formatPrompt(state.blackCard)}</div>`
+            : '';
 
-    updateGameActions(gameState) {
-        this.gameActions.innerHTML = '';
-        
-        let actions = null;
-        
-        // Handle both per-player actions and flat array of actions
-        if (gameState.availableActions) {
-            if (Array.isArray(gameState.availableActions)) {
-                // Flat array - all players can do these actions
-                actions = gameState.availableActions;
-            } else if (gameState.availableActions[this.playerId]) {
-                // Per-player actions
-                actions = gameState.availableActions[this.playerId];
-            }
-        }
-        
-        if (actions && actions.length > 0) {
-            console.log('Creating action buttons:', actions);
-            actions.forEach(action => {
-                const button = document.createElement('button');
-                button.className = 'action-btn';
-                button.textContent = action.label || action.type;
-                button.onclick = () => this.sendPlayerAction(action);
-                this.gameActions.appendChild(button);
-            });
+        this.playerArea.innerHTML = '';
+
+        if (state.phase === 'gameover') {
+            this.playerArea.appendChild(this.banner(`🎉 ${this.esc(state.winnerName)} wins the game!`));
+        } else if (you.isJudge) {
+            this.renderJudgeView(state);
         } else {
-            console.log('No actions available for player');
+            this.renderAnswererView(state, you);
+        }
+
+        this.renderActionButtons(state.availableActions);
+        this.renderScores(state.scores);
+    }
+
+    renderJudgeView(state) {
+        this.playerArea.appendChild(this.banner('👑 You are the Card Czar'));
+
+        if (state.phase === 'answering') {
+            this.playerArea.appendChild(this.note(
+                `Waiting for players... (${state.submittedCount}/${state.expectedCount} submitted)`,
+            ));
+        } else if (state.phase === 'judging') {
+            this.playerArea.appendChild(this.note('Tap the funniest answer to crown the winner:'));
+            const grid = document.createElement('div');
+            grid.className = 'cah-hand';
+            (state.submissions || []).forEach((sub) => {
+                const card = this.whiteCard(sub.text);
+                card.onclick = () => this.sendAction('pick-winner', { submissionId: sub.id });
+                grid.appendChild(card);
+            });
+            this.playerArea.appendChild(grid);
+        } else if (state.phase === 'results' && state.lastWinner) {
+            this.playerArea.appendChild(this.note(
+                `Winner: "${this.esc(state.lastWinner.text)}" by ${this.esc(state.lastWinner.playerName)}`,
+            ));
         }
     }
 
-    updateScores(scores) {
-        if (!scores) return;
-        
+    renderAnswererView(state, you) {
+        if (state.phase === 'answering' && !you.hasSubmitted) {
+            this.playerArea.appendChild(this.note('Pick a card to play:'));
+            const grid = document.createElement('div');
+            grid.className = 'cah-hand';
+            (state.hand || []).forEach((card) => {
+                const el = this.whiteCard(card.text);
+                el.onclick = () => this.sendAction('submit-card', { cardIndex: card.index });
+                grid.appendChild(el);
+            });
+            this.playerArea.appendChild(grid);
+        } else if (state.phase === 'answering' && you.hasSubmitted) {
+            this.playerArea.appendChild(this.note('✅ Card submitted — waiting for the others...'));
+        } else if (state.phase === 'judging') {
+            this.playerArea.appendChild(this.note(`${this.esc(state.judgeName)} is choosing the winner...`));
+        } else if (state.phase === 'results' && state.lastWinner) {
+            const won = state.lastWinner.playerId === you.id;
+            this.playerArea.appendChild(this.banner(
+                won ? '🏆 You won this round!' : `${this.esc(state.lastWinner.playerName)} won this round`,
+            ));
+            this.playerArea.appendChild(this.note(`"${this.esc(state.lastWinner.text)}"`));
+        }
+    }
+
+    renderActionButtons(availableActions) {
+        this.gameActions.innerHTML = '';
+        const actions = Array.isArray(availableActions) ? availableActions : [];
+        actions.forEach((action) => {
+            const button = document.createElement('button');
+            button.className = 'action-btn';
+            button.textContent = action.label || action.type;
+            button.onclick = () => this.sendAction(action.type, action.data || {});
+            this.gameActions.appendChild(button);
+        });
+    }
+
+    renderScores(scores) {
+        if (!scores || !Array.isArray(scores)) return;
         this.scoresList.innerHTML = '';
-        
-        Object.entries(scores).forEach(([playerId, score]) => {
+        scores.forEach((entry) => {
             const div = document.createElement('div');
             div.className = 'score-item';
             div.innerHTML = `
-                <span class="player-name">${score.playerName || 'Player'}</span>
-                <span class="score">${score.score || score}</span>
+                <span class="player-name">${this.esc(entry.name)}</span>
+                <span class="score">${entry.score}</span>
             `;
             this.scoresList.appendChild(div);
         });
     }
 
-    sendPlayerAction(action) {
+    // ---- Small DOM helpers ------------------------------------------------
+
+    whiteCard(text) {
+        const el = document.createElement('button');
+        el.className = 'cah-white-card';
+        el.textContent = text;
+        return el;
+    }
+
+    banner(text) {
+        const el = document.createElement('div');
+        el.className = 'cah-banner';
+        el.textContent = text;
+        return el;
+    }
+
+    note(text) {
+        const el = document.createElement('p');
+        el.className = 'cah-note';
+        el.textContent = text;
+        return el;
+    }
+
+    formatPrompt(text) {
+        return this.esc(text).replace(/_{2,}/g, '<span class="cah-blank">&nbsp;&nbsp;&nbsp;</span>');
+    }
+
+    esc(text) {
+        const div = document.createElement('div');
+        div.textContent = text == null ? '' : String(text);
+        return div.innerHTML;
+    }
+
+    sendAction(type, data = {}) {
         if (!this.socket || !this.connected) {
             this.showError('Not connected to server');
             return;
         }
-        
-        console.log('Player sending action:', action);
-        this.socket.emit('player-action', {
-            action: action.type, // TestGame expects 'action' field
-            data: action.data || {}
-        });
+        this.socket.emit('player-action', { action: type, data });
     }
 
     updateConnectionStatus(text, status) {
