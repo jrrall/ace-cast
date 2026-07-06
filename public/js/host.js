@@ -29,12 +29,27 @@ class HostController {
         this.playerCount = document.getElementById('player-count');
         this.gameStatusContent = document.getElementById('game-status-content');
         this.gameTypeSelect = document.getElementById('game-type');
+        this.gameHint = document.getElementById('game-hint');
     }
 
     bindEvents() {
         this.createRoomBtn.addEventListener('click', () => this.createRoom());
         this.startGameBtn.addEventListener('click', () => this.startGame());
         this.endGameBtn.addEventListener('click', () => this.endGame());
+        this.gameTypeSelect.addEventListener('change', () => this.updateGameHint());
+        this.updateGameHint();
+    }
+
+    updateGameHint() {
+        if (!this.gameHint || !this.gameTypeSelect) return;
+        const option = this.gameTypeSelect.selectedOptions[0];
+        if (!option) {
+            this.gameHint.textContent = '';
+            return;
+        }
+        const min = option.dataset.min;
+        const name = option.dataset.name || option.textContent;
+        this.gameHint.textContent = min ? `${name} needs at least ${min} players.` : '';
     }
 
     initializeSocket() {

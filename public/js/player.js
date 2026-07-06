@@ -217,7 +217,7 @@ class PlayerController {
     }
 
     prettyGameType(type) {
-        if (type === 'cah') return 'Cards Against Humanity';
+        if (type === 'madlad') return 'MadLad';
         if (type === 'test') return 'Test Game';
         return type || 'Game';
     }
@@ -241,8 +241,8 @@ class PlayerController {
     updateGameDisplay(gameState) {
         if (!gameState) return;
 
-        if (gameState.gameType === 'cah') {
-            this.renderCAH(gameState);
+        if (gameState.gameType === 'madlad') {
+            this.renderMadLad(gameState);
             return;
         }
 
@@ -254,11 +254,11 @@ class PlayerController {
         this.renderScores(gameState.scores);
     }
 
-    renderCAH(state) {
+    renderMadLad(state) {
         const you = state.you || {};
         this.gameStatus.textContent = `Round ${state.round} · First to ${state.targetScore}`;
         this.gameMessage.innerHTML = state.blackCard
-            ? `<div class="cah-black-card">${this.formatPrompt(state.blackCard)}</div>`
+            ? `<div class="madlad-black-card">${this.formatPrompt(state.blackCard)}</div>`
             : '';
 
         this.playerArea.innerHTML = '';
@@ -285,7 +285,7 @@ class PlayerController {
         } else if (state.phase === 'judging') {
             this.playerArea.appendChild(this.note('Tap the funniest answer to crown the winner:'));
             const grid = document.createElement('div');
-            grid.className = 'cah-hand';
+            grid.className = 'madlad-hand';
             (state.submissions || []).forEach((sub) => {
                 const card = this.whiteCard(sub.text);
                 card.onclick = () => this.sendAction('pick-winner', { submissionId: sub.id });
@@ -303,7 +303,7 @@ class PlayerController {
         if (state.phase === 'answering' && !you.hasSubmitted) {
             this.playerArea.appendChild(this.note('Pick a card to play:'));
             const grid = document.createElement('div');
-            grid.className = 'cah-hand';
+            grid.className = 'madlad-hand';
             (state.hand || []).forEach((card) => {
                 const el = this.whiteCard(card.text);
                 el.onclick = () => this.sendAction('submit-card', { cardIndex: card.index });
@@ -353,27 +353,27 @@ class PlayerController {
 
     whiteCard(text) {
         const el = document.createElement('button');
-        el.className = 'cah-white-card';
+        el.className = 'madlad-white-card';
         el.textContent = text;
         return el;
     }
 
     banner(text) {
         const el = document.createElement('div');
-        el.className = 'cah-banner';
+        el.className = 'madlad-banner';
         el.textContent = text;
         return el;
     }
 
     note(text) {
         const el = document.createElement('p');
-        el.className = 'cah-note';
+        el.className = 'madlad-note';
         el.textContent = text;
         return el;
     }
 
     formatPrompt(text) {
-        return this.esc(text).replace(/_{2,}/g, '<span class="cah-blank">&nbsp;&nbsp;&nbsp;</span>');
+        return this.esc(text).replace(/_{2,}/g, '<span class="madlad-blank">&nbsp;&nbsp;&nbsp;</span>');
     }
 
     esc(text) {

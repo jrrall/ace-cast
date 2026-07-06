@@ -1,5 +1,4 @@
-const TestGame = require('./games/TestGame');
-const CAHGame = require('./games/CAHGame');
+const registry = require('./registry');
 
 class GameRoom {
   constructor(code) {
@@ -69,38 +68,24 @@ class GameRoom {
       throw new Error('Game is already active in this room');
     }
 
-    const normalizedType = gameType.toLowerCase();
-    const isCAH = normalizedType === 'cah' || normalizedType === 'cards-against-humanity';
-
-    if (isCAH && this.getActivePlayerCount() < CAHGame.MIN_PLAYERS) {
-      throw new Error(`Cards Against Humanity needs at least ${CAHGame.MIN_PLAYERS} players`);
+    const game = registry.getGame(gameType);
+    if (!game) {
+      throw new Error(`Unknown game type: ${gameType}`);
     }
 
-    if (this.players.size < 1) {
-      throw new Error('Not enough players to start game');
+    if (this.getActivePlayerCount() < game.minPlayers) {
+      throw new Error(`${game.name} needs at least ${game.minPlayers} players`);
     }
 
-    this.gameType = gameType;
+    this.gameType = game.id;
     this.isGameActive = true;
     this.lastActivity = Date.now();
 
-    // Initialize game engine based on game type
-    switch (normalizedType) {
-    case 'cards-against-humanity':
-    case 'cah': {
-      this.gameEngine = new CAHGame(this, options);
-      break;
-    }
-    case 'test':
-    default: {
-      this.gameEngine = new TestGame(this, options);
-      break;
-    }
-    }
-
+    // eslint-disable-next-line new-cap
+    this.gameEngine = new game.engine(this, options);
     this.gameState = this.gameEngine.getInitialState();
 
-    console.log(`Started ${gameType} game in room ${this.code} with ${this.players.size} players`);
+    console.log(`Started ${game.id} game in room ${this.code} with ${this.players.size} players`);
     return this.gameState;
   }
 

@@ -330,8 +330,8 @@ header h1 {
         margin: 5px 0;
     }
 }
-/* ---- Cards Against Humanity ---- */
-.cah-black-card {
+/* ---- MadLad ---- */
+.madlad-black-card {
     background: #111;
     color: #fff;
     border-radius: 12px;
@@ -343,21 +343,21 @@ header h1 {
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
 }
 
-.cah-blank {
+.madlad-blank {
     display: inline-block;
     min-width: 60px;
     border-bottom: 3px solid #fff;
     margin: 0 4px;
 }
 
-.cah-hand {
+.madlad-hand {
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 10px;
     margin-top: 12px;
 }
 
-.cah-white-card {
+.madlad-white-card {
     background: #fff;
     color: #111;
     border: 2px solid #ddd;
@@ -372,13 +372,13 @@ header h1 {
     transition: transform 0.1s ease, border-color 0.1s ease;
 }
 
-.cah-white-card:hover,
-.cah-white-card:active {
+.madlad-white-card:hover,
+.madlad-white-card:active {
     transform: translateY(-3px);
     border-color: #764ba2;
 }
 
-.cah-banner {
+.madlad-banner {
     background: rgba(118, 75, 162, 0.12);
     color: #4a2d6b;
     border-radius: 10px;
@@ -389,7 +389,7 @@ header h1 {
     font-size: 1.1em;
 }
 
-.cah-note {
+.madlad-note {
     text-align: center;
     color: #555;
     margin: 10px 0;

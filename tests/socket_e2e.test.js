@@ -1,7 +1,7 @@
 const request = require('supertest');
 const { io: Client } = require('socket.io-client');
 
-// End-to-end test: drives a full Cards Against Humanity round through real
+// End-to-end test: drives a full MadLad round through real
 // Socket.IO clients against the actual server, verifying the private-broadcast
 // wiring (players get hands, spectators never do) and start/submit/judge flow.
 
@@ -76,7 +76,7 @@ afterAll((done) => {
   server.close(done);
 });
 
-test('plays a full CAH round through real sockets', async () => {
+test('plays a full MadLad round through real sockets', async () => {
   const res = await request(app).post('/api/create-room');
   const { roomCode } = res.body;
   expect(roomCode).toMatch(/^[A-Z]{4}$/);
@@ -97,7 +97,7 @@ test('plays a full CAH round through real sockets', async () => {
   }));
 
   // Host starts the game with a target score of 1 (one round decides it).
-  host.emit('start-game', { gameType: 'cah', options: { targetScore: 1 } });
+  host.emit('start-game', { gameType: 'madlad', options: { targetScore: 1 } });
 
   // Every player receives a private view with a full hand.
   await waitUntil(() => players.every((p) => p.last && p.last.you && p.last.hand.length === 7));

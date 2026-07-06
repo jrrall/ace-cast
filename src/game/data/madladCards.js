@@ -1,11 +1,11 @@
 /**
- * Cards Against Humanity card data.
+ * MadLad card data.
  *
  * Black cards are prompts. This build only uses single-blank ("pick 1")
  * prompts to keep submission and judging simple. Use `____` as the blank.
  * White cards are the answers players submit.
  *
- * This is an original, party-friendly set (not the official CAH content).
+ * This is an original, party-friendly set written for MadLad.
  * It is intentionally large so a full game night does not exhaust the deck.
  */
 

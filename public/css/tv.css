@@ -439,8 +439,8 @@ body {
         gap: 15px;
     }
 }
-/* ---- Cards Against Humanity (TV) ---- */
-.cah-board {
+/* ---- MadLad (TV) ---- */
+.madlad-board {
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -448,7 +448,7 @@ body {
     padding: 20px;
 }
 
-.cah-board .cah-black-card {
+.madlad-board .madlad-black-card {
     background: #111;
     color: #fff;
     border-radius: 18px;
@@ -461,26 +461,26 @@ body {
     box-shadow: 0 8px 30px rgba(0, 0, 0, 0.5);
 }
 
-.cah-blank {
+.madlad-blank {
     display: inline-block;
     min-width: 120px;
     border-bottom: 5px solid #fff;
     margin: 0 8px;
 }
 
-.cah-czar {
+.madlad-czar {
     font-size: 1.6em;
     font-weight: 600;
     color: #ffd166;
 }
 
-.cah-status {
+.madlad-status {
     font-size: 1.5em;
     color: #cfd3ff;
     text-align: center;
 }
 
-.cah-submissions {
+.madlad-submissions {
     display: flex;
     flex-wrap: wrap;
     justify-content: center;
@@ -488,7 +488,7 @@ body {
     margin-top: 10px;
 }
 
-.cah-white-card.tv {
+.madlad-white-card.tv {
     background: #fff;
     color: #111;
     border-radius: 14px;
@@ -502,19 +502,19 @@ body {
     box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
 }
 
-.cah-white-card.tv.winner {
+.madlad-white-card.tv.winner {
     outline: 6px solid #ffd166;
     transform: scale(1.05);
 }
 
-.cah-winner-card {
+.madlad-winner-card {
     display: flex;
     flex-direction: column;
     align-items: center;
     gap: 16px;
 }
 
-.cah-winner-name {
+.madlad-winner-name {
     font-size: 2em;
     font-weight: 800;
     color: #ffd166;

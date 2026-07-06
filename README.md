@@ -426,7 +426,7 @@ MIT License - see [LICENSE](LICENSE) file for details.
 
 ### Coming Soon 🚧
 - [ ] Texas Hold'em poker game
-- [ ] Cards Against Humanity style game  
+- [ ] More party games (MadLad is live)  
 - [ ] Advanced player management
 - [ ] Game replay and statistics
 - [ ] Custom deck support
