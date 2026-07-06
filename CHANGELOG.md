@@ -1,3 +1,8 @@
+## 1.2.0 (2026-07-06)
+
+* Merge pull request #4 from jrrall/chore/game-registry-and-madlad ([c8c3cf6](https://github.com/jrrall/ace-cast/commit/c8c3cf6)), closes [#4](https://github.com/jrrall/ace-cast/issues/4)
+* feat(game): formalize the game engine contract with BaseGame + validation ([db178b5](https://github.com/jrrall/ace-cast/commit/db178b5))
+
 ## <small>1.1.1 (2026-07-06)</small>
 
 * Merge pull request #3 from jrrall/chore/game-registry-and-madlad ([ac78301](https://github.com/jrrall/ace-cast/commit/ac78301)), closes [#3](https://github.com/jrrall/ace-cast/issues/3)
