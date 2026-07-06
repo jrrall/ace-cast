@@ -1,3 +1,9 @@
+## <small>1.1.1 (2026-07-06)</small>
+
+* Merge pull request #3 from jrrall/chore/game-registry-and-madlad ([ac78301](https://github.com/jrrall/ace-cast/commit/ac78301)), closes [#3](https://github.com/jrrall/ace-cast/issues/3)
+* refactor: rename CAH game to MadLad and add a game registry ([b2330b0](https://github.com/jrrall/ace-cast/commit/b2330b0))
+* chore: target Node 22 only, trim CI matrix, harden socket e2e test ([4d77a85](https://github.com/jrrall/ace-cast/commit/4d77a85))
+
 ## 1.1.0 (2026-07-06)
 
 * Merge pull request #2 from jrrall/feat/cah-prototype-and-cloud-foundation ([9397659](https://github.com/jrrall/ace-cast/commit/9397659)), closes [#2](https://github.com/jrrall/ace-cast/issues/2)
