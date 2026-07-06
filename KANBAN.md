@@ -110,6 +110,51 @@ mock store first → Stripe later · sprites pre-generated offline (batch SD).
 
 ---
 
+## 📋 EPIC — Persistent Sessions, History & Scale
+
+Make the game survive restarts, remember past games, and eventually run across
+multiple servers. Everything is in-memory today (`GameManager` map; a live
+`gameEngine` per room), identity is per-connection (`playerId = socket.id`), and
+`fly.toml` runs one machine on purpose. Full groom in
+`docs/sessions-and-scale-backlog.md`.
+
+**Prereqs:** E1 (persistence) for S1/S2; E4 (accounts) for durable stats.
+**Sequencing:** `E1 → S0 → S1 → S2 (after E4) → S3` (build S3 only once real
+concurrency demands it).
+
+### [S0] Stable player identity *(prereq; needs E1)* — `M`
+- [ ] Durable, signed player token that outlives `socket.id` (survives reconnect/restart)
+- [ ] `identities` table; rooms key players by stable id, `user_id?` linked when E4 lands
+- [ ] Guests still get an ephemeral id (no drop-in regression)
+- *Linchpin: resume, seat re-attach, and stat attribution all depend on this.*
+
+### [S1] Persistent & resumable sessions *(needs E1 + S0)* — `L`
+- [ ] `sessions` + snapshot schema (status, versioned serialized state)
+- [ ] Extend the engine contract with optional `serialize()` / `static restore()` (opt-in,
+      additive; reuses the C6 compliance harness) — implement for MadLad + Test
+- [ ] Write-through snapshot after each action (async, never blocks gameplay)
+- [ ] Lazy rehydrate a room on re-access; re-attach reconnecting players to their seats
+- [ ] Reconnect grace window; paused-session TTL → abandoned
+- *Open Q: how long a paused game stays resumable; who may resume it.*
+
+### [S2] Session history & stats *(needs E1 + E4)* — `L`
+- [ ] Persist completed sessions + `session_players` (scores, placement, winner, packs)
+- [ ] Durable per-account stats — migrate the in-memory `gamesPlayed/gamesWon` that
+      currently evaporate in `GameRoom.endGame`; guest→account merge
+- [ ] History UI (your past games; per-room series); leaderboards later
+
+### [S3] Concurrent sessions across servers *(needs E1 + S1; Redis infra)* — `XL`
+- [ ] Socket.IO **Redis adapter** for cross-instance fan-out (config-gated; dev runs solo)
+- [ ] **Decide room routing model** (ADR): (a) sticky per-instance ownership *(recommended
+      first)* vs (b) shared authoritative state in Redis/PG with per-room locks (uses S1
+      serialization)
+- [ ] Shared room/session registry so any instance can locate a room
+- [ ] `fly.toml` multi-machine + graceful drain (paused-persist owned rooms on shutdown)
+- [ ] Multi-instance load/soak test + per-machine capacity numbers
+- *Real recurring cost — gate behind actual concurrency demand.*
+
+---
+
 ## 📋 BACKLOG
 
 ### [B1] Poker (Texas Hold'em)
@@ -132,8 +177,8 @@ mock store first → Stripe later · sprites pre-generated offline (batch SD).
 ## 🔎 Nice-to-haves noticed during the MadLad build
 - Pick-2 / pick-3 black cards (currently single-blank only)
 - "Play again" from the game-over screen without recreating the room
-- Reconnect handling if a phone drops mid-round
+- Reconnect handling if a phone drops mid-round → absorbed into **[S1] / S0** (stable identity + reconnect)
 
 ---
 
-*Last updated: 2026-07-06 — added Card Platform & Monetization epic (E1–E9)*
+*Last updated: 2026-07-06 — added Card Platform (E1–E9) and Persistent Sessions, History & Scale (S0–S3) epics*
