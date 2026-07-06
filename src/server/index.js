@@ -19,6 +19,7 @@ const io = socketIo(server, {
 
 // Import game management modules
 const gameManager = require('../game/GameManager');
+const registry = require('../game/registry');
 
 const PORT = config.server.port;
 
@@ -71,7 +72,12 @@ app.get('/healthz', (req, res) => {
 
 // Routes
 app.get('/', (req, res) => {
-  res.render('host/index', { title: 'Ace Cast - Host' });
+  res.render('host/index', { title: 'Ace Cast - Host', games: registry.listGames() });
+});
+
+// Public list of playable games (for the host UI / future clients).
+app.get('/api/games', (req, res) => {
+  res.json({ games: registry.listGames() });
 });
 
 app.get('/player/:roomCode', (req, res) => {

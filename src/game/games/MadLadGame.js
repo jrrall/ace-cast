@@ -1,11 +1,11 @@
-const { BLACK_CARDS, WHITE_CARDS } = require('../data/cahCards');
+const { BLACK_CARDS, WHITE_CARDS } = require('../data/madladCards');
 
 const HAND_SIZE = 7;
 const DEFAULT_TARGET_SCORE = 5;
 const MIN_PLAYERS = 3;
 
 /**
- * Cards Against Humanity game engine.
+ * MadLad game engine.
  *
  * Flow per round:
  *   answering -> every non-judge submits one white card
@@ -17,7 +17,7 @@ const MIN_PLAYERS = 3;
  * Spectators (TV / host) receive getPublicState(), which never leaks hands
  * and keeps submissions anonymous until judging.
  */
-class CAHGame {
+class MadLadGame {
   static get MIN_PLAYERS() {
     return MIN_PLAYERS;
   }
@@ -25,7 +25,7 @@ class CAHGame {
   constructor(room, options = {}) {
     this.room = room;
     this.options = options;
-    this.gameType = 'cah';
+    this.gameType = 'madlad';
 
     this.drawPile = this.shuffle(WHITE_CARDS.slice());
     this.discardPile = [];
@@ -329,7 +329,7 @@ class CAHGame {
     const judge = this.state.players[this.state.judgeId];
 
     return {
-      gameType: 'cah',
+      gameType: 'madlad',
       phase,
       round: this.state.round,
       targetScore: this.state.targetScore,
@@ -383,4 +383,4 @@ class CAHGame {
   }
 }
 
-module.exports = CAHGame;
+module.exports = MadLadGame;

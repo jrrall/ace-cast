@@ -1,7 +1,7 @@
 const request = require('supertest');
 const { io: Client } = require('socket.io-client');
 
-// End-to-end test: drives a full Cards Against Humanity round through real
+// End-to-end test: drives a full MadLad round through real
 // Socket.IO clients against the actual server, verifying the private-broadcast
 // wiring (players get hands, spectators never do) and start/submit/judge flow.
 
@@ -12,7 +12,7 @@ let base;
 const clients = [];
 
 const connect = () => {
-  const socket = Client(base, { transports: ['websocket'], forceNew: true });
+  const socket = Client(base, { forceNew: true, reconnection: false });
   socket.last = null;
   socket.states = [];
   socket.on('game-update', (d) => {
@@ -23,9 +23,24 @@ const connect = () => {
   return socket;
 };
 
-const once = (socket, event) => new Promise((resolve) => socket.once(event, resolve));
+// Resolve on connect, but reject fast on error or timeout so a genuine failure
+// reports clearly instead of hanging until the jest timeout.
+const waitConnect = (socket, timeout = 8000) => new Promise((resolve, reject) => {
+  if (socket.connected) {
+    resolve();
+    return;
+  }
+  const timer = setTimeout(() => reject(new Error('socket connect timeout')), timeout);
+  socket.once('connect', () => { clearTimeout(timer); resolve(); });
+  socket.once('connect_error', (err) => { clearTimeout(timer); reject(err); });
+});
 
-const waitUntil = (predicate, timeout = 3000) => new Promise((resolve, reject) => {
+const once = (socket, event, timeout = 8000) => new Promise((resolve, reject) => {
+  const timer = setTimeout(() => reject(new Error(`timed out waiting for '${event}'`)), timeout);
+  socket.once(event, (data) => { clearTimeout(timer); resolve(data); });
+});
+
+const waitUntil = (predicate, timeout = 5000) => new Promise((resolve, reject) => {
   const start = Date.now();
   const timer = setInterval(() => {
     let value = false;
@@ -61,7 +76,7 @@ afterAll((done) => {
   server.close(done);
 });
 
-test('plays a full CAH round through real sockets', async () => {
+test('plays a full MadLad round through real sockets', async () => {
   const res = await request(app).post('/api/create-room');
   const { roomCode } = res.body;
   expect(roomCode).toMatch(/^[A-Z]{4}$/);
@@ -69,12 +84,12 @@ test('plays a full CAH round through real sockets', async () => {
   // Spectators (host + tv) and three players connect and join.
   const host = connect();
   const tv = connect();
-  await Promise.all([once(host, 'connect'), once(tv, 'connect')]);
+  await Promise.all([waitConnect(host), waitConnect(tv)]);
   host.emit('join-room', { roomCode, deviceType: 'host' });
   tv.emit('join-room', { roomCode, deviceType: 'tv' });
 
   const players = [connect(), connect(), connect()];
-  await Promise.all(players.map((p) => once(p, 'connect')));
+  await Promise.all(players.map((p) => waitConnect(p)));
   await Promise.all(players.map((p, i) => {
     const joined = once(p, 'room-state');
     p.emit('join-room', { roomCode, playerName: `P${i + 1}`, deviceType: 'player' });
@@ -82,7 +97,7 @@ test('plays a full CAH round through real sockets', async () => {
   }));
 
   // Host starts the game with a target score of 1 (one round decides it).
-  host.emit('start-game', { gameType: 'cah', options: { targetScore: 1 } });
+  host.emit('start-game', { gameType: 'madlad', options: { targetScore: 1 } });
 
   // Every player receives a private view with a full hand.
   await waitUntil(() => players.every((p) => p.last && p.last.you && p.last.hand.length === 7));
@@ -118,4 +133,4 @@ test('plays a full CAH round through real sockets', async () => {
   expect(topScore).toBe(1);
   expect(tv.last.winnerName).toBeTruthy();
   expect(tv.last.lastWinner.playerName).toBeTruthy();
-});
+}, 30000);

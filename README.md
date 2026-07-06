@@ -7,7 +7,7 @@ Turn any space into game night central! Ace Cast lets anyone join card games fro
 ## 🚀 Quick Start
 
 ### Prerequisites
-- Node.js 18+ 
+- Node.js 22+ 
 - A Chromecast device (or any device with a web browser for TV display)
 - Local WiFi network
 
@@ -426,7 +426,7 @@ MIT License - see [LICENSE](LICENSE) file for details.
 
 ### Coming Soon 🚧
 - [ ] Texas Hold'em poker game
-- [ ] Cards Against Humanity style game  
+- [ ] More party games (MadLad is live)  
 - [ ] Advanced player management
 - [ ] Game replay and statistics
 - [ ] Custom deck support

@@ -198,7 +198,7 @@ class TVController {
     }
 
     prettyGameType(type) {
-        if (type === 'cah') return 'Cards Against Humanity';
+        if (type === 'madlad') return 'MadLad';
         if (type === 'test') return 'Test Game';
         return type || 'Game';
     }
@@ -285,8 +285,8 @@ class TVController {
     updateGameContent(gameState) {
         if (!this.gameContent) return;
 
-        if (gameState.gameType === 'cah') {
-            this.gameContent.innerHTML = this.renderCAHContent(gameState);
+        if (gameState.gameType === 'madlad') {
+            this.gameContent.innerHTML = this.renderMadLadContent(gameState);
             return;
         }
 
@@ -308,39 +308,39 @@ class TVController {
         this.gameContent.innerHTML = content;
     }
 
-    renderCAHContent(state) {
+    renderMadLadContent(state) {
         const black = state.blackCard
-            ? `<div class="cah-black-card">${this.formatPrompt(state.blackCard)}</div>`
+            ? `<div class="madlad-black-card">${this.formatPrompt(state.blackCard)}</div>`
             : '';
         const czar = state.judgeName
-            ? `<div class="cah-czar">👑 Card Czar: ${this.esc(state.judgeName)}</div>`
+            ? `<div class="madlad-czar">👑 Card Czar: ${this.esc(state.judgeName)}</div>`
             : '';
 
         let body = '';
         if (state.phase === 'answering') {
-            body = `<div class="cah-status">${state.submittedCount}/${state.expectedCount} players have played</div>`;
+            body = `<div class="madlad-status">${state.submittedCount}/${state.expectedCount} players have played</div>`;
         } else if (state.phase === 'judging') {
             const cards = (state.submissions || [])
-                .map((s) => `<div class="cah-white-card tv">${this.esc(s.text)}</div>`)
+                .map((s) => `<div class="madlad-white-card tv">${this.esc(s.text)}</div>`)
                 .join('');
             body = `
-                <div class="cah-status">${this.esc(state.judgeName)} is choosing...</div>
-                <div class="cah-submissions">${cards}</div>
+                <div class="madlad-status">${this.esc(state.judgeName)} is choosing...</div>
+                <div class="madlad-submissions">${cards}</div>
             `;
         } else if ((state.phase === 'results' || state.phase === 'gameover') && state.lastWinner) {
             body = `
-                <div class="cah-winner-card">
-                    <div class="cah-white-card tv winner">${this.esc(state.lastWinner.text)}</div>
-                    <div class="cah-winner-name">🏆 ${this.esc(state.lastWinner.playerName)}</div>
+                <div class="madlad-winner-card">
+                    <div class="madlad-white-card tv winner">${this.esc(state.lastWinner.text)}</div>
+                    <div class="madlad-winner-name">🏆 ${this.esc(state.lastWinner.playerName)}</div>
                 </div>
             `;
         }
 
-        return `<div class="cah-board">${black}${czar}${body}</div>`;
+        return `<div class="madlad-board">${black}${czar}${body}</div>`;
     }
 
     formatPrompt(text) {
-        return this.esc(text).replace(/_{2,}/g, '<span class="cah-blank"></span>');
+        return this.esc(text).replace(/_{2,}/g, '<span class="madlad-blank"></span>');
     }
 
     esc(text) {
@@ -354,7 +354,7 @@ class TVController {
 
         this.scoreboard.innerHTML = '';
 
-        // CAH / new engines provide a sorted array of { id, name, score }.
+        // MadLad / new engines provide a sorted array of { id, name, score }.
         if (!Array.isArray(scores)) return;
 
         scores.forEach((entry) => {

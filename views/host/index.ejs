@@ -53,10 +53,11 @@
                     <div class="game-selection">
                         <label for="game-type">Choose Game:</label>
                         <select id="game-type">
-                            <option value="cah" selected>Cards Against Humanity</option>
-                            <option value="test">Test Game (Development)</option>
+                            <% games.forEach(function (game, i) { %>
+                                <option value="<%= game.id %>" data-min="<%= game.minPlayers %>" data-name="<%= game.name %>" <%= i === 0 ? 'selected' : '' %>><%= game.name %></option>
+                            <% }); %>
                         </select>
-                        <p class="help-text">Cards Against Humanity needs at least 3 players.</p>
+                        <p class="help-text" id="game-hint"></p>
                     </div>
                     <button id="start-game-btn" class="primary-btn" disabled>Start Game</button>
                     <button id="end-game-btn" class="secondary-btn" style="display: none;">End Game</button>
