@@ -354,3 +354,6 @@ CHANGELOG.md
 # Allow GitHub workflows
 !.github/
 !.github/workflows/
+
+# oh-my-claudecode local state
+.omc/

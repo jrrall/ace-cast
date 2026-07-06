@@ -25,19 +25,19 @@ npm install
 npm start
 ```
 
-The server will start on port 3001 and display connection URLs:
-- **Host Interface**: `http://localhost:3001` 
-- **Player Join**: `http://localhost:3001/player`
-- **TV Display**: `http://localhost:3001/tv/[ROOM_CODE]`
+The server will start on port 3000 and display connection URLs:
+- **Host Interface**: `http://localhost:3000` 
+- **Player Join**: `http://localhost:3000/player`
+- **TV Display**: `http://localhost:3000/tv/[ROOM_CODE]`
 
 ### Network Access (for phones/tablets)
 
 When you start the server, it will display network URLs like:
 ```
 📲 Network URLs (for phones/tablets):
-🌐 Network Host interface: http://192.168.1.160:3001
-📱 Network Player join: http://192.168.1.160:3001/player  
-📺 Network TV display: http://192.168.1.160:3001/tv/[ROOM_CODE]
+🌐 Network Host interface: http://192.168.1.160:3000
+📱 Network Player join: http://192.168.1.160:3000/player  
+📺 Network TV display: http://192.168.1.160:3000/tv/[ROOM_CODE]
 ```
 
 Players can use these network URLs to join from their phones on the same WiFi network.
@@ -286,8 +286,8 @@ For house parties and local gaming:
 1. **Ensure all devices on same WiFi network**
 2. **Start server**: `npm start`
 3. **Note the network IP**: Server displays network URLs on startup
-4. **Connect TV**: Navigate Chromecast to `http://[IP]:3001/tv/[ROOM_CODE]`
-5. **Share player link**: `http://[IP]:3001/player`
+4. **Connect TV**: Navigate Chromecast to `http://[IP]:3000/tv/[ROOM_CODE]`
+5. **Share player link**: `http://[IP]:3000/player`
 
 ### Production Deployment Options
 
@@ -307,7 +307,7 @@ For remote play capabilities:
 
 ```bash
 # Set environment variables
-PORT=3001
+PORT=3000
 NODE_ENV=production
 
 # Deploy with your preferred platform
@@ -447,4 +447,4 @@ MIT License - see [LICENSE](LICENSE) file for details.
 npm install && npm start
 ```
 
-Join the party at `http://localhost:3001` or scan the QR code to get started!
+Join the party at `http://localhost:3000` or scan the QR code to get started!

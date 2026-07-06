@@ -1,7 +1,5 @@
 const TestGame = require('./games/TestGame');
-// TODO: Add these when implemented
-// const PokerGame = require('./games/PokerGame');
-// const CAHGame = require('./games/CAHGame');
+const CAHGame = require('./games/CAHGame');
 
 class GameRoom {
   constructor(code) {
@@ -71,6 +69,13 @@ class GameRoom {
       throw new Error('Game is already active in this room');
     }
 
+    const normalizedType = gameType.toLowerCase();
+    const isCAH = normalizedType === 'cah' || normalizedType === 'cards-against-humanity';
+
+    if (isCAH && this.getActivePlayerCount() < CAHGame.MIN_PLAYERS) {
+      throw new Error(`Cards Against Humanity needs at least ${CAHGame.MIN_PLAYERS} players`);
+    }
+
     if (this.players.size < 1) {
       throw new Error('Not enough players to start game');
     }
@@ -80,24 +85,14 @@ class GameRoom {
     this.lastActivity = Date.now();
 
     // Initialize game engine based on game type
-    switch (gameType.toLowerCase()) {
-    case 'poker':
-    case 'texas-holdem': {
-      // TODO: Implement PokerGame - using TestGame for now
-      // this.gameEngine = new PokerGame(this, options);
-      this.gameEngine = new TestGame(this, options);
-      break;
-    }
+    switch (normalizedType) {
     case 'cards-against-humanity':
     case 'cah': {
-      // TODO: Implement CAHGame - using TestGame for now
-      // this.gameEngine = new CAHGame(this, options);
-      this.gameEngine = new TestGame(this, options);
+      this.gameEngine = new CAHGame(this, options);
       break;
     }
     case 'test':
     default: {
-      // Simple test game for development
       this.gameEngine = new TestGame(this, options);
       break;
     }
@@ -117,6 +112,21 @@ class GameRoom {
     this.isGameActive = false;
     this.gameType = null;
     this.lastActivity = Date.now();
+
+    // Determine the winner (if the engine tracks one) before cleanup.
+    const winnerId = this.gameEngine && typeof this.gameEngine.getWinnerId === 'function'
+      ? this.gameEngine.getWinnerId()
+      : null;
+
+    // Update player statistics: everyone who played gets a game, winner gets the win.
+    Array.from(this.players.values()).forEach((player) => {
+      if (player.isActive) {
+        player.stats.gamesPlayed += 1;
+        if (player.id === winnerId) {
+          player.stats.gamesWon += 1;
+        }
+      }
+    });
 
     if (this.gameEngine) {
       this.gameEngine.cleanup();
@@ -178,6 +188,7 @@ class GameRoom {
         id: p.id,
         name: p.name,
         isActive: p.isActive,
+        stats: p.stats,
       })),
     };
   }

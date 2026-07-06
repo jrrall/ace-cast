@@ -72,6 +72,21 @@ class HostController {
         this.socket.on('game-update', (data) => {
             this.handleGameUpdate(data);
         });
+
+        this.socket.on('game-ended', () => {
+            this.gameActive = false;
+            this.updateGameControls();
+            this.updateGameStatus('Game ended');
+        });
+
+        this.socket.on('error', (data) => {
+            const message = (data && data.message) || 'Something went wrong';
+            this.updateGameStatus(`⚠️ ${message}`);
+            // Re-enable controls so the host can retry (e.g. after "need 3 players").
+            if (!this.gameActive) {
+                this.updateGameControls();
+            }
+        });
     }
 
     async createRoom() {

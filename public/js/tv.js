@@ -95,6 +95,12 @@ class TVController {
         this.socket.on('game-update', (data) => {
             this.handleGameUpdate(data);
         });
+
+        this.socket.on('game-ended', () => {
+            this.gameState = null;
+            this.addActionToFeed('Game ended', 'game-start');
+            this.showLobbyScreen();
+        });
     }
 
     joinRoomAsTV() {
@@ -178,18 +184,23 @@ class TVController {
 
     handleGameStarted(data) {
         console.log('Game started:', data);
-        
-        this.gameState = data.gameState;
+
         this.gameStartTime = new Date();
         this.startGameTimer();
-        
-        if (data.gameType) {
-            this.gameType.textContent = data.gameType;
+
+        const label = this.prettyGameType(data.gameType);
+        if (this.gameType) {
+            this.gameType.textContent = label;
         }
-        
+
         this.showGameScreen();
-        this.updateGameDisplay(data.gameState);
-        this.addActionToFeed(`Game started: ${data.gameType}`, 'game-start');
+        this.addActionToFeed(`Game started: ${label}`, 'game-start');
+    }
+
+    prettyGameType(type) {
+        if (type === 'cah') return 'Cards Against Humanity';
+        if (type === 'test') return 'Test Game';
+        return type || 'Game';
     }
 
     handleGameUpdate(data) {
@@ -247,7 +258,12 @@ class TVController {
 
     updateGameDisplay(gameState) {
         if (!gameState) return;
-        
+
+        // Keep the game-type label in sync (e.g. for spectators joining mid-game)
+        if (gameState.gameType && this.gameType) {
+            this.gameType.textContent = this.prettyGameType(gameState.gameType);
+        }
+
         // Update game message
         if (gameState.message) {
             this.gameMessage.textContent = gameState.message;
@@ -268,12 +284,15 @@ class TVController {
 
     updateGameContent(gameState) {
         if (!this.gameContent) return;
-        
-        // This will be customized based on game type
+
+        if (gameState.gameType === 'cah') {
+            this.gameContent.innerHTML = this.renderCAHContent(gameState);
+            return;
+        }
+
+        // Generic fallback (e.g. test game)
         let content = '<div class="game-info">Game in progress...</div>';
-        
         if (gameState.gameType === 'test') {
-            // Special display for test game
             content = `
                 <div class="test-game-display">
                     <h3>Test Game</h3>
@@ -285,59 +304,66 @@ class TVController {
                     </div>
                 </div>
             `;
-        } else if (gameState.displayData) {
-            content = `<pre>${JSON.stringify(gameState.displayData, null, 2)}</pre>`;
-        } else if (gameState.currentRound) {
-            content = `
-                <div class="round-info">
-                    <h4>Round ${gameState.currentRound}</h4>
-                    <p>${gameState.roundDescription || ''}</p>
+        }
+        this.gameContent.innerHTML = content;
+    }
+
+    renderCAHContent(state) {
+        const black = state.blackCard
+            ? `<div class="cah-black-card">${this.formatPrompt(state.blackCard)}</div>`
+            : '';
+        const czar = state.judgeName
+            ? `<div class="cah-czar">👑 Card Czar: ${this.esc(state.judgeName)}</div>`
+            : '';
+
+        let body = '';
+        if (state.phase === 'answering') {
+            body = `<div class="cah-status">${state.submittedCount}/${state.expectedCount} players have played</div>`;
+        } else if (state.phase === 'judging') {
+            const cards = (state.submissions || [])
+                .map((s) => `<div class="cah-white-card tv">${this.esc(s.text)}</div>`)
+                .join('');
+            body = `
+                <div class="cah-status">${this.esc(state.judgeName)} is choosing...</div>
+                <div class="cah-submissions">${cards}</div>
+            `;
+        } else if ((state.phase === 'results' || state.phase === 'gameover') && state.lastWinner) {
+            body = `
+                <div class="cah-winner-card">
+                    <div class="cah-white-card tv winner">${this.esc(state.lastWinner.text)}</div>
+                    <div class="cah-winner-name">🏆 ${this.esc(state.lastWinner.playerName)}</div>
                 </div>
             `;
         }
-        
-        this.gameContent.innerHTML = content;
+
+        return `<div class="cah-board">${black}${czar}${body}</div>`;
+    }
+
+    formatPrompt(text) {
+        return this.esc(text).replace(/_{2,}/g, '<span class="cah-blank"></span>');
+    }
+
+    esc(text) {
+        const div = document.createElement('div');
+        div.textContent = text == null ? '' : String(text);
+        return div.innerHTML;
     }
 
     updateScoreboard(scores) {
         if (!this.scoreboard) return;
-        
+
         this.scoreboard.innerHTML = '';
-        
-        // Handle TestGame format where scores is part of gameState.players
-        if (this.gameState && this.gameState.players && !scores) {
-            scores = this.gameState.players;
-        }
-        
-        if (!scores) return;
-        
-        // Sort scores in descending order
-        const sortedScores = Object.entries(scores)
-            .sort(([,a], [,b]) => {
-                const scoreA = typeof a === 'object' ? (a.score || 0) : a;
-                const scoreB = typeof b === 'object' ? (b.score || 0) : b;
-                return scoreB - scoreA;
-            });
-        
-        sortedScores.forEach(([playerId, scoreData]) => {
-            const player = this.players.get(playerId);
-            let playerName, score;
-            
-            if (typeof scoreData === 'object') {
-                playerName = scoreData.name || (player ? player.name : 'Player');
-                score = scoreData.score || 0;
-            } else {
-                playerName = player ? player.name : 'Player';
-                score = scoreData;
-            }
-            
+
+        // CAH / new engines provide a sorted array of { id, name, score }.
+        if (!Array.isArray(scores)) return;
+
+        scores.forEach((entry) => {
             const scoreItem = document.createElement('div');
             scoreItem.className = 'tv-score-item slide-up';
             scoreItem.innerHTML = `
-                <div class="player-name">${playerName}</div>
-                <div class="score">${score}</div>
+                <div class="player-name">${this.esc(entry.name)}</div>
+                <div class="score">${entry.score}</div>
             `;
-            
             this.scoreboard.appendChild(scoreItem);
         });
     }

@@ -1,0 +1,13 @@
+node_modules
+npm-debug.log
+coverage
+.git
+.github
+.omc
+tests
+*.md
+!README.md
+.eslintrc.js
+.eslintignore
+.commitlintrc.json
+.releaserc.json
