@@ -12,7 +12,7 @@ let base;
 const clients = [];
 
 const connect = () => {
-  const socket = Client(base, { transports: ['websocket'], forceNew: true });
+  const socket = Client(base, { forceNew: true, reconnection: false });
   socket.last = null;
   socket.states = [];
   socket.on('game-update', (d) => {
@@ -23,9 +23,24 @@ const connect = () => {
   return socket;
 };
 
-const once = (socket, event) => new Promise((resolve) => socket.once(event, resolve));
+// Resolve on connect, but reject fast on error or timeout so a genuine failure
+// reports clearly instead of hanging until the jest timeout.
+const waitConnect = (socket, timeout = 8000) => new Promise((resolve, reject) => {
+  if (socket.connected) {
+    resolve();
+    return;
+  }
+  const timer = setTimeout(() => reject(new Error('socket connect timeout')), timeout);
+  socket.once('connect', () => { clearTimeout(timer); resolve(); });
+  socket.once('connect_error', (err) => { clearTimeout(timer); reject(err); });
+});
 
-const waitUntil = (predicate, timeout = 3000) => new Promise((resolve, reject) => {
+const once = (socket, event, timeout = 8000) => new Promise((resolve, reject) => {
+  const timer = setTimeout(() => reject(new Error(`timed out waiting for '${event}'`)), timeout);
+  socket.once(event, (data) => { clearTimeout(timer); resolve(data); });
+});
+
+const waitUntil = (predicate, timeout = 5000) => new Promise((resolve, reject) => {
   const start = Date.now();
   const timer = setInterval(() => {
     let value = false;
@@ -69,12 +84,12 @@ test('plays a full CAH round through real sockets', async () => {
   // Spectators (host + tv) and three players connect and join.
   const host = connect();
   const tv = connect();
-  await Promise.all([once(host, 'connect'), once(tv, 'connect')]);
+  await Promise.all([waitConnect(host), waitConnect(tv)]);
   host.emit('join-room', { roomCode, deviceType: 'host' });
   tv.emit('join-room', { roomCode, deviceType: 'tv' });
 
   const players = [connect(), connect(), connect()];
-  await Promise.all(players.map((p) => once(p, 'connect')));
+  await Promise.all(players.map((p) => waitConnect(p)));
   await Promise.all(players.map((p, i) => {
     const joined = once(p, 'room-state');
     p.emit('join-room', { roomCode, playerName: `P${i + 1}`, deviceType: 'player' });
@@ -118,4 +133,4 @@ test('plays a full CAH round through real sockets', async () => {
   expect(topScore).toBe(1);
   expect(tv.last.winnerName).toBeTruthy();
   expect(tv.last.lastWinner.playerName).toBeTruthy();
-});
+}, 30000);

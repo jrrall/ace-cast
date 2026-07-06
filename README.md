@@ -7,7 +7,7 @@ Turn any space into game night central! Ace Cast lets anyone join card games fro
 ## 🚀 Quick Start
 
 ### Prerequisites
-- Node.js 18+ 
+- Node.js 22+ 
 - A Chromecast device (or any device with a web browser for TV display)
 - Local WiFi network
 
