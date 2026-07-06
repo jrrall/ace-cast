@@ -1,3 +1,17 @@
+## 1.1.0 (2026-07-06)
+
+* Merge pull request #2 from jrrall/feat/cah-prototype-and-cloud-foundation ([9397659](https://github.com/jrrall/ace-cast/commit/9397659)), closes [#2](https://github.com/jrrall/ace-cast/issues/2)
+* feat: add kanban board and refactor files ([68557f1](https://github.com/jrrall/ace-cast/commit/68557f1))
+* feat: add kanban board with feature backlog ([25c123d](https://github.com/jrrall/ace-cast/commit/25c123d))
+* feat: enable poker and CAH games in host UI - QR code player join working ([05a0402](https://github.com/jrrall/ace-cast/commit/05a0402))
+* feat: implement complete CAHGame engine with judge rotation and voting ([184851e](https://github.com/jrrall/ace-cast/commit/184851e))
+* feat: implement complete PokerGame engine with betting rounds and hand evaluation ([a905845](https://github.com/jrrall/ace-cast/commit/a905845))
+* feat: implement real player statistics - gamesPlayed and gamesWon now increment on game end ([80353cc](https://github.com/jrrall/ace-cast/commit/80353cc))
+* feat: playable CAH prototype and cloud-deployable backend ([5e025a2](https://github.com/jrrall/ace-cast/commit/5e025a2))
+* docs: update kanban board with completed core features - games, stats, and QR code ready ([97c88b0](https://github.com/jrrall/ace-cast/commit/97c88b0))
+* docs: update kanban board with completed poker feature ([12a5a66](https://github.com/jrrall/ace-cast/commit/12a5a66))
+* refactor: wire up BaseGameEngine - PokerGame and CAHGame now extend it properly ([3ade809](https://github.com/jrrall/ace-cast/commit/3ade809))
+
 ## 1.0.0 (2025-09-27)
 
 * fix: fixes tests temporarily ([7a26b56](https://github.com/jrrall/ace-cast/commit/7a26b56))
