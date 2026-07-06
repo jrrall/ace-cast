@@ -31,7 +31,7 @@ const GAMES = [
     id: 'test',
     name: 'Test Game',
     description: 'Developer sanity-check game.',
-    minPlayers: 1,
+    minPlayers: TestGame.MIN_PLAYERS,
     maxPlayers: config.room.maxPlayers,
     engine: TestGame,
     dev: true,

@@ -1,3 +1,4 @@
+const BaseGame = require('./BaseGame');
 const { BLACK_CARDS, WHITE_CARDS } = require('../data/madladCards');
 
 const HAND_SIZE = 7;
@@ -17,14 +18,13 @@ const MIN_PLAYERS = 3;
  * Spectators (TV / host) receive getPublicState(), which never leaks hands
  * and keeps submissions anonymous until judging.
  */
-class MadLadGame {
+class MadLadGame extends BaseGame {
   static get MIN_PLAYERS() {
     return MIN_PLAYERS;
   }
 
   constructor(room, options = {}) {
-    this.room = room;
-    this.options = options;
+    super(room, options);
     this.gameType = 'madlad';
 
     this.drawPile = this.shuffle(WHITE_CARDS.slice());

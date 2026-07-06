@@ -1,4 +1,5 @@
 const registry = require('./registry');
+const { validateEngine } = require('./contract');
 
 class GameRoom {
   constructor(code) {
@@ -72,6 +73,10 @@ class GameRoom {
     if (!game) {
       throw new Error(`Unknown game type: ${gameType}`);
     }
+
+    // Fail loudly if the engine does not satisfy the contract, before we try
+    // to instantiate and drive it.
+    validateEngine(game.engine, game.id);
 
     if (this.getActivePlayerCount() < game.minPlayers) {
       throw new Error(`${game.name} needs at least ${game.minPlayers} players`);
