@@ -11,6 +11,11 @@
     "test:coverage": "jest --coverage",
     "lint": "eslint src/ --ext .js",
     "lint:fix": "eslint src/ --ext .js --fix",
+    "migrate": "knex --knexfile src/db/knexfile.js migrate:latest",
+    "migrate:make": "knex --knexfile src/db/knexfile.js migrate:make",
+    "migrate:rollback": "knex --knexfile src/db/knexfile.js migrate:rollback",
+    "seed:make": "knex --knexfile src/db/knexfile.js seed:make",
+    "seed:run": "knex --knexfile src/db/knexfile.js seed:run",
     "semantic-release": "semantic-release"
   },
   "keywords": [
@@ -26,9 +31,12 @@
     "node": ">=22.0.0"
   },
   "dependencies": {
+    "better-sqlite3": "^12.11.1",
     "cors": "^2.8.5",
     "ejs": "^3.1.10",
     "express": "^5.1.0",
+    "knex": "^3.3.0",
+    "pg": "^8.22.0",
     "qrcode": "^1.5.4",
     "socket.io": "^4.8.1",
     "uuid": "^13.0.0"
