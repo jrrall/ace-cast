@@ -1,3 +1,7 @@
+## <small>1.5.1 (2026-07-07)</small>
+
+* docs: revise F5/F6 as iterable "table's sense of humor" card-gen loop (#16) ([fbd6dfc](https://github.com/jrrall/ace-cast/commit/fbd6dfc)), closes [#16](https://github.com/jrrall/ace-cast/issues/16)
+
 ## 1.5.0 (2026-07-07)
 
 * Merge F1: card outcome telemetry ([2f49624](https://github.com/jrrall/ace-cast/commit/2f49624))
