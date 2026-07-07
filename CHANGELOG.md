@@ -1,3 +1,7 @@
+## 1.4.0 (2026-07-07)
+
+* feat(db): seed madlad-core default pack from madladCards.js (E2.2) (#10) ([a4384e4](https://github.com/jrrall/ace-cast/commit/a4384e4)), closes [#10](https://github.com/jrrall/ace-cast/issues/10)
+
 ## <small>1.3.1 (2026-07-07)</small>
 
 * docs: groom Card & Hand Game-Feel ("Juice") epic (J1–J7) (#7) ([72b7a58](https://github.com/jrrall/ace-cast/commit/72b7a58)), closes [#7](https://github.com/jrrall/ace-cast/issues/7)
