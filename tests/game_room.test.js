@@ -65,6 +65,8 @@ describe('GameRoom', () => {
         socket: mockSocket,
         joinedAt: expect.any(Number),
         isActive: true,
+        connected: true,
+        disconnectTimer: null,
         hand: [],
         stats: {
           gamesPlayed: 0,

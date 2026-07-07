@@ -6,17 +6,96 @@ class PlayerController {
         this.playerId = null;
         this.gameState = null;
         this.connected = false;
-        
+
+        // Durable anonymous identity in a first-party cookie. Survives reloads
+        // and reconnects; it's both the reconnect key and the telemetry visitor id.
+        this.clientId = this.getClientId();
+
         this.initializeElements();
         this.bindEvents();
         this.initializeSocket();
-        
+
         // Auto-fill room code if provided in URL
         const urlParams = new URLSearchParams(window.location.search);
         const roomCodeFromUrl = urlParams.get('room') || this.extractRoomCodeFromPath();
         if (roomCodeFromUrl) {
             this.roomCodeInput.value = roomCodeFromUrl.toUpperCase();
         }
+
+        // Restore a prior session (name + room) so a reload can rejoin the game
+        // in progress. Prefill the form regardless; only arm auto-rejoin when the
+        // saved room matches the room we're pointed at (don't hijack a new code).
+        const saved = this.loadSession();
+        if (saved.playerName) {
+            this.playerName = saved.playerName;
+            this.playerNameInput.value = saved.playerName;
+        }
+        if (saved.roomCode && !this.roomCodeInput.value) {
+            this.roomCodeInput.value = saved.roomCode;
+        }
+        const targetRoom = (this.roomCodeInput.value || '').toUpperCase();
+        if (saved.playerName && saved.roomCode && saved.roomCode === targetRoom) {
+            this.roomCode = saved.roomCode;
+        }
+    }
+
+    // ---- Identity + session persistence -----------------------------------
+
+    getClientId() {
+        let id = this.readCookie('acecast_cid');
+        if (!id) {
+            id = this.uuid();
+            this.writeCookie('acecast_cid', id, 365);
+        }
+        return id;
+    }
+
+    uuid() {
+        if (window.crypto && crypto.randomUUID) return crypto.randomUUID();
+        // crypto.randomUUID needs a secure context; plain-http LAN uses this path.
+        return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+            const r = (Math.random() * 16) | 0;
+            const v = c === 'x' ? r : (r & 0x3) | 0x8;
+            return v.toString(16);
+        });
+    }
+
+    readCookie(name) {
+        const match = document.cookie.match(new RegExp('(?:^|; )' + name + '=([^;]*)'));
+        return match ? decodeURIComponent(match[1]) : null;
+    }
+
+    writeCookie(name, value, days) {
+        const maxAge = days * 24 * 60 * 60;
+        document.cookie = `${name}=${encodeURIComponent(value)}; path=/; max-age=${maxAge}; SameSite=Lax`;
+    }
+
+    persistSession() {
+        try {
+            localStorage.setItem('acecast_session', JSON.stringify({
+                playerName: this.playerName,
+                roomCode: this.roomCode,
+            }));
+        } catch (e) {
+            // Storage blocked (private mode) — live-session reconnect still works.
+        }
+    }
+
+    loadSession() {
+        try {
+            return JSON.parse(localStorage.getItem('acecast_session')) || {};
+        } catch (e) {
+            return {};
+        }
+    }
+
+    emitJoin() {
+        this.socket.emit('join-room', {
+            roomCode: this.roomCode,
+            playerName: this.playerName,
+            deviceType: 'player',
+            clientId: this.clientId,
+        });
     }
     
     extractRoomCodeFromPath() {
@@ -88,6 +167,11 @@ class PlayerController {
             console.log('Connected to server');
             this.connected = true;
             this.updateConnectionStatus('Connected', 'connected');
+            // (Re)join automatically: first connect with a restored session, or a
+            // transport reconnect after a blip. The server restores our held seat.
+            if (this.playerName && this.roomCode) {
+                this.emitJoin();
+            }
         });
 
         this.socket.on('disconnect', () => {
@@ -114,6 +198,11 @@ class PlayerController {
         });
 
         this.socket.on('player-left', (data) => {
+            this.handlePlayerLeft(data);
+        });
+
+        this.socket.on('player-disconnected', (data) => {
+            // A player dropped but their seat is held; just refresh the count.
             this.handlePlayerLeft(data);
         });
 
@@ -147,16 +236,15 @@ class PlayerController {
         
         this.playerName = playerName;
         this.roomCode = roomCode;
-        
+        this.playerId = this.clientId;
+        // Remember for reload/reconnect auto-rejoin.
+        this.persistSession();
+
         // Disable form while joining
         this.joinForm.querySelector('button').disabled = true;
         this.joinForm.querySelector('button').textContent = 'Joining...';
-        
-        this.socket.emit('join-room', {
-            roomCode: roomCode,
-            playerName: playerName,
-            deviceType: 'player'
-        });
+
+        this.emitJoin();
     }
 
     handleRoomState(data) {
@@ -164,13 +252,12 @@ class PlayerController {
             this.roomCode = data.roomCode;
             this.currentRoomCode.textContent = data.roomCode;
             this.roomInfo.style.display = 'block';
-            
-            // Set player ID to socket ID if not already set
-            if (!this.playerId) {
-                this.playerId = this.socket.id;
-                console.log('Player ID set to:', this.playerId);
-            }
-            
+
+            // Our identity is the stable clientId (matches server-side player ids),
+            // so "(You)" highlighting and win detection survive reconnects.
+            this.playerId = this.clientId;
+            this.persistSession();
+
             // Update players list
             this.updatePlayersList(data.players || []);
             

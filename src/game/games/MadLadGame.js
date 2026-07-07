@@ -279,10 +279,57 @@ class MadLadGame extends BaseGame {
     if (!player) return;
     player.isActive = false;
 
-    // Return any un-submitted hand to the discard pile.
+    // Permanent departure: return any un-submitted hand to the discard pile.
     this.discardPile.push(...player.hand);
     player.hand = [];
 
+    this.reflowAfterDeparture(playerId);
+  }
+
+  /**
+   * Temporary disconnect: pause the player (so a round can't stall waiting on a
+   * dead socket) but KEEP their hand, score, and submission so a reconnect
+   * within the grace window restores them exactly. Mirrors handlePlayerLeave's
+   * round bookkeeping, minus discarding the hand.
+   */
+  handlePlayerDisconnect(playerId) {
+    const player = this.state.players[playerId];
+    if (!player) return;
+    player.isActive = false;
+    this.reflowAfterDeparture(playerId);
+  }
+
+  /**
+   * A held seat comes back online: resume participation, top the hand up in case
+   * rounds advanced while away, and clear a stale "submitted" flag left over
+   * from a round that ended during the absence.
+   */
+  handlePlayerReconnect(playerId) {
+    const player = this.state.players[playerId];
+    if (!player) return;
+    player.isActive = true;
+    this.refillHand(player);
+
+    // If nothing in the current round's submissions is theirs, they have not
+    // submitted THIS round — drop any leftover flag so they can play again.
+    const hasLiveSubmission = this.state.submissions.some((s) => s.playerId === playerId);
+    if (!hasLiveSubmission) player.submittedCardId = null;
+
+    if (this.state.phase === 'waiting') {
+      const activeIds = this.getActiveIds();
+      if (activeIds.length >= MIN_PLAYERS) this.startRound(true);
+    } else if (this.state.phase === 'answering') {
+      // Their return re-opens a slot; re-evaluate whether the round can proceed.
+      this.maybeAdvanceToJudging();
+    }
+  }
+
+  /**
+   * Shared round bookkeeping after a player stops participating (left OR
+   * disconnected): fall back to waiting if too few remain, otherwise keep the
+   * round moving — reassigning the judge if the departed player held that seat.
+   */
+  reflowAfterDeparture(playerId) {
     const activeIds = this.getActiveIds();
     if (activeIds.length < MIN_PLAYERS) {
       this.state.phase = 'waiting';
