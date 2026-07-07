@@ -218,10 +218,9 @@ the playtest** · generation runs on **your own models** (model-agnostic).
 - [ ] `/healthz` DB ok; play a real prod game sourced from the DB; update `DEPLOY.md`
 - Depends on **E2.3 merged**
 
-### [F1] Card outcome telemetry — `M`
-- [ ] On `pick-winner`, persist submitted card ids + which won (+ the black card)
-- [ ] `card_stats` counters (plays/wins) or append-only `card_events`; written in the
-      server layer, never the engine
+### [F1] ✅ Card outcome telemetry *(shipped — 1.5.0)* — `M`
+- [x] On `pick-winner`, persist submitted card ids + which won (via `MadLadGame.getLastRoundOutcome()`)
+- [x] `card_stats` counters (plays/wins), upsert-increment; written in the server layer, engine stays pure
 
 ### [F2] Card flagging — `M`
 - [ ] `card_flags` (card_id, reason `not_funny`|`broken`, flagger_id); unique per flagger
