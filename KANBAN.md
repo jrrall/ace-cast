@@ -63,18 +63,19 @@ mock store first → Stripe later · sprites pre-generated offline (batch SD).
 
 **Build order:** `E1 → E2 → {E3, E6}` and `E1 → E4 → E5 → E6`; E7/E8 later.
 
-### [E1] Persistence foundation *(blocks everything)* — `M`
-- [ ] Dual-dialect data layer: SQLite (local) + Postgres (prod), one thin repository
-- [ ] Migration runner + `npm run migrate`; `DATABASE_URL` config; pooled connection
-- [ ] Tests on in-memory SQLite; CI job proves Postgres parity
-- [ ] Open Q: Knex (query builder) vs. `better-sqlite3`+`pg` — decide & document
+### [E1] ✅ Persistence foundation *(shipped — 1.4.0)* — `M`
+- [x] Dual-dialect data layer: SQLite (local) + Postgres (prod), one thin repository
+- [x] Migration runner + `npm run migrate`; `DATABASE_URL` config; pooled connection
+- [x] Tests on in-memory / temp-file SQLite
+- [x] Decided: **Knex** (query builder + migrations/seeds)
+- [ ] ⏳ Remaining: CI job proving Postgres parity (still outstanding)
 
-### [E2] Card content database *(needs E1)* — `M`
-- [ ] `packs` + `cards` schema with **tags + maturity**; hot-path indexes
-- [ ] Idempotent seed of today's `madladCards.js` as the free `madlad-core` pack
-- [ ] `DeckService.buildDeck({ packIds, maturityMax })`; engine takes an **injected**
-      deck (stays pure/testable) instead of importing the card file
-- [ ] Existing `madlad_game.test.js` stays green on a fixture deck
+### [E2] ✅ Card content database *(shipped — 1.4.0)* — `M`
+- [x] `packs` + `cards` + `tags`/`pack_tags` schema (maturity int 0–3); hot-path indexes
+- [x] Idempotent seed of `madladCards.js` as the free `madlad-core` pack
+- [x] `DeckService.buildDeck({ packIds, maturityMax })`; engine takes an **injected** deck
+- [x] `MadLadGame` no longer imports the card file; cards flow as `{id,text}` objects
+- [x] `madlad_game.test.js` green on a fixture deck; full round plays from the DB (e2e)
 
 ### [E3] Sprite graphics on cards *(needs E2)* — `M`
 - [ ] `assets` table + storage (local dir → object storage in prod); `≤256²` sprites
@@ -130,8 +131,8 @@ concurrency demands it).
 
 ### [S1] Persistent & resumable sessions *(needs E1 + S0)* — `L`
 - [ ] `sessions` + snapshot schema (status, versioned serialized state)
-- [ ] Extend the engine contract with optional `serialize()` / `static restore()` (opt-in,
-      additive; reuses the C6 compliance harness) — implement for MadLad + Test
+- [x] ✅ Engine contract: optional `serialize()` / `static restore()` + `contract.isResumable()`
+      implemented for MadLad + Test (shipped early in E2.3b; round-trip tests pass)
 - [ ] Write-through snapshot after each action (async, never blocks gameplay)
 - [ ] Lazy rehydrate a room on re-access; re-attach reconnecting players to their seats
 - [ ] Reconnect grace window; paused-session TTL → abandoned
@@ -268,4 +269,4 @@ the playtest** · generation runs on **your own models** (model-agnostic).
 
 ---
 
-*Last updated: 2026-07-06 — added Card Platform (E1–E9), Persistent Sessions & Scale (S0–S3), Card & Hand Game-Feel (J1–J7), and Playtest Feedback Loop (F0–F6) epics*
+*Last updated: 2026-07-06 — reconciled: E1 + E2 shipped (1.4.0), S1 serialize/restore done in E2.3b. Epics on the board: Card Platform (E1–E9), Persistent Sessions & Scale (S0–S3), Card & Hand Game-Feel (J1–J7), Playtest Feedback Loop (F0–F6).*
