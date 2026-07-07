@@ -4,8 +4,13 @@ FROM node:22-alpine
 WORKDIR /app
 
 # Install production dependencies only (dev deps like jest are skipped).
+# better-sqlite3 is a native addon; on Alpine (musl) it may need to compile, so
+# add build tools just for the install and drop them afterwards to stay slim.
+# (pg is pure JS. Prod uses Postgres, but better-sqlite3 is still installed.)
 COPY package*.json ./
-RUN npm ci --omit=dev
+RUN apk add --no-cache --virtual .build-deps python3 make g++ \
+  && npm ci --omit=dev \
+  && apk del .build-deps
 
 # Copy the application source.
 COPY . .

@@ -20,8 +20,32 @@ work; a small container VM will.
 | `ALLOWED_ORIGINS` | `*` | Comma-separated CORS allowlist, e.g. `https://ace-cast.fly.dev`. Leave `*` while testing. |
 | `MAX_PLAYERS_PER_ROOM` | `12` | Cap on players per room. |
 | `MAX_ROOMS` | `500` | Cap on concurrent rooms (capacity guard). |
+| `DATABASE_URL` | `sqlite://./data/ace-cast.db` | DB connection. **Local defaults to a SQLite file (zero setup); production should point at Postgres** (see Database below). |
+| `DB_MIGRATE_ON_BOOT` | `true` | Run migrations automatically on boot. Leave `true` for single-instance deploys. |
 
-Health check endpoint: `GET /healthz` → `{ "status": "ok", ... }`.
+Health check endpoint: `GET /healthz` → `{ "status": "ok", "db": true, "rooms": N, "uptime": … }`.
+It now **probes the database** and returns **503** (`"status": "degraded"`) if the DB is
+unreachable, so platform health checks catch a broken DB connection.
+
+## Database (Postgres in production)
+
+Cards and content live in a database. **Locally you need nothing** — it defaults to a
+SQLite file under `data/` (gitignored). **In production, use Postgres.** The server
+**migrates and seeds on boot** (`start()` runs `migrate` + the `madlad-core` seed), so
+there is no separate migration step — just give it a `DATABASE_URL`.
+
+### Fly Postgres (one-time)
+```bash
+fly postgres create --name ace-cast-db        # create a managed Postgres cluster
+fly postgres attach ace-cast-db --app <your-app>   # sets the DATABASE_URL secret on the app
+fly deploy                                     # boot migrates + seeds madlad-core
+```
+Verify after deploy: `curl https://<your-app>.fly.dev/healthz` → `"db": true`, and start a
+real game (its deck is sourced from the DB).
+
+> Single always-on instance (see the scaling note above) means SQLite would technically
+> work in prod too, but Postgres is the supported path — it survives machine replacement
+> and is the target for the sessions/telemetry work.
 
 ## Option A — Fly.io (recommended, cheapest always-on)
 
