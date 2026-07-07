@@ -1,3 +1,8 @@
+## 1.3.0 (2026-07-07)
+
+* feat(cards): give the MadLad deck more bite (#5) ([41d3674](https://github.com/jrrall/ace-cast/commit/41d3674)), closes [#5](https://github.com/jrrall/ace-cast/issues/5)
+* Docs/madlad card platform backlog (#6) ([f4ce1d0](https://github.com/jrrall/ace-cast/commit/f4ce1d0)), closes [#6](https://github.com/jrrall/ace-cast/issues/6)
+
 ## 1.2.0 (2026-07-06)
 
 * Merge pull request #4 from jrrall/chore/game-registry-and-madlad ([c8c3cf6](https://github.com/jrrall/ace-cast/commit/c8c3cf6)), closes [#4](https://github.com/jrrall/ace-cast/issues/4)
