@@ -1,3 +1,8 @@
+## 1.5.0 (2026-07-07)
+
+* Merge F1: card outcome telemetry ([2f49624](https://github.com/jrrall/ace-cast/commit/2f49624))
+* feat: card outcome telemetry (F1) ([d5799e5](https://github.com/jrrall/ace-cast/commit/d5799e5))
+
 ## <small>1.4.1 (2026-07-07)</small>
 
 * docs: groom Playtest Feedback Loop epic (F0–F6) (#12) ([0202ecd](https://github.com/jrrall/ace-cast/commit/0202ecd)), closes [#12](https://github.com/jrrall/ace-cast/issues/12)
