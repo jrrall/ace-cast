@@ -257,9 +257,12 @@ class PlayerController {
     renderMadLad(state) {
         const you = state.you || {};
         this.gameStatus.textContent = `Round ${state.round} · First to ${state.targetScore}`;
-        this.gameMessage.innerHTML = state.blackCard
-            ? `<div class="madlad-black-card">${this.formatPrompt(state.blackCard)}</div>`
-            : '';
+        this.gameMessage.innerHTML = '';
+        if (state.blackCard) {
+            this.gameMessage.appendChild(
+                window.CardRender.renderCard({ kind: 'prompt', text: state.blackCard }, { variant: 'phone' }),
+            );
+        }
 
         this.playerArea.innerHTML = '';
 
@@ -352,10 +355,7 @@ class PlayerController {
     // ---- Small DOM helpers ------------------------------------------------
 
     whiteCard(text) {
-        const el = document.createElement('button');
-        el.className = 'madlad-white-card';
-        el.textContent = text;
-        return el;
+        return window.CardRender.renderCard({ kind: 'answer', text }, { variant: 'hand', as: 'button' });
     }
 
     banner(text) {
@@ -372,14 +372,8 @@ class PlayerController {
         return el;
     }
 
-    formatPrompt(text) {
-        return this.esc(text).replace(/_{2,}/g, '<span class="madlad-blank">&nbsp;&nbsp;&nbsp;</span>');
-    }
-
     esc(text) {
-        const div = document.createElement('div');
-        div.textContent = text == null ? '' : String(text);
-        return div.innerHTML;
+        return window.CardRender.esc(text);
     }
 
     sendAction(type, data = {}) {

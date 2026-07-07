@@ -1,0 +1,160 @@
+/* ==========================================================================
+   Shared card design system
+   Used by both the TV (public/js/tv.js) and phone (public/js/player.js)
+   clients via the shared renderer (public/js/card-render.js). Minimalist,
+   high-contrast, CAH-style: black prompt cards / white answer cards.
+   ========================================================================== */
+
+.card {
+    --card-radius: 16px;
+    --card-font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    font-family: var(--card-font);
+    border-radius: var(--card-radius);
+    text-align: left;
+    line-height: 1.35;
+    -webkit-font-smoothing: antialiased;
+    border: none;
+    margin: 0;
+}
+
+.card__inner {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    width: 100%;
+    height: 100%;
+}
+
+/* Reserved for future per-card sprite art (E3). Empty/hidden for now so the
+   text-only card face stays clean; a future pass can un-hide + size this. */
+.card__sprite-slot {
+    display: none;
+}
+
+.card__text {
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+
+.card__blank {
+    display: inline-block;
+    min-width: 1.6em;
+    margin: 0 0.15em;
+    border-bottom: 3px solid currentColor;
+}
+
+/* ---- Prompt (black) card ------------------------------------------------ */
+.card--prompt {
+    background: #0d0d0f;
+    color: #fdfdfd;
+    font-weight: 700;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+}
+
+/* ---- Answer (white) card ------------------------------------------------ */
+.card--answer {
+    background: #fdfdfd;
+    color: #111;
+    font-weight: 600;
+    border: 1px solid rgba(0, 0, 0, 0.08);
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.18);
+    cursor: default;
+}
+
+button.card {
+    cursor: pointer;
+    text-align: left;
+    appearance: none;
+    -webkit-appearance: none;
+    background-color: transparent;
+    transition: transform 0.12s ease, box-shadow 0.12s ease;
+}
+
+button.card--answer:hover,
+button.card--answer:active {
+    transform: translateY(-3px);
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.28);
+}
+
+/* Winner highlight, shared across TV + phone. */
+.card--winner {
+    outline: 5px solid #ffd166;
+    outline-offset: 2px;
+}
+
+/* ---- Card back (branded, for future use — e.g. face-down hands) -------- */
+.card--back {
+    background: repeating-linear-gradient(
+        135deg,
+        #1c1c22,
+        #1c1c22 10px,
+        #232330 10px,
+        #232330 20px
+    );
+    border: 2px solid #34344a;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.card--back::after {
+    content: "AC";
+    font-family: var(--card-font);
+    font-weight: 800;
+    letter-spacing: 0.05em;
+    color: rgba(255, 255, 255, 0.55);
+    font-size: 1.4em;
+}
+
+/* ---- Sizing variants ----------------------------------------------------
+   tv    - big board display, readable across a room
+   phone - the current prompt shown at the top of the phone screen
+   hand  - smaller tap-target cards inside the hand/submission grid
+   ------------------------------------------------------------------------- */
+
+.card--tv.card--prompt {
+    padding: 40px 36px;
+    font-size: 2.2em;
+    max-width: 900px;
+}
+
+.card--tv.card--answer {
+    padding: 26px 22px;
+    font-size: 1.5em;
+    max-width: 320px;
+    min-width: 200px;
+    text-align: center;
+}
+
+.card--tv.card--answer .card__text {
+    text-align: center;
+}
+
+.card--phone.card--prompt {
+    padding: 22px 18px;
+    font-size: 1.25em;
+    min-height: 90px;
+}
+
+.card--hand.card--answer {
+    padding: 16px 12px;
+    font-size: 1em;
+    min-height: 80px;
+    width: 100%;
+}
+
+@media (max-width: 480px) {
+    .card--tv.card--prompt {
+        font-size: 1.4em;
+        padding: 24px 20px;
+    }
+
+    .card--tv.card--answer {
+        font-size: 1.1em;
+        padding: 18px 16px;
+    }
+}

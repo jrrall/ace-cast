@@ -310,7 +310,7 @@ class TVController {
 
     renderMadLadContent(state) {
         const black = state.blackCard
-            ? `<div class="madlad-black-card">${this.formatPrompt(state.blackCard)}</div>`
+            ? window.CardRender.renderCard({ kind: 'prompt', text: state.blackCard }, { variant: 'tv' }).outerHTML
             : '';
         const czar = state.judgeName
             ? `<div class="madlad-czar">👑 Card Czar: ${this.esc(state.judgeName)}</div>`
@@ -321,16 +321,20 @@ class TVController {
             body = `<div class="madlad-status">${state.submittedCount}/${state.expectedCount} players have played</div>`;
         } else if (state.phase === 'judging') {
             const cards = (state.submissions || [])
-                .map((s) => `<div class="madlad-white-card tv">${this.esc(s.text)}</div>`)
+                .map((s) => window.CardRender.renderCard({ kind: 'answer', text: s.text }, { variant: 'tv' }).outerHTML)
                 .join('');
             body = `
                 <div class="madlad-status">${this.esc(state.judgeName)} is choosing...</div>
                 <div class="madlad-submissions">${cards}</div>
             `;
         } else if ((state.phase === 'results' || state.phase === 'gameover') && state.lastWinner) {
+            const winnerCard = window.CardRender.renderCard(
+                { kind: 'answer', text: state.lastWinner.text },
+                { variant: 'tv', winner: true },
+            ).outerHTML;
             body = `
                 <div class="madlad-winner-card">
-                    <div class="madlad-white-card tv winner">${this.esc(state.lastWinner.text)}</div>
+                    ${winnerCard}
                     <div class="madlad-winner-name">🏆 ${this.esc(state.lastWinner.playerName)}</div>
                 </div>
             `;
@@ -339,14 +343,8 @@ class TVController {
         return `<div class="madlad-board">${black}${czar}${body}</div>`;
     }
 
-    formatPrompt(text) {
-        return this.esc(text).replace(/_{2,}/g, '<span class="madlad-blank"></span>');
-    }
-
     esc(text) {
-        const div = document.createElement('div');
-        div.textContent = text == null ? '' : String(text);
-        return div.innerHTML;
+        return window.CardRender.esc(text);
     }
 
     updateScoreboard(scores) {
