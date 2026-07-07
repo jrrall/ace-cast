@@ -1,3 +1,8 @@
+## <small>1.4.1 (2026-07-07)</small>
+
+* docs: groom Playtest Feedback Loop epic (F0–F6) (#12) ([0202ecd](https://github.com/jrrall/ace-cast/commit/0202ecd)), closes [#12](https://github.com/jrrall/ace-cast/issues/12)
+* Feat/e2.3 deck service (#11) ([43249a2](https://github.com/jrrall/ace-cast/commit/43249a2)), closes [#11](https://github.com/jrrall/ace-cast/issues/11)
+
 ## 1.4.0 (2026-07-07)
 
 * feat(db): seed madlad-core default pack from madladCards.js (E2.2) (#10) ([a4384e4](https://github.com/jrrall/ace-cast/commit/a4384e4)), closes [#10](https://github.com/jrrall/ace-cast/issues/10)
