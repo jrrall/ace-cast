@@ -1,5 +1,4 @@
 const BaseGame = require('./BaseGame');
-const { BLACK_CARDS, WHITE_CARDS } = require('../data/madladCards');
 
 const HAND_SIZE = 7;
 const DEFAULT_TARGET_SCORE = 5;
@@ -17,6 +16,12 @@ const MIN_PLAYERS = 3;
  * Each player receives a private view (their hand) via getStateForPlayer().
  * Spectators (TV / host) receive getPublicState(), which never leaks hands
  * and keeps submissions anonymous until judging.
+ *
+ * The deck is *injected* via `options.deck` ({ prompts:[{id,text,blanks}],
+ * answers:[{id,text}] }) — the engine never touches the DB. Cards are carried
+ * as objects internally (id + text) so ids survive play (E3 sprites, snapshots),
+ * but the wire format (getPublicState/getStateForPlayer) still emits plain text
+ * for backward compatibility with the current client.
  */
 class MadLadGame extends BaseGame {
   static get MIN_PLAYERS() {
@@ -27,9 +32,12 @@ class MadLadGame extends BaseGame {
     super(room, options);
     this.gameType = 'madlad';
 
-    this.drawPile = this.shuffle(WHITE_CARDS.slice());
+    const deck = options.deck || { prompts: [], answers: [] };
+    // Keep the full prompt list so the black pile can reshuffle when exhausted.
+    this.allPrompts = deck.prompts.slice();
+    this.drawPile = this.shuffle(deck.answers.slice());
     this.discardPile = [];
-    this.blackPile = this.shuffle(BLACK_CARDS.slice());
+    this.blackPile = this.shuffle(deck.prompts.slice());
 
     this.state = {
       phase: 'answering',
@@ -40,7 +48,7 @@ class MadLadGame extends BaseGame {
       judgeId: null,
       judgePointer: 0,
       players: {},
-      submissions: [], // [{ id, text, playerId }]
+      submissions: [], // [{ id, text, playerId, card }]
       lastWinner: null, // { playerId, playerName, text }
       winnerId: null,
       message: '',
@@ -83,12 +91,12 @@ class MadLadGame extends BaseGame {
       this.drawPile = this.shuffle(this.discardPile);
       this.discardPile = [];
     }
-    return this.drawPile.pop() || '(blank card)';
+    return this.drawPile.pop() || { id: null, text: '(blank card)' };
   }
 
   drawBlack() {
     if (this.blackPile.length === 0) {
-      this.blackPile = this.shuffle(BLACK_CARDS.slice());
+      this.blackPile = this.shuffle(this.allPrompts.slice());
     }
     return this.blackPile.pop();
   }
@@ -192,9 +200,11 @@ class MadLadGame extends BaseGame {
       return null;
     }
 
-    const [text] = player.hand.splice(cardIndex, 1);
+    const [card] = player.hand.splice(cardIndex, 1);
     const submissionId = `${playerId}:${this.state.round}`;
-    this.state.submissions.push({ id: submissionId, text, playerId });
+    this.state.submissions.push({
+      id: submissionId, text: card.text, playerId, card,
+    });
     player.submittedCardId = submissionId;
 
     this.maybeAdvanceToJudging();
@@ -217,8 +227,8 @@ class MadLadGame extends BaseGame {
       text: submission.text,
     };
 
-    // Retire the submitted cards.
-    this.discardPile.push(...this.state.submissions.map((s) => s.text));
+    // Retire the submitted cards back to the discard pile.
+    this.discardPile.push(...this.state.submissions.map((s) => s.card));
 
     if (winner && winner.score >= this.state.targetScore) {
       this.state.phase = 'gameover';
@@ -299,6 +309,42 @@ class MadLadGame extends BaseGame {
     return this.state.winnerId;
   }
 
+  // ---- Persistence (opt-in serialize / restore) --------------------------
+
+  /** Plain-JSON snapshot of everything needed to rebuild this game. */
+  serialize() {
+    return {
+      version: 1,
+      gameType: 'madlad',
+      state: this.state,
+      seatOrder: this.seatOrder,
+      drawPile: this.drawPile,
+      discardPile: this.discardPile,
+      blackPile: this.blackPile,
+      allPrompts: this.allPrompts,
+    };
+  }
+
+  /**
+   * Rebuild an engine from a snapshot. Bypasses the constructor so we do NOT
+   * re-deal a fresh round — restore is a pure state assignment. The snapshot
+   * already contains the drawn/remaining cards, so no deck/DB fetch is needed.
+   */
+  static restore(room, snapshot, options = {}) {
+    const game = Object.create(MadLadGame.prototype);
+    // Assign the base fields directly (an ES6 class constructor can't be .call()ed).
+    game.room = room;
+    game.options = options;
+    game.gameType = 'madlad';
+    game.allPrompts = snapshot.allPrompts || [];
+    game.drawPile = snapshot.drawPile || [];
+    game.discardPile = snapshot.discardPile || [];
+    game.blackPile = snapshot.blackPile || [];
+    game.seatOrder = snapshot.seatOrder || [];
+    game.state = snapshot.state;
+    return game;
+  }
+
   // ---- State projections -------------------------------------------------
 
   getScores() {
@@ -333,7 +379,9 @@ class MadLadGame extends BaseGame {
       phase,
       round: this.state.round,
       targetScore: this.state.targetScore,
-      blackCard: this.state.blackCard,
+      // Wire format stays plain text (client reads a string); the id lives on
+      // the internal card object for E3/snapshots.
+      blackCard: this.state.blackCard ? this.state.blackCard.text : null,
       judgeId: this.state.judgeId,
       judgeName: judge ? judge.name : null,
       message: this.state.message,
@@ -373,7 +421,7 @@ class MadLadGame extends BaseGame {
         hasSubmitted: Boolean(player.submittedCardId),
         score: player.score,
       },
-      hand: player.hand.map((text, index) => ({ index, text })),
+      hand: player.hand.map((card, index) => ({ index, text: card.text })),
       availableActions,
     };
   }

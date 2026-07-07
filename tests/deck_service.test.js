@@ -1,5 +1,6 @@
 // E2.3a — DeckService builds a deck from the seeded madlad-core pack.
 const { BLACK_CARDS, WHITE_CARDS } = require('../src/game/data/madladCards');
+const { useTestDb, cleanupTestDb } = require('./helpers/testDb');
 
 describe('DeckService', () => {
   let db;
@@ -7,8 +8,7 @@ describe('DeckService', () => {
   let PackRepository;
 
   beforeAll(async () => {
-    process.env.DATABASE_URL = 'sqlite://:memory:';
-    db = require('../src/db');
+    db = useTestDb('deck');
     await db.migrateToLatest();
     await db.seedRun();
     DeckService = require('../src/content/DeckService');
@@ -17,6 +17,7 @@ describe('DeckService', () => {
 
   afterAll(async () => {
     await db.close();
+    cleanupTestDb();
   });
 
   test('falls back to the default pack when no packIds given', async () => {

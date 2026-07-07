@@ -1,18 +1,20 @@
 // E2.1 — verify the packs/cards/tags schema migrates up cleanly and rolls back,
 // against in-memory SQLite. (db required inside beforeAll per the resetModules gotcha.)
+const { useTestDb, cleanupTestDb } = require('./helpers/testDb');
+
 describe('E2.1 schema migrations', () => {
   let db;
   let knex;
 
   beforeAll(async () => {
-    process.env.DATABASE_URL = 'sqlite://:memory:';
-    db = require('../src/db');
+    db = useTestDb('schema');
     await db.migrateToLatest();
     knex = db.db();
   });
 
   afterAll(async () => {
     await db.close();
+    cleanupTestDb();
   });
 
   test('creates all four tables', async () => {
