@@ -267,6 +267,8 @@ out/
 *.db
 *.sqlite
 *.sqlite3
+# Local SQLite data directory (dev)
+/data/
 
 # Docker
 .dockerignore

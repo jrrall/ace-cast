@@ -3,6 +3,8 @@
  * same build runs locally and on cloud hosts (Fly / Render / Railway / etc).
  */
 
+const path = require('path');
+
 const toInt = (value, fallback) => {
   const n = Number.parseInt(value, 10);
   return Number.isFinite(n) ? n : fallback;
@@ -42,6 +44,19 @@ const config = {
     roomCode: /^[A-Z]{4}$/,
     maxPlayerNameLength: 32,
   },
+
+  // Persistence. SQLite locally, Postgres in production — selected from the
+  // DATABASE_URL scheme so the same build runs everywhere.
+  db: {
+    url: process.env.DATABASE_URL || 'sqlite://./data/ace-cast.db',
+    // Run migrations automatically on server boot (idempotent). Set to
+    // 'false' to manage migrations out-of-band.
+    migrateOnBoot: process.env.DB_MIGRATE_ON_BOOT !== 'false',
+    pool: {
+      min: toInt(process.env.DB_POOL_MIN, 0),
+      max: toInt(process.env.DB_POOL_MAX, 10),
+    },
+  },
 };
 
 /**
@@ -55,6 +70,59 @@ config.getCorsOrigin = () => {
     .split(',')
     .map((o) => o.trim())
     .filter(Boolean);
+};
+
+// Shared migrations/seeds dirs so the runtime knex and the CLI (knexfile) agree.
+const MIGRATIONS_DIR = path.join(__dirname, '..', 'db', 'migrations');
+const SEEDS_DIR = path.join(__dirname, '..', 'db', 'seeds');
+// Anchor for relative SQLite paths. The knex CLI changes cwd to the knexfile's
+// directory, so a bare `./data/...` would resolve differently for CLI vs app.
+// Resolving against the project root keeps the DB file location stable.
+const PROJECT_ROOT = path.join(__dirname, '..', '..');
+
+/**
+ * Translate `config.db.url` into a Knex client config. The URL scheme picks the
+ * dialect: `sqlite://<file>` (or `sqlite::memory:`) → better-sqlite3, anything
+ * else (e.g. `postgres://…`) → pg.
+ * @returns {object} a Knex configuration object
+ */
+config.getKnexConfig = () => {
+  const { url } = config.db;
+  const migrations = { directory: MIGRATIONS_DIR };
+  const seeds = { directory: SEEDS_DIR };
+
+  if (url.startsWith('sqlite:')) {
+    let filename = url.replace(/^sqlite:(\/\/)?/, '') || './data/ace-cast.db';
+    // Keep :memory: as-is; anchor relative file paths to the project root.
+    if (filename !== ':memory:' && !path.isAbsolute(filename)) {
+      filename = path.join(PROJECT_ROOT, filename);
+    }
+    return {
+      client: 'better-sqlite3',
+      connection: { filename },
+      useNullAsDefault: true,
+      migrations,
+      seeds,
+      pool: {
+        min: 0,
+        // better-sqlite3 is synchronous / single-connection.
+        max: 1,
+        // Enforce foreign keys on every SQLite connection.
+        afterCreate: (conn, done) => {
+          conn.pragma('foreign_keys = ON');
+          done(null, conn);
+        },
+      },
+    };
+  }
+
+  return {
+    client: 'pg',
+    connection: url,
+    migrations,
+    seeds,
+    pool: config.db.pool,
+  };
 };
 
 module.exports = config;
