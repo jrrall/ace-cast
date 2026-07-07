@@ -16,6 +16,8 @@ const TestGame = require('./games/TestGame');
  *   maxPlayers  soft cap for display (hard cap enforced by config.room.maxPlayers)
  *   engine      the game engine class (constructed as `new engine(room, options)`)
  *   dev         when true, hidden from the public game list (developer-only)
+ *   cardBacked  when true, the server builds a deck (via DeckService) and injects
+ *               it as options.deck before starting the game
  */
 const GAMES = [
   {
@@ -26,6 +28,7 @@ const GAMES = [
     maxPlayers: config.room.maxPlayers,
     engine: MadLadGame,
     dev: false,
+    cardBacked: true,
   },
   {
     id: 'test',
