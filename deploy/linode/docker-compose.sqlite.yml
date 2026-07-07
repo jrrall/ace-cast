@@ -1,0 +1,52 @@
+# Ace Cast — cheapest single-box stack: SQLite on the same host, no database server.
+#
+#   caddy (:80/:443, auto-HTTPS + WebSocket proxy) ──▶ app (:3000, SQLite on a volume)
+#
+# Right-sized for the current architecture: rooms already live in memory (one app
+# instance only), so a separate database process buys nothing yet. The SQLite file
+# lives on the `acecast_data` volume and survives image rebuilds. Fits a $5 Nanode.
+#
+# Usage (from this directory, after filling in .env — SITE_ADDRESS + PUBLIC_URL only):
+#   docker compose -f docker-compose.sqlite.yml up -d --build
+name: ace-cast
+
+services:
+  app:
+    build:
+      context: ../..
+      dockerfile: Dockerfile
+    image: ace-cast:latest
+    restart: unless-stopped
+    environment:
+      # SQLite file inside the mounted volume. The sqlite:// scheme selects the
+      # better-sqlite3 dialect automatically; migrate+seed runs on boot.
+      DATABASE_URL: sqlite:///app/data/ace-cast.db
+      PUBLIC_URL: ${PUBLIC_URL:?set PUBLIC_URL in .env}
+      ALLOWED_ORIGINS: ${PUBLIC_URL}
+      TRUST_PROXY: "true"
+      PORT: "3000"
+    volumes:
+      # The database lives here — this is what makes data durable across redeploys.
+      - acecast_data:/app/data
+    expose:
+      - "3000"
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    depends_on:
+      - app
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      SITE_ADDRESS: ${SITE_ADDRESS:?set SITE_ADDRESS (your domain) in .env}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+
+volumes:
+  acecast_data:
+  caddy_data:
+  caddy_config:
