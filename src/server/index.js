@@ -20,6 +20,8 @@ const io = socketIo(server, {
 // Import game management modules
 const gameManager = require('../game/GameManager');
 const registry = require('../game/registry');
+const dbmod = require('../db');
+const DeckService = require('../content/DeckService');
 
 const PORT = config.server.port;
 
@@ -65,9 +67,21 @@ app.use(express.static(path.join(__dirname, '../../public')));
 app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, '../../views'));
 
-// Health check for cloud platforms / uptime monitors.
-app.get('/healthz', (req, res) => {
-  res.json({ status: 'ok', rooms: gameManager.getRoomCount(), uptime: process.uptime() });
+// Health check for cloud platforms / uptime monitors. Probes the DB so a
+// broken connection surfaces as 503 (degraded) instead of a silent 200.
+app.get('/healthz', async (req, res) => {
+  let dbOk = false;
+  try {
+    dbOk = await dbmod.health();
+  } catch {
+    dbOk = false;
+  }
+  res.status(dbOk ? 200 : 503).json({
+    status: dbOk ? 'ok' : 'degraded',
+    db: dbOk,
+    rooms: gameManager.getRoomCount(),
+    uptime: process.uptime(),
+  });
 });
 
 // Routes
@@ -281,14 +295,28 @@ io.on('connection', (socket) => {
   });
 
   // Handle game control from host
-  socket.on('start-game', ({ gameType, options }) => {
+  socket.on('start-game', async ({ gameType, options }) => {
     if (socket.deviceType !== 'host') return;
 
     const room = gameManager.getRoom(socket.roomCode);
     if (!room) return;
 
     try {
-      room.startGame(gameType, options);
+      const game = registry.getGame(gameType);
+      let startOptions = options || {};
+
+      // Card-backed games get their deck built from the DB and injected, so the
+      // engine stays pure (never touches the DB). packIds is unused until E6.
+      if (game && game.cardBacked) {
+        const deck = await DeckService.buildDeck({
+          gameId: game.id,
+          packIds: (options && options.packIds) || [],
+          maturityMax: options && options.maturityMax != null ? options.maturityMax : 3,
+        });
+        startOptions = { ...startOptions, deck };
+      }
+
+      room.startGame(gameType, startOptions);
     } catch (error) {
       socket.emit('error', { message: error.message });
       return;
@@ -356,30 +384,59 @@ const sweepTimer = setInterval(() => {
 }, config.room.sweepIntervalMs);
 if (sweepTimer.unref) sweepTimer.unref();
 
-// Start server
-server.listen(PORT, config.server.host, () => {
-  console.log(`🎮 Ace Cast Server running on port ${PORT}`);
+function logStartupBanner() {
+  const port = server.address() ? server.address().port : PORT;
+  console.log(`🎮 Ace Cast Server running on port ${port}`);
   if (config.server.publicUrl) {
     console.log(`🌍 Public URL: ${config.server.publicUrl}`);
   }
-  console.log(`🌐 Local Host interface: http://localhost:${PORT}`);
+  console.log(`🌐 Local Host interface: http://localhost:${port}`);
   console.log('');
   console.log('📲 Network URLs (for phones/tablets on the same WiFi):');
-  console.log('🌐 Network Host interface:', `http://${NETWORK_IP}:${PORT}`);
-  console.log(`📱 Network Player join: http://${NETWORK_IP}:${PORT}/player`);
-  console.log(`📺 Network TV display: http://${NETWORK_IP}:${PORT}/tv/[ROOM_CODE]`);
-});
+  console.log('🌐 Network Host interface:', `http://${NETWORK_IP}:${port}`);
+  console.log(`📱 Network Player join: http://${NETWORK_IP}:${port}/player`);
+  console.log(`📺 Network TV display: http://${NETWORK_IP}:${port}/tv/[ROOM_CODE]`);
+}
+
+// Migrate + seed the DB, then start listening. Async so the DB is ready before
+// the first game (which builds its deck from the DB) can start. Exported so
+// tests can drive startup/teardown; auto-runs only when launched directly.
+async function start() {
+  if (config.db.migrateOnBoot) {
+    await dbmod.migrateToLatest();
+  }
+  await dbmod.seedRun();
+  await new Promise((resolve) => { server.listen(PORT, config.server.host, resolve); });
+  logStartupBanner();
+  return server;
+}
+
+if (require.main === module) {
+  start().catch((err) => {
+    console.error('Startup failed:', err);
+    process.exit(1);
+  });
+}
 
 // Graceful shutdown so cloud platforms can restart/stop the instance cleanly.
 function shutdown(signal) {
   console.log(`Received ${signal}, shutting down...`);
   clearInterval(sweepTimer);
   io.close();
-  server.close(() => process.exit(0));
+  server.close(async () => {
+    try {
+      await dbmod.close();
+    } catch {
+      // ignore — we're exiting anyway
+    }
+    process.exit(0);
+  });
   // Force-exit if connections don't drain in time.
   setTimeout(() => process.exit(0), 10000).unref();
 }
 process.on('SIGTERM', () => shutdown('SIGTERM'));
 process.on('SIGINT', () => shutdown('SIGINT'));
 
-module.exports = { app, server, io };
+module.exports = {
+  app, server, io, start,
+};

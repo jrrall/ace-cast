@@ -1,28 +1,33 @@
-// Smoke test for the persistence foundation (E1.1a) against in-memory SQLite.
-// Requires src/db inside beforeAll because tests/setup.js runs
-// jest.resetModules() in afterEach, which would otherwise drop the singleton.
+// Smoke test for the persistence foundation (E1.1a). Uses an isolated temp-file
+// DB so parallel jest workers never share state.
+const { useTestDb, cleanupTestDb } = require('./helpers/testDb');
+
 describe('db foundation', () => {
   let db;
 
   beforeAll(async () => {
-    process.env.DATABASE_URL = 'sqlite://:memory:';
-    db = require('../src/db');
-    await db.migrateToLatest(); // no migrations yet — just sets up knex_migrations
+    db = useTestDb('foundation');
+    await db.migrateToLatest();
   });
 
   afterAll(async () => {
     await db.close();
+    cleanupTestDb();
   });
 
   test('health() resolves true against a live connection', async () => {
     await expect(db.health()).resolves.toBe(true);
   });
 
-  test('getKnexConfig selects sqlite for a sqlite: url', () => {
+  test('getKnexConfig selects sqlite (in-memory) for a sqlite: url', () => {
+    const saved = process.env.DATABASE_URL;
+    process.env.DATABASE_URL = 'sqlite://:memory:';
+    jest.resetModules();
     const config = require('../src/utils/config');
     const cfg = config.getKnexConfig();
     expect(cfg.client).toBe('better-sqlite3');
     expect(cfg.connection.filename).toBe(':memory:');
+    process.env.DATABASE_URL = saved;
   });
 
   test('getKnexConfig selects pg for a postgres: url', () => {

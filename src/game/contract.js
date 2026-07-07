@@ -53,4 +53,20 @@ function validateEngine(EngineClass, id) {
   }
 }
 
-module.exports = { BaseGame, REQUIRED_METHODS, validateEngine };
+/**
+ * Whether an engine supports persistence: it must override the instance
+ * `serialize()` (not the BaseGame stub) AND provide a static `restore()`.
+ * @param {Function} EngineClass
+ * @returns {boolean}
+ */
+function isResumable(EngineClass) {
+  if (typeof EngineClass !== 'function') return false;
+  const proto = EngineClass.prototype;
+  return typeof proto.serialize === 'function'
+    && proto.serialize !== BaseGame.prototype.serialize
+    && typeof EngineClass.restore === 'function';
+}
+
+module.exports = {
+  BaseGame, REQUIRED_METHODS, validateEngine, isResumable,
+};

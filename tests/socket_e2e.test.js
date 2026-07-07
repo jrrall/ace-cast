@@ -1,5 +1,6 @@
 const request = require('supertest');
 const { io: Client } = require('socket.io-client');
+const { useTestDb, cleanupTestDb } = require('./helpers/testDb');
 
 // End-to-end test: drives a full MadLad round through real
 // Socket.IO clients against the actual server, verifying the private-broadcast
@@ -8,6 +9,7 @@ const { io: Client } = require('socket.io-client');
 let app;
 let server;
 let ioServer;
+let db;
 let base;
 const clients = [];
 
@@ -55,25 +57,26 @@ const waitUntil = (predicate, timeout = 5000) => new Promise((resolve, reject) =
   }, 15);
 });
 
-beforeAll((done) => {
+beforeAll(async () => {
   process.env.PORT = '0';
+  // Isolated temp DB, set before requiring the server so start() seeds it and
+  // the deck is sourced from the DB (proving E2 end-to-end).
+  db = useTestDb('e2e');
   // eslint-disable-next-line global-require
   const mod = require('../src/server/index');
   app = mod.app;
   server = mod.server;
   ioServer = mod.io;
-  const ready = () => {
-    base = `http://localhost:${server.address().port}`;
-    done();
-  };
-  if (server.listening) ready();
-  else server.once('listening', ready);
+  await mod.start(); // migrate + seed + listen
+  base = `http://localhost:${server.address().port}`;
 });
 
-afterAll((done) => {
+afterAll(async () => {
   clients.forEach((c) => c.close());
   ioServer.close();
-  server.close(done);
+  await new Promise((resolve) => server.close(resolve));
+  await db.close();
+  cleanupTestDb();
 });
 
 test('plays a full MadLad round through real sockets', async () => {

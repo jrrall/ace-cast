@@ -166,6 +166,21 @@ class TestGame extends BaseGame {
   cleanup() {
     console.log('Test game cleaned up');
   }
+
+  // ---- Persistence (opt-in serialize / restore) --------------------------
+
+  serialize() {
+    return { version: 1, gameType: 'test', state: this.state };
+  }
+
+  static restore(room, snapshot, options = {}) {
+    // Bypass the constructor so we keep the snapshot's state as-is.
+    const game = Object.create(TestGame.prototype);
+    game.room = room;
+    game.options = options;
+    game.state = snapshot.state;
+    return game;
+  }
 }
 
 module.exports = TestGame;

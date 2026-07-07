@@ -1,6 +1,6 @@
 /* eslint-disable max-classes-per-file */
 const registry = require('../src/game/registry');
-const { validateEngine, REQUIRED_METHODS } = require('../src/game/contract');
+const { validateEngine, REQUIRED_METHODS, isResumable } = require('../src/game/contract');
 const BaseGame = require('../src/game/games/BaseGame');
 
 // A room stub exposing the only method engines touch at construction time.
@@ -47,6 +47,52 @@ describe('game engine contract compliance', () => {
         // null (no winner yet) is acceptable; undefined is not.
         expect(engine.getWinnerId()).not.toBeUndefined();
       });
+    });
+  });
+});
+
+describe('serialize / restore (isResumable)', () => {
+  const roomWith = (n) => {
+    const players = Array.from({ length: n }, (_, i) => ({
+      id: `p${i + 1}`, name: `P${i + 1}`, isActive: true,
+    }));
+    return { getAllPlayers: () => players };
+  };
+  // A deck for card-backed engines; deck-less engines (TestGame) ignore it.
+  const fixtureDeck = {
+    prompts: Array.from({ length: 10 }, (_, i) => ({ id: i + 1, text: `Q${i} ____.`, blanks: 1 })),
+    answers: Array.from({ length: 40 }, (_, i) => ({ id: 100 + i, text: `A${i}.` })),
+  };
+
+  test('madlad and test engines are resumable', () => {
+    expect(isResumable(registry.getGame('madlad').engine)).toBe(true);
+    expect(isResumable(registry.getGame('test').engine)).toBe(true);
+  });
+
+  test('a hook-less engine is not resumable', () => {
+    class NoHooks extends BaseGame {
+      static get MIN_PLAYERS() { return 1; }
+
+      getInitialState() { return {}; }
+
+      handlePlayerAction() { return null; }
+
+      handlePlayerLeave() {}
+
+      cleanup() {}
+    }
+    expect(isResumable(NoHooks)).toBe(false);
+  });
+
+  // Every resumable registered engine must round-trip; non-resumable ones are skipped.
+  registry.GAMES.filter((g) => isResumable(g.engine)).forEach((game) => {
+    test(`${game.id} round-trips serialize → JSON → restore`, () => {
+      const room = roomWith(game.engine.MIN_PLAYERS);
+      // eslint-disable-next-line new-cap
+      const engine = new game.engine(room, { deck: fixtureDeck });
+      const snapshot = JSON.parse(JSON.stringify(engine.serialize()));
+      const restored = game.engine.restore(room, snapshot);
+      expect(restored.getInitialState()).toEqual(engine.getInitialState());
     });
   });
 });

@@ -1,19 +1,20 @@
 // E2.2 — the madlad-core seed loads the built-in deck and is idempotent.
 const { BLACK_CARDS, WHITE_CARDS } = require('../src/game/data/madladCards');
+const { useTestDb, cleanupTestDb } = require('./helpers/testDb');
 
 describe('E2.2 madlad-core seed', () => {
   let db;
   let knex;
 
   beforeAll(async () => {
-    process.env.DATABASE_URL = 'sqlite://:memory:';
-    db = require('../src/db');
+    db = useTestDb('seed');
     await db.migrateToLatest();
     knex = db.db();
   });
 
   afterAll(async () => {
     await db.close();
+    cleanupTestDb();
   });
 
   const countCards = async (packId, kind) => {

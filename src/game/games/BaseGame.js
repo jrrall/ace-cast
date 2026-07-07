@@ -19,6 +19,7 @@
  *
  * Optional contract points (safe defaults provided here):
  *   - getWinnerId() -> winning player id | null   (winner tracking)
+ *   - serialize() / static restore()              (opt-in persistence)
  *
  * Required static:
  *   - MIN_PLAYERS: number >= 1
@@ -65,6 +66,16 @@ class BaseGame {
   // eslint-disable-next-line class-methods-use-this
   getWinnerId() {
     return null;
+  }
+
+  /**
+   * Persistence (opt-in). Resumable engines override BOTH this and the static
+   * `restore(room, snapshot, options)`; `contract.isResumable()` checks for both.
+   * The default marks the engine non-resumable.
+   */
+  // eslint-disable-next-line class-methods-use-this
+  serialize() {
+    throw new Error('This game is not resumable (override serialize() and static restore()).');
   }
 
   // ---- Shared helpers ----------------------------------------------------
