@@ -155,6 +155,49 @@ concurrency demands it).
 
 ---
 
+## 📋 EPIC — Card & Hand Game-Feel ("Juice")
+
+Make cards feel like physical objects and the hand feel tactile — seeing what you're
+holding and scheming about when to drop the perfect card is core to the fun. Distinct
+from E3 (which is *images on* cards); this is look/motion/feel. **Client-only — no
+backend/DB/account dependency, so it can ship in parallel with every other track.**
+Full groom in `docs/card-hand-gamefeel-backlog.md`.
+
+Today the phone hand is a flat tap-to-play grid and the TV does static swaps; cards are
+rendered by duplicated `gameType` branches in `tv.js`/`player.js`. Hands already persist
+round-to-round mechanically — the anticipation just isn't *surfaced* yet.
+
+### [J1] Card design system + shared renderer *(foundation)* — `M`
+- [ ] Real card face (typography, texture, rounded corners, shadow, card-back); prompt/answer variants
+- [ ] One `renderCard()` shared by `tv.js` + `player.js` — kills the client render asymmetry
+- [ ] Reserve a sprite region so E3 art drops in without rework
+
+### [J2] Hand feel on the phone *(core of the ask)* — `L`
+- [ ] Fanned/overlapping hand, swipe-through with momentum
+- [ ] Tap-to-lift + confirm, or drag-up-to-play (decide via device testing); clear "played" state
+
+### [J3] Holding & anticipation affordances *(the "Donkey Cock" moment)* — `M`
+- [ ] Reorder hand; **pin/favorite** a card you're saving (marked across rounds)
+- [ ] "New this round" tag; optional tasteful glow when a held card fits the prompt
+
+### [J4] Play & reveal animations — `M`
+- [ ] Card lifts and flies to the table on submit; submissions flip face-up one at a time
+- [ ] Winner card scales + glows, confetti, score ticks up
+
+### [J5] TV board choreography — `M`
+- [ ] Deal-in + prompt slam, paced submission reveal, judge spotlight, animated scoreboard
+
+### [J6] Sound & haptics *(optional, high feel-per-effort)* — `S`
+- [ ] Card/flip/win sounds + phone haptics; global mute, respects OS silent switch
+
+### [J7] Motion accessibility & performance — `S`
+- [ ] Honor `prefers-reduced-motion`; 60fps on mid phones; feature-flag heavy effects
+
+> **Open:** visual direction (minimalist B/W vs. richer themed — ties to E3 art + E5 cosmetic packs).
+> **Note:** J1's shared renderer is also what E3.3 (sprites) and E6.1 (pack selection) need.
+
+---
+
 ## 📋 BACKLOG
 
 ### [B1] Poker (Texas Hold'em)
@@ -181,4 +224,4 @@ concurrency demands it).
 
 ---
 
-*Last updated: 2026-07-06 — added Card Platform (E1–E9) and Persistent Sessions, History & Scale (S0–S3) epics*
+*Last updated: 2026-07-06 — added Card Platform (E1–E9), Persistent Sessions & Scale (S0–S3), and Card & Hand Game-Feel (J1–J7) epics*
