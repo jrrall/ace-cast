@@ -141,6 +141,52 @@ describe('MadLadGame', () => {
     });
   });
 
+  describe('getLastRoundOutcome (F1 telemetry)', () => {
+    test('returns null before a winner is picked', () => {
+      const game = makeGame(3);
+      expect(game.getLastRoundOutcome()).toBeNull();
+      everyoneSubmits(game);
+      expect(game.getLastRoundOutcome()).toBeNull(); // judging, no winner yet
+    });
+
+    test('reports the winning card id and won flags after judging', () => {
+      const game = makeGame(3);
+      everyoneSubmits(game);
+      const submissions = game.state.submissions.slice();
+      const winning = submissions[0];
+      game.handlePlayerAction('p1', { action: 'pick-winner', data: { submissionId: winning.id } });
+
+      const outcome = game.getLastRoundOutcome();
+      expect(outcome.blackCardId).toBe(game.state.blackCard.id);
+      expect(outcome.submissions).toHaveLength(submissions.length);
+
+      // Every submitted card id is present with its author.
+      const byCard = new Map(outcome.submissions.map((s) => [s.cardId, s]));
+      submissions.forEach((s) => {
+        expect(byCard.get(s.card.id)).toMatchObject({ playerId: s.playerId });
+      });
+
+      // Exactly one winner, matching the picked submission's card.
+      const winners = outcome.submissions.filter((s) => s.won);
+      expect(winners).toHaveLength(1);
+      expect(winners[0].cardId).toBe(winning.card.id);
+      expect(winners[0].playerId).toBe(winning.playerId);
+    });
+
+    test('omits submissions whose card has no id (blank fallback)', () => {
+      const game = makeGame(3);
+      everyoneSubmits(game);
+      // Simulate a blank-card fallback slipping into the submissions.
+      game.state.submissions[0].card = { id: null, text: '(blank card)' };
+      const winning = game.state.submissions[1];
+      game.handlePlayerAction('p1', { action: 'pick-winner', data: { submissionId: winning.id } });
+
+      const outcome = game.getLastRoundOutcome();
+      expect(outcome.submissions).toHaveLength(1);
+      expect(outcome.submissions[0].cardId).toBe(winning.card.id);
+    });
+  });
+
   describe('membership changes', () => {
     test('judge leaving mid-round restarts the round with a new judge', () => {
       const game = makeGame(4);
