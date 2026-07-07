@@ -43,6 +43,116 @@ hands are all wired and covered by tests (`npm test`, 5 suites).
 - [x] Removed the non-functional `PokerGame` stub
 - [x] Fixed the 2 stale failing tests
 
+### [C6] ✅ Game registry + enforced engine contract
+- [x] Central game registry (`registry.js`) with aliases; UIs read from it
+- [x] `BaseGame` abstract class + `validateEngine` (throws on non-conforming engines)
+- [x] MadLad & TestGame migrated to the contract; compliance test suite
+- [x] Client render asymmetry (`tv.js`/`player.js` `gameType` branches) noted, deferred
+
+---
+
+## 📋 EPIC — Card Platform & Monetization
+
+Cards move into a database (SQLite local, Postgres prod), gain sprite graphics, and
+become the monetization: $2–3 packs, tagged + maturity-rated, owned per account.
+Full groom (schema, acceptance criteria, sizes, open questions) lives in
+`docs/madlad-card-platform-backlog.md`.
+
+**Decisions:** tags + maturity now (leaning-based recs later) · full user accounts ·
+mock store first → Stripe later · sprites pre-generated offline (batch SD).
+
+**Build order:** `E1 → E2 → {E3, E6}` and `E1 → E4 → E5 → E6`; E7/E8 later.
+
+### [E1] Persistence foundation *(blocks everything)* — `M`
+- [ ] Dual-dialect data layer: SQLite (local) + Postgres (prod), one thin repository
+- [ ] Migration runner + `npm run migrate`; `DATABASE_URL` config; pooled connection
+- [ ] Tests on in-memory SQLite; CI job proves Postgres parity
+- [ ] Open Q: Knex (query builder) vs. `better-sqlite3`+`pg` — decide & document
+
+### [E2] Card content database *(needs E1)* — `M`
+- [ ] `packs` + `cards` schema with **tags + maturity**; hot-path indexes
+- [ ] Idempotent seed of today's `madladCards.js` as the free `madlad-core` pack
+- [ ] `DeckService.buildDeck({ packIds, maturityMax })`; engine takes an **injected**
+      deck (stays pure/testable) instead of importing the card file
+- [ ] Existing `madlad_game.test.js` stays green on a fixture deck
+
+### [E3] Sprite graphics on cards *(needs E2)* — `M`
+- [ ] `assets` table + storage (local dir → object storage in prod); `≤256²` sprites
+- [ ] Offline `scripts/generate-sprites` SD pipeline (resumable, dry-run, NOT in request path)
+- [ ] Render sprite on TV + phone with text-only fallback (touches client render asymmetry)
+- [ ] Open Q: SD backend (local ComfyUI/A1111 vs. hosted API), cost/rate limits
+
+### [E4] User accounts *(needs E1; prereq for ownership)* — `L`
+- [ ] `users` + auth (email magic-link and/or Google OAuth), sessions, account UI
+- [ ] Guests still play by name; login gates only buying/using paid packs
+
+### [E5] Store + mock entitlements *(needs E2 + E4)* — `M`
+- [ ] `entitlements` + `orders`; everyone implicitly owns default packs
+- [ ] Pack catalog + store UI, browse/filter by tag + maturity
+- [ ] Mock "buy" → grant entitlement atomically & idempotently (no real money yet)
+
+### [E6] In-game pack selection *(needs E2 + E5)* — `M`
+- [ ] Host multi-selects owned packs at room start; server verifies entitlement
+- [ ] Room maturity cap filters the deck; empty selection → `madlad-core`
+
+### [E7] Leaning-based recommendations *(later)* — `M`
+- [ ] "Pick your vibe" onboarding; recommend packs by tag/maturity affinity
+
+### [E8] Real payments — Stripe Checkout *(later; needs E5)* — `M`
+- [ ] Stripe products mirror packs; **webhook** grants entitlement (source of truth)
+- [ ] Refunds → revoke; receipts; swap mock provider for `stripe` behind same flow
+
+### [E9] Content authoring / admin *(nice-to-have)* — `M`
+- [ ] UI/CLI to create packs, add cards, set tags/maturity, trigger sprite gen
+
+> ⚠️ **Not yet groomed:** age-gating + content policy for paid, maturity-rated content.
+> Real pre-launch work — needs its own story before any edgy pack ships.
+
+---
+
+## 📋 EPIC — Persistent Sessions, History & Scale
+
+Make the game survive restarts, remember past games, and eventually run across
+multiple servers. Everything is in-memory today (`GameManager` map; a live
+`gameEngine` per room), identity is per-connection (`playerId = socket.id`), and
+`fly.toml` runs one machine on purpose. Full groom in
+`docs/sessions-and-scale-backlog.md`.
+
+**Prereqs:** E1 (persistence) for S1/S2; E4 (accounts) for durable stats.
+**Sequencing:** `E1 → S0 → S1 → S2 (after E4) → S3` (build S3 only once real
+concurrency demands it).
+
+### [S0] Stable player identity *(prereq; needs E1)* — `M`
+- [ ] Durable, signed player token that outlives `socket.id` (survives reconnect/restart)
+- [ ] `identities` table; rooms key players by stable id, `user_id?` linked when E4 lands
+- [ ] Guests still get an ephemeral id (no drop-in regression)
+- *Linchpin: resume, seat re-attach, and stat attribution all depend on this.*
+
+### [S1] Persistent & resumable sessions *(needs E1 + S0)* — `L`
+- [ ] `sessions` + snapshot schema (status, versioned serialized state)
+- [ ] Extend the engine contract with optional `serialize()` / `static restore()` (opt-in,
+      additive; reuses the C6 compliance harness) — implement for MadLad + Test
+- [ ] Write-through snapshot after each action (async, never blocks gameplay)
+- [ ] Lazy rehydrate a room on re-access; re-attach reconnecting players to their seats
+- [ ] Reconnect grace window; paused-session TTL → abandoned
+- *Open Q: how long a paused game stays resumable; who may resume it.*
+
+### [S2] Session history & stats *(needs E1 + E4)* — `L`
+- [ ] Persist completed sessions + `session_players` (scores, placement, winner, packs)
+- [ ] Durable per-account stats — migrate the in-memory `gamesPlayed/gamesWon` that
+      currently evaporate in `GameRoom.endGame`; guest→account merge
+- [ ] History UI (your past games; per-room series); leaderboards later
+
+### [S3] Concurrent sessions across servers *(needs E1 + S1; Redis infra)* — `XL`
+- [ ] Socket.IO **Redis adapter** for cross-instance fan-out (config-gated; dev runs solo)
+- [ ] **Decide room routing model** (ADR): (a) sticky per-instance ownership *(recommended
+      first)* vs (b) shared authoritative state in Redis/PG with per-room locks (uses S1
+      serialization)
+- [ ] Shared room/session registry so any instance can locate a room
+- [ ] `fly.toml` multi-machine + graceful drain (paused-persist owned rooms on shutdown)
+- [ ] Multi-instance load/soak test + per-machine capacity numbers
+- *Real recurring cost — gate behind actual concurrency demand.*
+
 ---
 
 ## 📋 BACKLOG
@@ -54,10 +164,12 @@ hands are all wired and covered by tests (`npm test`, 5 suites).
 ### [B6] Custom deck config
 - [ ] JSON-based deck definitions / house rules
 - [ ] Load custom decks dynamically
+- 🗑️ Largely absorbed by the Card Platform epic (E2 deck data + E6 selection);
+      keep only the "house rules" sliver as a later add-on
 
 ### [B7] Multiple simultaneous game rooms UI
 ### [B8] Game replay & highlights
-### [B9] Card theme / cosmetic packs
+### [B9] Card theme / cosmetic packs 🗑️ superseded by the Card Platform epic (E3 sprites + E5 packs)
 ### [B10] Tournament modes
 
 ---
@@ -65,8 +177,8 @@ hands are all wired and covered by tests (`npm test`, 5 suites).
 ## 🔎 Nice-to-haves noticed during the MadLad build
 - Pick-2 / pick-3 black cards (currently single-blank only)
 - "Play again" from the game-over screen without recreating the room
-- Reconnect handling if a phone drops mid-round
+- Reconnect handling if a phone drops mid-round → absorbed into **[S1] / S0** (stable identity + reconnect)
 
 ---
 
-*Last updated: 2026-07-06*
+*Last updated: 2026-07-06 — added Card Platform (E1–E9) and Persistent Sessions, History & Scale (S0–S3) epics*
