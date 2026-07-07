@@ -20,6 +20,11 @@ class GameRoom {
       socket,
       joinedAt: Date.now(),
       isActive: true,
+      // Live socket present? Distinct from isActive (engine participation):
+      // a disconnected player is connected=false while their seat is held.
+      connected: true,
+      // Grace timer that reclaims the seat if they don't reconnect in time.
+      disconnectTimer: null,
       hand: [],
       stats: {
         gamesPlayed: 0,
@@ -34,9 +39,65 @@ class GameRoom {
     return player;
   }
 
+  /**
+   * Mark a player disconnected but KEEP their seat (hand + score) so they can
+   * reconnect. The engine is told to pause them (drop from round math) without
+   * discarding their cards. Returns the player, or null if unknown.
+   */
+  markDisconnected(playerId) {
+    const player = this.players.get(playerId);
+    if (!player) return null;
+
+    player.connected = false;
+    // Engine participation stops so rounds don't stall waiting on a dead socket;
+    // the seat itself (and the hand) is preserved until the grace timer fires.
+    player.isActive = false;
+    player.socket = null;
+    this.lastActivity = Date.now();
+
+    if (this.isGameActive && this.gameEngine
+      && typeof this.gameEngine.handlePlayerDisconnect === 'function') {
+      this.gameEngine.handlePlayerDisconnect(playerId);
+    }
+
+    console.log(`Player ${player.name} (${playerId}) disconnected from room ${this.code}`);
+    return player;
+  }
+
+  /**
+   * Re-attach a returning player's new socket to their held seat and resume
+   * engine participation. Clears any pending grace timer. Returns the player,
+   * or null if the seat was already reclaimed.
+   */
+  reconnectPlayer(playerId, socket) {
+    const player = this.players.get(playerId);
+    if (!player) return null;
+
+    if (player.disconnectTimer) {
+      clearTimeout(player.disconnectTimer);
+      player.disconnectTimer = null;
+    }
+    player.socket = socket;
+    player.connected = true;
+    player.isActive = true;
+    this.lastActivity = Date.now();
+
+    if (this.isGameActive && this.gameEngine
+      && typeof this.gameEngine.handlePlayerReconnect === 'function') {
+      this.gameEngine.handlePlayerReconnect(playerId);
+    }
+
+    console.log(`Player ${player.name} (${playerId}) reconnected to room ${this.code}`);
+    return player;
+  }
+
   removePlayer(playerId) {
     const player = this.players.get(playerId);
     if (player) {
+      if (player.disconnectTimer) {
+        clearTimeout(player.disconnectTimer);
+        player.disconnectTimer = null;
+      }
       this.players.delete(playerId);
       this.lastActivity = Date.now();
 
@@ -184,8 +245,12 @@ class GameRoom {
   }
 
   cleanup() {
-    // Disconnect all players
+    // Disconnect all players and cancel any pending reconnect grace timers.
     Array.from(this.players.values()).forEach((player) => {
+      if (player.disconnectTimer) {
+        clearTimeout(player.disconnectTimer);
+        player.disconnectTimer = null;
+      }
       if (player.socket) {
         player.socket.disconnect();
       }

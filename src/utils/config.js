@@ -32,6 +32,9 @@ const config = {
     maxPlayers: toInt(process.env.MAX_PLAYERS_PER_ROOM, 12),
     maxRooms: toInt(process.env.MAX_ROOMS, 500),
     minPlayers: 1,
+    // How long a disconnected player's seat (hand + score) is held open for a
+    // reconnect before it's given up. Covers phone-lock / wifi-blip / reload.
+    reconnectGraceMs: toInt(process.env.RECONNECT_GRACE_MS, 90 * 1000),
   },
 
   // Lightweight abuse protection for room creation (per client IP).
