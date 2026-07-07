@@ -22,6 +22,7 @@ const gameManager = require('../game/GameManager');
 const registry = require('../game/registry');
 const dbmod = require('../db');
 const DeckService = require('../content/DeckService');
+const CardStatsRepository = require('../content/CardStatsRepository');
 
 const PORT = config.server.port;
 
@@ -208,6 +209,31 @@ function broadcastGameState(room) {
   });
 }
 
+// Persist per-card play/win counts (F1) after a round is resolved. Best-effort
+// and fully out-of-band: any failure just logs and never blocks the broadcast.
+// Recording only on 'pick-winner' means each round is counted exactly once (the
+// engine still holds that round's submissions until the next round starts).
+async function recordCardOutcome(room, actionData) {
+  try {
+    if (!actionData || actionData.action !== 'pick-winner') return;
+    const engine = room.gameEngine;
+    if (!engine || typeof engine.getLastRoundOutcome !== 'function') return;
+    const game = registry.getGame(room.gameType);
+    if (!game || !game.cardBacked) return;
+
+    const outcome = engine.getLastRoundOutcome();
+    if (!outcome) return;
+
+    const winning = outcome.submissions.find((s) => s.won);
+    await CardStatsRepository.recordRoundOutcome({
+      playedCardIds: outcome.submissions.map((s) => s.cardId),
+      winningCardId: winning ? winning.cardId : null,
+    });
+  } catch (error) {
+    console.error('Failed to record card telemetry:', error);
+  }
+}
+
 // Socket.IO connection handling
 io.on('connection', (socket) => {
   console.log(`Client connected: ${socket.id}`);
@@ -291,6 +317,8 @@ io.on('connection', (socket) => {
     const result = room.handlePlayerAction(socket.playerId, data);
     if (result) {
       broadcastGameState(room);
+      // Fire-and-forget: telemetry must never block or crash the round loop.
+      recordCardOutcome(room, data);
     }
   });
 
