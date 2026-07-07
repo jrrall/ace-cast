@@ -1,3 +1,9 @@
+## <small>1.3.1 (2026-07-07)</small>
+
+* docs: groom Card & Hand Game-Feel ("Juice") epic (J1–J7) (#7) ([72b7a58](https://github.com/jrrall/ace-cast/commit/72b7a58)), closes [#7](https://github.com/jrrall/ace-cast/issues/7)
+* docs(cards): add AGENTS.md authoring guide for src/game/data (#9) ([d987442](https://github.com/jrrall/ace-cast/commit/d987442)), closes [#9](https://github.com/jrrall/ace-cast/issues/9) [#5](https://github.com/jrrall/ace-cast/issues/5)
+* Feat/e1 db foundation (#8) ([6c1959c](https://github.com/jrrall/ace-cast/commit/6c1959c)), closes [#8](https://github.com/jrrall/ace-cast/issues/8)
+
 ## 1.3.0 (2026-07-07)
 
 * feat(cards): give the MadLad deck more bite (#5) ([41d3674](https://github.com/jrrall/ace-cast/commit/41d3674)), closes [#5](https://github.com/jrrall/ace-cast/issues/5)
