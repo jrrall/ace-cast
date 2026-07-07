@@ -5,8 +5,10 @@
  * prompts to keep submission and judging simple. Use `____` as the blank.
  * White cards are the answers players submit.
  *
- * This is an original, party-friendly set written for MadLad.
- * It is intentionally large so a full game night does not exhaust the deck.
+ * This is an original set written for MadLad. It skews mature (raunchy, dark,
+ * absurd, and millennial-burnout humor) — roughly a maturity rating of 2–3 in
+ * the planned pack model. It is intentionally large so a full game night does
+ * not exhaust the deck.
  */
 
 const BLACK_CARDS = [
@@ -62,6 +64,30 @@ const BLACK_CARDS = [
   'What did I whisper to calm myself down? ____.',
   'What is the number one cause of workplace injuries? ____.',
   'The fortune cookie read: ____.',
+
+  // ---- Edgier set (raunchy / dark / absurd / burnout) ----
+  'My safe word is ____.',
+  'What killed the mood? ____.',
+  'I can\'t believe I paid extra for ____.',
+  'What got me banned from the cruise ship? ____.',
+  'The nurse asked how the injury happened. I said ____.',
+  'My therapist went quiet when I brought up ____.',
+  'What\'s waiting at the bottom of the wine bottle? ____.',
+  'The eulogy took a turn when they mentioned ____.',
+  'I\'m not saying it was a cry for help, but ____.',
+  'What finally made me delete the app? ____.',
+  'Breaking news: local man arrested for ____.',
+  'The cult\'s only rule is ____.',
+  'My sleep paralysis demon just wants to talk about ____.',
+  'My entire personality is now just ____.',
+  'The startup\'s pitch deck was three slides about ____.',
+  'What does my landlord call a "luxury amenity"? ____.',
+  'Self-care this year is ____.',
+  'HR flagged my Slack message about ____.',
+  'The wellness retreat turned out to be just ____.',
+  'What did I put on my vision board? ____.',
+  'My last two brain cells are fighting over ____.',
+  'The group chat fell apart over ____.',
 ];
 
 const WHITE_CARDS = [
@@ -209,6 +235,58 @@ const WHITE_CARDS = [
   'An overly honest fortune teller.',
   'The mystery stain.',
   'A deeply unserious apology.',
+
+  // ---- Edgier set (raunchy / dark / absurd / burnout) ----
+  'A deeply regrettable Tinder date.',
+  'Whatever is growing in the office fridge.',
+  'An ill-advised piercing.',
+  'My browser history, read aloud at the will reading.',
+  'Getting to third base in a Honda Civic.',
+  'A pregnancy scare at 34.',
+  'Aggressively unprotected optimism.',
+  'A back-alley haircut.',
+  'Slowly becoming my father.',
+  'The crushing weight of being perceived.',
+  'Crying in a Chili\'s parking lot.',
+  'A will that just says "good luck."',
+  'The sweet embrace of the void.',
+  'My untreated childhood.',
+  'Peaking in high school.',
+  'Dying alone but with excellent skincare.',
+  'A group chat that outlived the friendship.',
+  'A goose that has learned to file taxes.',
+  'Forty raccoons in a trench coat and a fake mustache.',
+  'A haunted vape.',
+  'The FBI agent who lives in my laptop.',
+  'A pigeon radicalized by the algorithm.',
+  'My sleep paralysis demon, and honestly, he\'s hot.',
+  'An owl that knows what you did.',
+  'A Roomba with a taste for revenge.',
+  'Monetizing my trauma.',
+  'A LinkedIn post that opens with "I was let go today."',
+  'Rent.',
+  'Quiet-quitting my marriage.',
+  'A $19 salad and no health insurance.',
+  'Doomscrolling until my thumbs give out.',
+  'Emotional labor I did not invoice for.',
+  'A therapy copay I cannot afford.',
+  'My credit score, whispered like a slur.',
+  'Girl-mathing a $400 impulse buy.',
+  'Turning my burnout into a personal brand.',
+  'A four-hour meeting that could have been a text.',
+  'The gig economy.',
+  'Manifesting my way out of debt.',
+  'The audacity of a man named Chad.',
+  'One aggressively confident wrong opinion.',
+  'A red flag the size of a parade float.',
+  'Weaponized incompetence.',
+  'A situationship entering its second year.',
+  'A truly cursed group project.',
+  'Whatever the cat coughed up.',
+  'An HOA with a personal vendetta.',
+  'Explaining my tattoo to my dying grandmother.',
+  'A wine mom on her third "self-care" bottle.',
+  'The last shred of my dignity.',
 ];
 
 module.exports = { BLACK_CARDS, WHITE_CARDS };
