@@ -309,6 +309,34 @@ class MadLadGame extends BaseGame {
     return this.state.winnerId;
   }
 
+  /**
+   * Pure snapshot of the just-resolved round for telemetry (F1). Derived from
+   * the current submissions and lastWinner — NO side effects, no DB. Returns
+   * null until a winner has been picked (phase results/gameover). Submissions
+   * whose card has no id (the '(blank card)' fallback) are omitted.
+   * @returns {{ blackCardId: number|null,
+   *   submissions: Array<{cardId:number, playerId:string, won:boolean}> } | null}
+   */
+  getLastRoundOutcome() {
+    const { submissions, lastWinner, blackCard } = this.state;
+    if (!lastWinner || !submissions || submissions.length === 0) return null;
+
+    const scored = submissions
+      .filter((s) => s.card && s.card.id != null)
+      .map((s) => ({
+        cardId: s.card.id,
+        playerId: s.playerId,
+        won: s.playerId === lastWinner.playerId,
+      }));
+
+    if (scored.length === 0) return null;
+
+    return {
+      blackCardId: blackCard && blackCard.id != null ? blackCard.id : null,
+      submissions: scored,
+    };
+  }
+
   // ---- Persistence (opt-in serialize / restore) --------------------------
 
   /** Plain-JSON snapshot of everything needed to rebuild this game. */
