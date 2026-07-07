@@ -198,6 +198,50 @@ round-to-round mechanically — the anticipation just isn't *surfaced* yet.
 
 ---
 
+## 📋 EPIC — Playtest Feedback Loop
+
+Closed loop for playtesting soon: **play → capture (flags + wins) → generate/prune
+cards → play again.** The enabler already shipped — E2.3 made cards carry ids
+through play, so a winning card is knowable by id. Full groom in
+`docs/playtest-feedback-loop-backlog.md`.
+
+**Decisions:** flag reasons are **`not_funny` + `broken` only** (no "offensive" — content
+is intentionally mature; positive signal = win-rate, not a love button) · the agent
+**auto-publishes** into an isolated `madlad-generated` pack · **no content guardrail for
+the playtest** · generation runs on **your own models** (model-agnostic).
+
+**Playtest can start after F0 + F2 (+F1).** F5 (agent) only helps once data exists.
+
+### [F0] Deploy DB-backed build on Postgres (Fly) *(critical path)* — `M`
+- [ ] Fly Postgres + attach (`DATABASE_URL`); boot-time migrate+seed creates `madlad-core`
+- [ ] `/healthz` DB ok; play a real prod game sourced from the DB; update `DEPLOY.md`
+- Depends on **E2.3 merged**
+
+### [F1] Card outcome telemetry — `M`
+- [ ] On `pick-winner`, persist submitted card ids + which won (+ the black card)
+- [ ] `card_stats` counters (plays/wins) or append-only `card_events`; written in the
+      server layer, never the engine
+
+### [F2] Card flagging — `M`
+- [ ] `card_flags` (card_id, reason `not_funny`|`broken`, flagger_id); unique per flagger
+- [ ] Phone flag affordance (two reasons); rate-limited endpoint; flagger id = device token (S0-lite)
+
+### [F3] Feedback dashboard — `M`
+- [ ] Per-card win-rate (min-plays floor), plays, flag counts; top winners / dead weight / most-flagged; admin-gated
+
+### [F4] Performance model + retirement — `S`
+- [ ] `win_rate = wins/plays`; retire on high flag-rate or low win-rate (config thresholds); reversible
+
+### [F5] AI card-generation agent — `L`
+- [ ] Batch job: winners as style context → **your model** → new cards
+- [ ] Auto-publish into isolated `madlad-generated` pack; model-agnostic interface
+- [ ] Dedupe vs existing, volume caps, log each card + its seed
+
+### [F6] Close the loop — `M`
+- [ ] Generated cards accrue their own telemetry; prune losers, reseed from winners
+
+---
+
 ## 📋 BACKLOG
 
 ### [B1] Poker (Texas Hold'em)
@@ -224,4 +268,4 @@ round-to-round mechanically — the anticipation just isn't *surfaced* yet.
 
 ---
 
-*Last updated: 2026-07-06 — added Card Platform (E1–E9), Persistent Sessions & Scale (S0–S3), and Card & Hand Game-Feel (J1–J7) epics*
+*Last updated: 2026-07-06 — added Card Platform (E1–E9), Persistent Sessions & Scale (S0–S3), Card & Hand Game-Feel (J1–J7), and Playtest Feedback Loop (F0–F6) epics*
