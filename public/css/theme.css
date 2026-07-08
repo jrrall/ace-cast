@@ -1,0 +1,57 @@
+/* ==========================================================================
+   unholy.cards — "Unholy Ritual" theme tokens
+   Occult / high-contrast: ink-black rooms, oxblood + ember, bone card faces,
+   ritual gold. Loaded first on every view; all other stylesheets reference
+   these custom properties instead of hard-coded hexes.
+   ========================================================================== */
+:root {
+    /* Ink — backgrounds + dark surfaces */
+    --ink:        #0d0b0f;   /* deepest void (page background) */
+    --ink-2:      #15111b;   /* raised surface / panels */
+    --ink-3:      #201826;   /* cards-back, chips */
+    --ink-line:   rgba(239, 230, 211, 0.10);  /* hairline borders on dark */
+
+    /* Blood */
+    --oxblood:      #8b1e2d;  /* primary */
+    --oxblood-deep: #5a1220;
+    --ember:        #e04b2f;  /* hot accent, winner, danger */
+    --ember-bright: #ff5a36;
+
+    /* Ritual metals + parchment */
+    --gold:       #c9a227;   /* scores, highlights, filigree */
+    --gold-dim:   #8f7420;
+    --bone:       #efe6d3;   /* answer card face */
+    --bone-shade: #d8ccb2;   /* aged edge / paper shadow */
+
+    /* Text on dark */
+    --text:       #f3ecdf;   /* primary on ink */
+    --text-dim:   #b3a7b8;   /* secondary */
+    --text-faint: #7c7183;   /* tertiary / captions */
+
+    /* Effects */
+    --glow-ember: 0 0 22px rgba(224, 75, 47, 0.55);
+    --glow-gold:  0 0 18px rgba(201, 162, 39, 0.45);
+    --shadow-card: 0 10px 30px rgba(0, 0, 0, 0.55);
+
+    /* Type */
+    --font-display: "Iowan Old Style", "Palatino Linotype", Palatino, "Book Antiqua", Georgia, serif;
+    --font-body:    -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+
+    --radius: 14px;
+}
+
+/* Shared page canvas: void with a faint ritual vignette so it never reads as
+   flat corporate grey. Applied to every page; view stylesheets load AFTER this
+   and only refine layout, not the base palette. */
+body {
+    margin: 0;
+    min-height: 100vh;
+    font-family: var(--font-body);
+    color: var(--text);
+    background-color: var(--ink);
+    background-image:
+        radial-gradient(1200px 700px at 50% -10%, rgba(139, 30, 45, 0.22), transparent 60%),
+        radial-gradient(900px 900px at 92% 112%, rgba(201, 162, 39, 0.08), transparent 55%),
+        radial-gradient(700px 700px at 4% 100%, rgba(224, 75, 47, 0.07), transparent 55%);
+    background-attachment: fixed;
+}

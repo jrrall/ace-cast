@@ -179,6 +179,8 @@ class MadLadGame extends BaseGame {
     switch (action) {
     case 'submit-card':
       return this.handleSubmitCard(playerId, data);
+    case 'unsubmit-card':
+      return this.handleUnsubmit(playerId);
     case 'pick-winner':
       return this.handlePickWinner(playerId, data);
     case 'next-round':
@@ -208,6 +210,23 @@ class MadLadGame extends BaseGame {
     player.submittedCardId = submissionId;
 
     this.maybeAdvanceToJudging();
+    return { ok: true };
+  }
+
+  handleUnsubmit(playerId) {
+    // Take your card back — only while the round is still collecting cards
+    // (phase 'answering', before it advances to judging). The card returns to
+    // your hand and your submission is withdrawn.
+    if (this.state.phase !== 'answering') return null;
+    const player = this.state.players[playerId];
+    if (!player || !player.submittedCardId) return null;
+
+    const idx = this.state.submissions.findIndex((s) => s.playerId === playerId);
+    if (idx === -1) return null;
+
+    const [sub] = this.state.submissions.splice(idx, 1);
+    player.hand.push(sub.card);
+    player.submittedCardId = null;
     return { ok: true };
   }
 
@@ -488,6 +507,10 @@ class MadLadGame extends BaseGame {
     const availableActions = [];
     if (this.state.phase === 'results') {
       availableActions.push({ type: 'next-round', label: 'Next Round' });
+    }
+    // While the round is still collecting cards, let a player take theirs back.
+    if (this.state.phase === 'answering' && !isJudge && player.submittedCardId) {
+      availableActions.push({ type: 'unsubmit-card', label: '↩ Take my card back' });
     }
 
     return {
