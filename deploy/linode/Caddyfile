@@ -1,0 +1,13 @@
+# Caddy reverse proxy for Ace Cast.
+#
+# Caddy automatically provisions + renews a Let's Encrypt TLS cert for SITE_ADDRESS
+# (needs the domain's A record pointing here and ports 80/443 reachable), and
+# `reverse_proxy` proxies WebSockets transparently — no Upgrade/Connection header
+# juggling like nginx needs. Socket.IO just works.
+#
+# For a local run, set SITE_ADDRESS=localhost: Caddy serves HTTPS with its own
+# internal cert and skips Let's Encrypt entirely.
+{$SITE_ADDRESS} {
+	encode zstd gzip
+	reverse_proxy app:3000
+}
