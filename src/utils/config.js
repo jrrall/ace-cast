@@ -35,6 +35,9 @@ const config = {
     // How long a disconnected player's seat (hand + score) is held open for a
     // reconnect before it's given up. Covers phone-lock / wifi-blip / reload.
     reconnectGraceMs: toInt(process.env.RECONNECT_GRACE_MS, 90 * 1000),
+    // Fill the table with bots up to this many seats once >= 2 humans join
+    // (bots answer; a human is always the Card Czar). Set BOT_TARGET=0 to disable.
+    botTargetDefault: toInt(process.env.BOT_TARGET, 4),
   },
 
   // Lightweight abuse protection for room creation (per client IP) and card

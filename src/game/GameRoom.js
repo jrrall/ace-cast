@@ -1,5 +1,6 @@
 const registry = require('./registry');
 const { validateEngine } = require('./contract');
+const config = require('../utils/config');
 
 class GameRoom {
   constructor(code) {
@@ -11,13 +12,29 @@ class GameRoom {
     this.gameEngine = null;
     this.createdAt = Date.now();
     this.lastActivity = Date.now();
+    // Desired total table size to fill with bots (once >= 2 humans are present).
+    // The server reconciles bot seats toward this; the host can nudge it.
+    this.botTarget = config.room.botTargetDefault;
   }
 
-  addPlayer(playerId, playerName, socket) {
+  /** Human (non-bot) players, connected or holding a seat. */
+  getHumanPlayers() {
+    return Array.from(this.players.values()).filter((p) => !p.isBot);
+  }
+
+  /** Bot players currently seated. */
+  getBotPlayers() {
+    return Array.from(this.players.values()).filter((p) => p.isBot);
+  }
+
+  addPlayer(playerId, playerName, socket, isBot = false) {
     const player = {
       id: playerId,
       name: playerName,
       socket,
+      // Bots are ordinary players with no socket; the server drives their moves.
+      isBot,
+      botTimer: null,
       joinedAt: Date.now(),
       isActive: true,
       // Live socket present? Distinct from isActive (engine participation):
@@ -239,6 +256,7 @@ class GameRoom {
         id: p.id,
         name: p.name,
         isActive: p.isActive,
+        isBot: Boolean(p.isBot),
         stats: p.stats,
       })),
     };

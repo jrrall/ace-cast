@@ -68,6 +68,8 @@ class MadLadGame extends BaseGame {
     return {
       id: player.id,
       name: player.name,
+      // Bots answer but never judge — a human is always the Card Czar.
+      isBot: Boolean(player.isBot),
       hand: [],
       score: 0,
       isActive: player.isActive !== false,
@@ -138,7 +140,7 @@ class MadLadGame extends BaseGame {
       this.state.judgePointer %= activeIds.length;
     }
 
-    this.state.judgeId = activeIds[this.state.judgePointer % activeIds.length];
+    this.state.judgeId = this.chooseJudge(activeIds);
 
     // Deal / refill everyone up to a full hand.
     activeIds.forEach((id) => {
@@ -153,6 +155,25 @@ class MadLadGame extends BaseGame {
 
     const judge = this.state.players[this.state.judgeId];
     this.state.message = `Round ${this.state.round} — ${judge.name} is the Card Czar. Everyone else, play a card!`;
+  }
+
+  /**
+   * Pick the Card Czar for the round, skipping bots so a human always judges.
+   * Scans the active ring starting at the current judgePointer and lands on the
+   * first non-bot, updating the pointer to match. If the table is somehow all
+   * bots (every human has left — the room is being torn down), falls back to the
+   * pointer as-is so nothing crashes.
+   */
+  chooseJudge(activeIds) {
+    const n = activeIds.length;
+    for (let i = 0; i < n; i += 1) {
+      const idx = (this.state.judgePointer + i) % n;
+      if (!this.state.players[activeIds[idx]].isBot) {
+        this.state.judgePointer = idx;
+        return activeIds[idx];
+      }
+    }
+    return activeIds[this.state.judgePointer % n];
   }
 
   maybeAdvanceToJudging() {

@@ -109,6 +109,42 @@ describe('MadLadGame', () => {
     });
   });
 
+  describe('bots', () => {
+    const withBots = () => new MadLadGame(makeRoom([
+      { id: 'h1', name: 'Ada', isActive: true },
+      { id: 'h2', name: 'Bea', isActive: true },
+      { id: 'b1', name: 'Wraith', isActive: true, isBot: true },
+      { id: 'b2', name: 'Nyx', isActive: true, isBot: true },
+    ]), { deck: makeDeck() });
+
+    test('a bot is never the Card Czar; the two humans rotate as judge', () => {
+      const game = withBots();
+      const seenJudges = new Set();
+      for (let round = 0; round < 8; round += 1) {
+        expect(game.state.players[game.state.judgeId].isBot).toBe(false);
+        seenJudges.add(game.state.judgeId);
+        game.getActiveNonJudgeIds()
+          .forEach((id) => game.handlePlayerAction(id, { action: 'submit-card', data: { cardIndex: 0 } }));
+        const winner = game.state.submissions[0];
+        game.handlePlayerAction(game.state.judgeId, { action: 'pick-winner', data: { submissionId: winner.id } });
+        if (game.state.phase === 'gameover') break;
+        game.handlePlayerAction('h1', { action: 'next-round' });
+      }
+      expect(seenJudges.has('h1')).toBe(true);
+      expect(seenJudges.has('h2')).toBe(true);
+      expect(seenJudges.has('b1')).toBe(false);
+      expect(seenJudges.has('b2')).toBe(false);
+    });
+
+    test('bots answer, so the human judge has several cards to choose from', () => {
+      const game = withBots();
+      game.getActiveNonJudgeIds()
+        .forEach((id) => game.handlePlayerAction(id, { action: 'submit-card', data: { cardIndex: 0 } }));
+      expect(game.state.phase).toBe('judging');
+      expect(game.state.submissions.length).toBe(3); // 1 human + 2 bots
+    });
+  });
+
   describe('state privacy', () => {
     test('public state hides hands and keeps submissions anonymous while judging', () => {
       const game = makeGame(3);

@@ -75,3 +75,10 @@ header p { font-size: 1.15em; color: var(--text-dim); }
     .setup-card, .room-info, .players-section, .game-controls, .game-status { padding: 20px; }
     .room-code { font-size: 1.8em; }
 }
+
+/* ---- Bot controls (lobby) ---------------------------------------------- */
+.bot-controls { display: flex; align-items: center; gap: 12px; margin: 6px 0 14px; flex-wrap: wrap; }
+.bot-controls .secondary-btn { margin: 0; padding: 8px 16px; font-size: 14px; }
+.bot-controls .help-text { margin: 0; flex: 1; min-width: 160px; }
+.player-item.bot { border-left-color: var(--gold); }
+.bot-tag { display: inline-block; margin-left: 8px; font-size: 0.8em; color: var(--gold); letter-spacing: 0.04em; white-space: nowrap; }

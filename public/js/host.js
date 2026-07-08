@@ -30,6 +30,8 @@ class HostController {
         this.gameStatusContent = document.getElementById('game-status-content');
         this.gameTypeSelect = document.getElementById('game-type');
         this.gameHint = document.getElementById('game-hint');
+        this.addBotBtn = document.getElementById('add-bot-btn');
+        this.removeBotBtn = document.getElementById('remove-bot-btn');
     }
 
     bindEvents() {
@@ -37,6 +39,12 @@ class HostController {
         this.startGameBtn.addEventListener('click', () => this.startGame());
         this.endGameBtn.addEventListener('click', () => this.endGame());
         this.gameTypeSelect.addEventListener('change', () => this.updateGameHint());
+        if (this.addBotBtn) {
+            this.addBotBtn.addEventListener('click', () => this.socket && this.socket.emit('add-bot'));
+        }
+        if (this.removeBotBtn) {
+            this.removeBotBtn.addEventListener('click', () => this.socket && this.socket.emit('remove-bot'));
+        }
         this.updateGameHint();
     }
 
@@ -64,9 +72,11 @@ class HostController {
         });
 
         this.socket.on('player-joined', (data) => {
-            this.addPlayer(data.playerId, data.playerName);
+            this.addPlayer(data.playerId, data.playerName, data.isBot);
             this.updatePlayerCount();
-            this.updateGameStatus(`${data.playerName} joined the game`);
+            if (!data.isBot) {
+                this.updateGameStatus(`${data.playerName} joined the game`);
+            }
         });
 
         this.socket.on('player-left', (data) => {
@@ -160,8 +170,8 @@ class HostController {
         });
     }
 
-    addPlayer(playerId, playerName) {
-        this.players.set(playerId, { id: playerId, name: playerName });
+    addPlayer(playerId, playerName, isBot = false) {
+        this.players.set(playerId, { id: playerId, name: playerName, isBot });
         this.updatePlayersDisplay();
     }
 
@@ -172,16 +182,20 @@ class HostController {
 
     updatePlayersDisplay() {
         this.playersList.innerHTML = '';
-        
+
         for (const player of this.players.values()) {
             const li = document.createElement('li');
-            li.className = 'player-item';
-            li.innerHTML = `
-                <strong>${player.name}</strong>
-                <div style="font-size: 0.8em; color: #666; margin-top: 5px;">
-                    Player ID: ${player.id.substring(0, 8)}...
-                </div>
-            `;
+            li.className = 'player-item' + (player.isBot ? ' bot' : '');
+            // textContent (not innerHTML) — player names are untrusted input.
+            const name = document.createElement('strong');
+            name.textContent = player.name;
+            li.appendChild(name);
+            if (player.isBot) {
+                const tag = document.createElement('span');
+                tag.className = 'bot-tag';
+                tag.textContent = '🤖 bot';
+                li.appendChild(tag);
+            }
             this.playersList.appendChild(li);
         }
     }

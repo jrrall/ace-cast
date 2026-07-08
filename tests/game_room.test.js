@@ -63,6 +63,8 @@ describe('GameRoom', () => {
         id: playerId,
         name: playerName,
         socket: mockSocket,
+        isBot: false,
+        botTimer: null,
         joinedAt: expect.any(Number),
         isActive: true,
         connected: true,
@@ -411,6 +413,7 @@ describe('GameRoom', () => {
           id: 'player1',
           name: 'Test Player',
           isActive: true,
+          isBot: false,
           stats: {
             gamesPlayed: 0,
             gamesWon: 0,
