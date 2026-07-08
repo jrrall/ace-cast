@@ -89,16 +89,6 @@
     box-shadow: var(--shadow-card), inset 0 1px 0 rgba(255, 255, 255, 0.6);
     cursor: default;
 }
-/* Hairline blood rule near the top — the mark of the deck. */
-.card--answer::before {
-    content: "";
-    position: absolute;
-    left: 12px;
-    right: 12px;
-    top: 10px;
-    height: 1px;
-    background: linear-gradient(90deg, transparent, rgba(139, 30, 45, 0.5), transparent);
-}
 
 button.card {
     cursor: pointer;

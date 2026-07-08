@@ -218,6 +218,49 @@ class PlayerController {
             this.gameState = null;
             this.showLobbyScreen();
         });
+
+        this.socket.on('game-over', (data) => {
+            this.beginGameOverCountdown(data && data.closesInSec);
+        });
+
+        this.socket.on('session-closed', () => {
+            this.handleSessionClosed();
+        });
+    }
+
+    // ---- Game-over countdown + session release ----------------------------
+
+    beginGameOverCountdown(sec) {
+        this.clearGameOverCountdown();
+        let remaining = Math.max(0, Number(sec) || 0);
+        let el = document.getElementById('gameover-timer');
+        if (!el) {
+            el = document.createElement('div');
+            el.id = 'gameover-timer';
+            el.className = 'gameover-timer';
+            document.body.appendChild(el);
+        }
+        const render = () => { el.textContent = remaining > 0 ? `New session in ${remaining}s…` : 'Closing…'; };
+        render();
+        this._goTimer = setInterval(() => {
+            remaining -= 1;
+            if (remaining < 0) this.clearGameOverCountdown(); else render();
+        }, 1000);
+    }
+
+    clearGameOverCountdown() {
+        if (this._goTimer) { clearInterval(this._goTimer); this._goTimer = null; }
+        const el = document.getElementById('gameover-timer');
+        if (el) el.remove();
+    }
+
+    handleSessionClosed() {
+        this.clearGameOverCountdown();
+        this.gameState = null;
+        this.roomCode = null;
+        // Don't auto-rejoin a room that no longer exists.
+        try { localStorage.removeItem('acecast_session'); } catch (e) { /* ignore */ }
+        this.showJoinScreen();
     }
 
     joinGame() {

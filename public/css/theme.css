@@ -55,3 +55,21 @@ body {
         radial-gradient(700px 700px at 4% 100%, rgba(224, 75, 47, 0.07), transparent 55%);
     background-attachment: fixed;
 }
+
+/* Game-over release countdown — a centered banner injected by the clients. */
+.gameover-timer {
+    position: fixed;
+    left: 50%;
+    bottom: 24px;
+    transform: translateX(-50%);
+    z-index: 100;
+    padding: 12px 26px;
+    border-radius: 999px;
+    background: rgba(13, 11, 15, 0.92);
+    border: 1px solid var(--gold);
+    color: var(--gold);
+    font-family: var(--font-display);
+    font-size: 1.1rem;
+    letter-spacing: 0.04em;
+    box-shadow: var(--glow-gold), 0 8px 24px rgba(0, 0, 0, 0.6);
+}

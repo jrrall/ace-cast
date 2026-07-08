@@ -38,6 +38,9 @@ const config = {
     // Fill the table with bots up to this many seats once >= 2 humans join
     // (bots answer; a human is always the Card Czar). Set BOT_TARGET=0 to disable.
     botTargetDefault: toInt(process.env.BOT_TARGET, 4),
+    // After the game is won, hold on the results for this long (a visible
+    // countdown), then release the room/session.
+    gameOverCloseMs: toInt(process.env.GAME_OVER_CLOSE_MS, 20 * 1000),
   },
 
   // Lightweight abuse protection for room creation (per client IP) and card

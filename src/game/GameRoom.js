@@ -15,6 +15,8 @@ class GameRoom {
     // Desired total table size to fill with bots (once >= 2 humans are present).
     // The server reconciles bot seats toward this; the host can nudge it.
     this.botTarget = config.room.botTargetDefault;
+    // Pending "release this room after game over" timer (set by the server).
+    this.gameOverTimer = null;
   }
 
   /** Human (non-bot) players, connected or holding a seat. */
@@ -263,6 +265,10 @@ class GameRoom {
   }
 
   cleanup() {
+    if (this.gameOverTimer) {
+      clearTimeout(this.gameOverTimer);
+      this.gameOverTimer = null;
+    }
     // Disconnect all players and cancel any pending reconnect grace timers.
     Array.from(this.players.values()).forEach((player) => {
       if (player.disconnectTimer) {

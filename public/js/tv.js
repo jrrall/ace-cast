@@ -101,6 +101,40 @@ class TVController {
             this.addActionToFeed('Game ended', 'game-start');
             this.showLobbyScreen();
         });
+
+        this.socket.on('game-over', (data) => {
+            this.beginGameOverCountdown(data && data.closesInSec);
+        });
+
+        this.socket.on('session-closed', () => {
+            this.clearGameOverCountdown();
+            this.gameState = null;
+            this.showLobbyScreen();
+        });
+    }
+
+    beginGameOverCountdown(sec) {
+        this.clearGameOverCountdown();
+        let remaining = Math.max(0, Number(sec) || 0);
+        let el = document.getElementById('gameover-timer');
+        if (!el) {
+            el = document.createElement('div');
+            el.id = 'gameover-timer';
+            el.className = 'gameover-timer';
+            document.body.appendChild(el);
+        }
+        const render = () => { el.textContent = remaining > 0 ? `New session in ${remaining}s…` : 'Closing…'; };
+        render();
+        this._goTimer = setInterval(() => {
+            remaining -= 1;
+            if (remaining < 0) this.clearGameOverCountdown(); else render();
+        }, 1000);
+    }
+
+    clearGameOverCountdown() {
+        if (this._goTimer) { clearInterval(this._goTimer); this._goTimer = null; }
+        const el = document.getElementById('gameover-timer');
+        if (el) el.remove();
     }
 
     joinRoomAsTV() {
