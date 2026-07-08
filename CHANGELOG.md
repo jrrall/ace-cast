@@ -1,3 +1,7 @@
+## 1.9.0 (2026-07-08)
+
+* feat(ui): Unholy Ritual theme, TV cast fixes, card rescind (#20) ([60a998c](https://github.com/jrrall/ace-cast/commit/60a998c)), closes [#20](https://github.com/jrrall/ace-cast/issues/20)
+
 ## 1.8.0 (2026-07-08)
 
 * feat: S0 device identity + F2 card flagging (reconciled onto J1 renderer) (#19) ([6911021](https://github.com/jrrall/ace-cast/commit/6911021)), closes [#19](https://github.com/jrrall/ace-cast/issues/19) [#14](https://github.com/jrrall/ace-cast/issues/14) [#17](https://github.com/jrrall/ace-cast/issues/17)
