@@ -113,6 +113,16 @@ const BLACK_CARDS = [
   'The influencer\'s apology video was really about ____.',
   'I flew all the way to Sicily just to avoid ____.',
   'My entire personality collapsed the day the algorithm discovered ____.',
+  'Somehow, Pedro Pascal is also in ____.',
+  'The cast of the new three-hour epic somehow includes ____.',
+  'According to a billionaire, the secret to keeping your fortune is ____.',
+  'This season of Love Island, the villa is torn apart by ____.',
+  'I got permanently banned from Discord for posting ____.',
+  'Why does every video online now have background audio of ____?',
+  'The gaming company announced ____ and instantly regretted it.',
+  'The Vatican is in crisis over ____.',
+  'This year\'s Eurovision was ultimately decided by ____.',
+  'The photographers on the red carpet demanded I pose with ____.',
 ];
 
 const WHITE_CARDS = [
@@ -365,6 +375,23 @@ const WHITE_CARDS = [
   'My third self-care bottle of the night.',
   'A perfectly relaxing tune over total chaos.',
   'Ghosting my responsibilities for the aesthetic.',
+  'Pedro Pascal, somehow.',
+  'A three-hour movie with every actor alive in it.',
+  'Never letting a single dollar leave my sight.',
+  'Getting recoupled with a total stranger.',
+  'A cursed grid of images.',
+  'Random unrelated words whispered over a video.',
+  'A gaming company speedrunning its own downfall.',
+  'A minor religious schism.',
+  'A baffling Eurovision political vote.',
+  'Posing sideways because a photographer asked nicely.',
+  'A celebrity nepo-baby debut.',
+  'Being the cheapest person at a billionaire\'s party.',
+  'Whatever Christopher Nolan is filming this year.',
+  'A reality-TV villain edit.',
+  'An algorithm-poisoned attention span.',
+  'The lore of a Discord server I got banned from.',
+  'A haute couture show I was somehow invited to.',
 ];
 
 module.exports = { BLACK_CARDS, WHITE_CARDS };
