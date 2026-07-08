@@ -153,6 +153,8 @@ const BLACK_CARDS = [
   'History will remember this administration for ____.',
   'The one thing that truly unites all Americans is ____.',
   'The Founding Fathers did not fight a revolution so we could have ____.',
+  'The Nobel Peace Prize was, somehow, awarded to ____.',
+  'My legal dream team consists entirely of ____.',
 ];
 
 const WHITE_CARDS = [
@@ -475,6 +477,12 @@ const WHITE_CARDS = [
   'A Founding Father who would not survive one day on TikTok.',
   'A Kissinger-approved backroom deal.',
   'A president who peaked at the correspondents\' dinner.',
+  'Henry Kissinger accepting yet another Peace Prize.',
+  'A Henry Kissinger realpolitik power move.',
+  'Henry Kissinger explaining why it was, regrettably, necessary.',
+  'Alan Dershowitz volunteering to argue the exact opposite.',
+  'An unsolicited constitutional-law lecture from Alan Dershowitz.',
+  'Alan Dershowitz on every cable-news panel at once.',
 ];
 
 module.exports = { BLACK_CARDS, WHITE_CARDS };
