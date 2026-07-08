@@ -20,7 +20,8 @@ work; a small container VM will.
 | `ALLOWED_ORIGINS` | `*` | Comma-separated CORS allowlist, e.g. `https://ace-cast.fly.dev`. Leave `*` while testing. |
 | `MAX_PLAYERS_PER_ROOM` | `12` | Cap on players per room. |
 | `MAX_ROOMS` | `500` | Cap on concurrent rooms (capacity guard). |
-| `DATABASE_URL` | `sqlite://./data/ace-cast.db` | DB connection. **Local defaults to a SQLite file (zero setup); production should point at Postgres** (see Database below). |
+| `RECONNECT_GRACE_MS` | `90000` | How long a disconnected player's seat (hand + score) is held for a reconnect before it's reclaimed. Covers phone-lock / wifi-blip / page reload. |
+| `DATABASE_URL` | `sqlite://./data/ace-cast.db` | DB connection. **Local defaults to a SQLite file (zero setup); production points at SQLite on a volume or Postgres** (see Database below). |
 | `DB_MIGRATE_ON_BOOT` | `true` | Run migrations automatically on boot. Leave `true` for single-instance deploys. |
 
 Health check endpoint: `GET /healthz` → `{ "status": "ok", "db": true, "rooms": N, "uptime": … }`.

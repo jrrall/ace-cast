@@ -1,6 +1,6 @@
 {
   "name": "ace-cast",
-  "version": "1.4.1",
+  "version": "1.6.0",
   "description": "A Chromecast-powered card game engine for instant party gaming",
   "main": "src/server/index.js",
   "scripts": {

@@ -1,3 +1,16 @@
+## 1.6.0 (2026-07-07)
+
+* feat: reconnect grace window and per-play humor metrics (#17) ([1bc7ce8](https://github.com/jrrall/ace-cast/commit/1bc7ce8)), closes [#17](https://github.com/jrrall/ace-cast/issues/17)
+
+## <small>1.5.1 (2026-07-07)</small>
+
+* docs: revise F5/F6 as iterable "table's sense of humor" card-gen loop (#16) ([fbd6dfc](https://github.com/jrrall/ace-cast/commit/fbd6dfc)), closes [#16](https://github.com/jrrall/ace-cast/issues/16)
+
+## 1.5.0 (2026-07-07)
+
+* Merge F1: card outcome telemetry ([2f49624](https://github.com/jrrall/ace-cast/commit/2f49624))
+* feat: card outcome telemetry (F1) ([d5799e5](https://github.com/jrrall/ace-cast/commit/d5799e5))
+
 ## <small>1.4.1 (2026-07-07)</small>
 
 * docs: groom Playtest Feedback Loop epic (F0–F6) (#12) ([0202ecd](https://github.com/jrrall/ace-cast/commit/0202ecd)), closes [#12](https://github.com/jrrall/ace-cast/issues/12)

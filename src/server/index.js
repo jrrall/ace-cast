@@ -22,6 +22,8 @@ const gameManager = require('../game/GameManager');
 const registry = require('../game/registry');
 const dbmod = require('../db');
 const DeckService = require('../content/DeckService');
+const CardStatsRepository = require('../content/CardStatsRepository');
+const CardEventsRepository = require('../content/CardEventsRepository');
 
 const PORT = config.server.port;
 
@@ -208,12 +210,48 @@ function broadcastGameState(room) {
   });
 }
 
+// Persist per-card play/win counts (F1) after a round is resolved. Best-effort
+// and fully out-of-band: any failure just logs and never blocks the broadcast.
+// Recording only on 'pick-winner' means each round is counted exactly once (the
+// engine still holds that round's submissions until the next round starts).
+async function recordCardOutcome(room, actionData) {
+  try {
+    if (!actionData || actionData.action !== 'pick-winner') return;
+    const engine = room.gameEngine;
+    if (!engine || typeof engine.getLastRoundOutcome !== 'function') return;
+    const game = registry.getGame(room.gameType);
+    if (!game || !game.cardBacked) return;
+
+    const outcome = engine.getLastRoundOutcome();
+    if (!outcome) return;
+
+    const winning = outcome.submissions.find((s) => s.won);
+    // F1 rollup counters (per-card play/win totals).
+    await CardStatsRepository.recordRoundOutcome({
+      playedCardIds: outcome.submissions.map((s) => s.cardId),
+      winningCardId: winning ? winning.cardId : null,
+    });
+    // F2 per-play event log (sliceable by humor / room / anonymous visitor).
+    // outcome.submissions[].playerId is the player's stable clientId (cookie).
+    await CardEventsRepository.recordRoundEvents({
+      gameId: game.id,
+      roomCode: room.code,
+      blackCardId: outcome.blackCardId,
+      submissions: outcome.submissions,
+    });
+  } catch (error) {
+    console.error('Failed to record card telemetry:', error);
+  }
+}
+
 // Socket.IO connection handling
 io.on('connection', (socket) => {
   console.log(`Client connected: ${socket.id}`);
 
   // Handle room joining
-  socket.on('join-room', ({ roomCode, playerName, deviceType }) => {
+  socket.on('join-room', ({
+    roomCode, playerName, deviceType, clientId,
+  }) => {
     const code = typeof roomCode === 'string' ? roomCode.toUpperCase() : '';
     if (!config.validation.roomCode.test(code)) {
       socket.emit('error', { message: 'Invalid room code' });
@@ -239,32 +277,53 @@ io.on('connection', (socket) => {
       const name = typeof playerName === 'string'
         ? playerName.trim().slice(0, config.validation.maxPlayerNameLength)
         : '';
-      if (!name) {
-        socket.emit('error', { message: 'Please enter a name' });
-        return;
-      }
-      if (room.players.size >= config.room.maxPlayers) {
-        socket.emit('error', { message: 'This room is full' });
-        return;
-      }
 
-      const playerId = socket.id;
-      room.addPlayer(playerId, name, socket);
+      // Stable identity comes from the client's cookie clientId; fall back to
+      // the (ephemeral) socket id for older clients — they still play, they
+      // just can't reconnect to a held seat.
+      const playerId = (typeof clientId === 'string' && clientId.trim())
+        ? clientId.trim().slice(0, 64)
+        : socket.id;
       socket.playerId = playerId;
 
-      // Deal a late joiner into an in-progress game.
-      if (room.isGameActive && room.gameEngine && room.gameEngine.addLatePlayer) {
-        room.gameEngine.addLatePlayer(playerId, name);
+      const existing = room.getPlayer(playerId);
+      if (existing) {
+        // Reconnect: same clientId already holds a seat — re-attach this socket
+        // and resume, rather than creating a second player. No full-room check
+        // (they already occupy a seat) and no name required.
+        if (name) existing.name = name;
+        room.reconnectPlayer(playerId, socket);
+        io.to(code).emit('player-joined', {
+          playerId,
+          playerName: existing.name,
+          playerCount: room.players.size,
+        });
+      } else {
+        if (!name) {
+          socket.emit('error', { message: 'Please enter a name' });
+          return;
+        }
+        if (room.players.size >= config.room.maxPlayers) {
+          socket.emit('error', { message: 'This room is full' });
+          return;
+        }
+
+        room.addPlayer(playerId, name, socket);
+
+        // Deal a late joiner into an in-progress game.
+        if (room.isGameActive && room.gameEngine && room.gameEngine.addLatePlayer) {
+          room.gameEngine.addLatePlayer(playerId, name);
+        }
+
+        // Notify all clients in room about new player
+        io.to(code).emit('player-joined', {
+          playerId,
+          playerName: name,
+          playerCount: room.players.size,
+        });
+
+        console.log(`Player ${name} joined room ${code}`);
       }
-
-      // Notify all clients in room about new player
-      io.to(code).emit('player-joined', {
-        playerId,
-        playerName: name,
-        playerCount: room.players.size,
-      });
-
-      console.log(`Player ${name} joined room ${code}`);
     }
 
     // Send current room state to the joining client
@@ -291,6 +350,8 @@ io.on('connection', (socket) => {
     const result = room.handlePlayerAction(socket.playerId, data);
     if (result) {
       broadcastGameState(room);
+      // Fire-and-forget: telemetry must never block or crash the round loop.
+      recordCardOutcome(room, data);
     }
   });
 
@@ -352,29 +413,48 @@ io.on('connection', (socket) => {
   socket.on('disconnect', () => {
     console.log(`Client disconnected: ${socket.id}`);
 
-    if (socket.roomCode && socket.playerId) {
-      const room = gameManager.getRoom(socket.roomCode);
-      if (room) {
-        room.removePlayer(socket.playerId);
+    if (!socket.roomCode || !socket.playerId) return;
+    const room = gameManager.getRoom(socket.roomCode);
+    if (!room) return;
 
-        // Notify remaining players
-        io.to(socket.roomCode).emit('player-left', {
-          playerId: socket.playerId,
-          playerCount: room.players.size,
-        });
+    const player = room.getPlayer(socket.playerId);
+    // Ignore a stale socket's disconnect after the player already reconnected on
+    // a new socket (their seat now points at the newer socket, not this one).
+    if (!player || player.socket !== socket) return;
 
-        // Refresh remaining clients' game state (judge/turn may have changed).
-        if (room.isGameActive) {
-          broadcastGameState(room);
-        }
+    const code = socket.roomCode;
+    const { playerId } = socket;
 
-        // Clean up empty rooms
-        if (room.players.size === 0) {
-          gameManager.removeRoom(socket.roomCode);
-          console.log(`Room ${socket.roomCode} cleaned up (empty)`);
-        }
-      }
+    // Hold the seat: pause the player but keep hand + score for a grace window.
+    room.markDisconnected(playerId);
+    io.to(code).emit('player-disconnected', {
+      playerId,
+      playerCount: room.players.size,
+    });
+    // Round math may have changed (judge reassigned / round can proceed).
+    if (room.isGameActive) {
+      broadcastGameState(room);
     }
+
+    // If they don't return within the grace window, give the seat up for good.
+    const timer = setTimeout(() => {
+      const r = gameManager.getRoom(code);
+      if (!r) return;
+      const p = r.getPlayer(playerId);
+      if (!p || p.connected) return; // reconnected in the meantime — keep them
+
+      r.removePlayer(playerId);
+      io.to(code).emit('player-left', { playerId, playerCount: r.players.size });
+      if (r.isGameActive) {
+        broadcastGameState(r);
+      }
+      if (r.players.size === 0) {
+        gameManager.removeRoom(code);
+        console.log(`Room ${code} cleaned up (empty)`);
+      }
+    }, config.room.reconnectGraceMs);
+    if (timer.unref) timer.unref();
+    player.disconnectTimer = timer;
   });
 });
 
