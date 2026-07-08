@@ -296,10 +296,32 @@ async function recordCardOutcome(room, actionData) {
   }
 }
 
+// After a game is won, hold on the results for a visible countdown, then release
+// the room (free the session). Idempotent — at most one countdown per room.
+function startGameOverCountdown(room) {
+  if (!room || room.gameOverTimer || !room.gameEngine) return;
+  if (typeof room.gameEngine.getPublicState !== 'function') return;
+  if (room.gameEngine.getPublicState().phase !== 'gameover') return;
+
+  const closesInSec = Math.round(config.room.gameOverCloseMs / 1000);
+  io.to(room.code).emit('game-over', { closesInSec });
+  room.gameOverTimer = setTimeout(() => {
+    const r = gameManager.getRoom(room.code);
+    if (!r) return;
+    bots.clearBotTimers(r);
+    r.endGame();
+    io.to(r.code).emit('session-closed', {});
+    gameManager.removeRoom(r.code);
+    console.log(`Room ${r.code} released after game over`);
+  }, config.room.gameOverCloseMs);
+  if (room.gameOverTimer.unref) room.gameOverTimer.unref();
+}
+
 // Broadcast + record telemetry after a bot acts (mirrors the human action path).
 function afterBotAction(room, actionData) {
   broadcastGameState(room);
   recordCardOutcome(room, actionData);
+  startGameOverCountdown(room);
 }
 
 // Fill (or trim) bot seats toward room.botTarget once >= 2 humans are present.
@@ -459,6 +481,8 @@ io.on('connection', (socket) => {
       recordCardOutcome(room, data);
       // A human move may open a bot's turn (answer, or advance to the next round).
       bots.scheduleBotActions(room, afterBotAction);
+      // If that move won the game, start the release countdown.
+      startGameOverCountdown(room);
     }
   });
 
@@ -541,6 +565,10 @@ io.on('connection', (socket) => {
     const room = gameManager.getRoom(socket.roomCode);
     if (!room) return;
 
+    if (room.gameOverTimer) {
+      clearTimeout(room.gameOverTimer);
+      room.gameOverTimer = null;
+    }
     room.endGame();
 
     const roomState = room.getRoomState();
