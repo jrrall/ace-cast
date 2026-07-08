@@ -1,3 +1,9 @@
+## <small>1.10.1 (2026-07-08)</small>
+
+* fix: remove stray red line on cards; add game-over countdown + session release (#24) ([a0e89a9](https://github.com/jrrall/ace-cast/commit/a0e89a9)), closes [#24](https://github.com/jrrall/ace-cast/issues/24)
+* Chore/rebrand unholy (#23) ([b93afa4](https://github.com/jrrall/ace-cast/commit/b93afa4)), closes [#23](https://github.com/jrrall/ace-cast/issues/23)
+* chore: rebrand user-facing strings to unholy.cards (#22) ([5389676](https://github.com/jrrall/ace-cast/commit/5389676)), closes [#22](https://github.com/jrrall/ace-cast/issues/22)
+
 ## 1.10.0 (2026-07-08)
 
 * feat: bots — fill a small table so 2 humans play like a full room (#21) ([6377961](https://github.com/jrrall/ace-cast/commit/6377961)), closes [#21](https://github.com/jrrall/ace-cast/issues/21)
