@@ -304,7 +304,7 @@ class PlayerController {
     }
 
     prettyGameType(type) {
-        if (type === 'madlad') return 'MadLad';
+        if (type === 'madlad') return 'unholy.cards';
         if (type === 'test') return 'Test Game';
         return type || 'Game';
     }

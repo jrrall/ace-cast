@@ -141,7 +141,7 @@ class TVController {
                 
                 // Update game type display if provided
                 if (data.gameType && this.gameType) {
-                    this.gameType.textContent = data.gameType;
+                    this.gameType.textContent = this.prettyGameType(data.gameType);
                 }
                 
                 this.showGameScreen();
@@ -198,7 +198,7 @@ class TVController {
     }
 
     prettyGameType(type) {
-        if (type === 'madlad') return 'MadLad';
+        if (type === 'madlad') return 'unholy.cards';
         if (type === 'test') return 'Test Game';
         return type || 'Game';
     }
