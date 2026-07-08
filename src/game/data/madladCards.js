@@ -143,6 +143,16 @@ const BLACK_CARDS = [
   'The conspiracy my relatives believe now involves ____.',
   'What did the AI deepfake catch the candidate doing? ____.',
   'The filibuster dragged on for nine hours about ____.',
+
+  // --- Named figures (comedic touchstones) ---
+  'They should really put ____ on the twenty-dollar bill.',
+  'The presidential library will be dedicated entirely to ____.',
+  'C-SPAN\'s highest-rated moment of all time was ____.',
+  'What did they finally declassify from the National Archives? ____.',
+  'The next face on Mount Rushmore belongs to ____.',
+  'History will remember this administration for ____.',
+  'The one thing that truly unites all Americans is ____.',
+  'The Founding Fathers did not fight a revolution so we could have ____.',
 ];
 
 const WHITE_CARDS = [
@@ -445,6 +455,26 @@ const WHITE_CARDS = [
   'A deepfake of me doing something unspeakable.',
   'Kissing a baby a little too enthusiastically.',
   'Thoughts, prayers, and nothing else whatsoever.',
+
+  // --- Named figures (comedic touchstones, affectionate/absurd) ---
+  'Janet Reno\'s Dance Party.',
+  'Richard Nixon\'s flop sweat.',
+  'Bill Clinton\'s saxophone solo.',
+  'Al Gore personally inventing the internet.',
+  'Dick Cheney\'s hunting accident.',
+  'Bernie Sanders in his mittens, once again asking.',
+  'Joe Biden\'s aviators and a double-scoop cone.',
+  'Ross Perot and an easel full of pie charts.',
+  'Teddy Roosevelt throwing hands with a moose.',
+  'Andrew Jackson\'s foul-mouthed pet parrot.',
+  'Ben Franklin at a French key party.',
+  'George Washington\'s wooden teeth.',
+  'Abraham Lincoln in a top hat, absolutely done with everyone.',
+  'Nixon flashing double peace signs from a helicopter.',
+  'A bald eagle screeching the Constitution.',
+  'A Founding Father who would not survive one day on TikTok.',
+  'A Kissinger-approved backroom deal.',
+  'A president who peaked at the correspondents\' dinner.',
 ];
 
 module.exports = { BLACK_CARDS, WHITE_CARDS };
