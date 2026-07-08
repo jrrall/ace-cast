@@ -1,3 +1,7 @@
+## 1.10.0 (2026-07-08)
+
+* feat: bots — fill a small table so 2 humans play like a full room (#21) ([6377961](https://github.com/jrrall/ace-cast/commit/6377961)), closes [#21](https://github.com/jrrall/ace-cast/issues/21)
+
 ## 1.9.0 (2026-07-08)
 
 * feat(ui): Unholy Ritual theme, TV cast fixes, card rescind (#20) ([60a998c](https://github.com/jrrall/ace-cast/commit/60a998c)), closes [#20](https://github.com/jrrall/ace-cast/issues/20)
