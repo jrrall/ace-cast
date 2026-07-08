@@ -45,7 +45,12 @@
                 </div>
 
                 <div class="players-section">
-                    <h3>Connected Players (<span id="player-count">0</span>)</h3>
+                    <h3>At the table (<span id="player-count">0</span>)</h3>
+                    <div class="bot-controls">
+                        <button id="remove-bot-btn" class="secondary-btn" type="button">− Bot</button>
+                        <span id="bot-hint" class="help-text">Bots fill the table once 2 people join — they play cards, humans are the Czar.</span>
+                        <button id="add-bot-btn" class="secondary-btn" type="button">+ Bot</button>
+                    </div>
                     <ul id="players-list"></ul>
                 </div>
 

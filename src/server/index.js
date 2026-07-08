@@ -26,6 +26,7 @@ const dbmod = require('../db');
 const DeckService = require('../content/DeckService');
 const CardStatsRepository = require('../content/CardStatsRepository');
 const CardEventsRepository = require('../content/CardEventsRepository');
+const bots = require('./bots');
 const CardFlagRepository = require('../content/CardFlagRepository');
 const IdentityRepository = require('../content/IdentityRepository');
 
@@ -295,6 +296,45 @@ async function recordCardOutcome(room, actionData) {
   }
 }
 
+// Broadcast + record telemetry after a bot acts (mirrors the human action path).
+function afterBotAction(room, actionData) {
+  broadcastGameState(room);
+  recordCardOutcome(room, actionData);
+}
+
+// Fill (or trim) bot seats toward room.botTarget once >= 2 humans are present.
+// Humans are always preferred; bots only fill the remaining seats. Emits
+// join/leave so the host + TV update. Safe to call on any join/leave (a no-op
+// when the bot count already matches).
+function reconcileBots(room) {
+  if (!room) return;
+  const humans = room.getHumanPlayers().length;
+  const want = bots.desiredBotCount(humans, room.botTarget, config.room.maxPlayers);
+
+  while (room.getBotPlayers().length < want && room.players.size < config.room.maxPlayers) {
+    const name = bots.nextBotName(room.getAllPlayers().map((p) => p.name));
+    const botId = `bot:${crypto.randomUUID()}`;
+    room.addPlayer(botId, name, null, true);
+    if (room.isGameActive && room.gameEngine && room.gameEngine.addLatePlayer) {
+      room.gameEngine.addLatePlayer(botId, name);
+    }
+    io.to(room.code).emit('player-joined', {
+      playerId: botId, playerName: name, playerCount: room.players.size, isBot: true,
+    });
+  }
+  while (room.getBotPlayers().length > want) {
+    const bot = room.getBotPlayers()[room.getBotPlayers().length - 1];
+    if (bot.botTimer) { clearTimeout(bot.botTimer); bot.botTimer = null; }
+    room.removePlayer(bot.id);
+    io.to(room.code).emit('player-left', { playerId: bot.id, playerCount: room.players.size });
+  }
+
+  if (room.isGameActive) {
+    broadcastGameState(room);
+    bots.scheduleBotActions(room, afterBotAction);
+  }
+}
+
 // Socket.IO connection handling
 io.on('connection', (socket) => {
   console.log(`Client connected: ${socket.id}`);
@@ -387,6 +427,10 @@ io.on('connection', (socket) => {
       }
     }
 
+    // Once >= 2 humans are in, keep the table filled with bots (they answer;
+    // a human is always the Card Czar).
+    reconcileBots(room);
+
     // Send current room state to the joining client
     const roomState = room.getRoomState();
     socket.emit('room-state', {
@@ -413,6 +457,8 @@ io.on('connection', (socket) => {
       broadcastGameState(room);
       // Fire-and-forget: telemetry must never block or crash the round loop.
       recordCardOutcome(room, data);
+      // A human move may open a bot's turn (answer, or advance to the next round).
+      bots.scheduleBotActions(room, afterBotAction);
     }
   });
 
@@ -432,6 +478,24 @@ io.on('connection', (socket) => {
     } catch (error) {
       console.error('Failed to record card flag:', error);
     }
+  });
+
+  // Host nudges the bot fill target up/down. Bots only actually appear once
+  // there are >= 2 humans (see reconcileBots / desiredBotCount).
+  socket.on('add-bot', () => {
+    if (socket.deviceType !== 'host') return;
+    const room = gameManager.getRoom(socket.roomCode);
+    if (!room) return;
+    room.botTarget = Math.min(config.room.maxPlayers, room.botTarget + 1);
+    reconcileBots(room);
+  });
+
+  socket.on('remove-bot', () => {
+    if (socket.deviceType !== 'host') return;
+    const room = gameManager.getRoom(socket.roomCode);
+    if (!room) return;
+    room.botTarget = Math.max(0, room.botTarget - 1);
+    reconcileBots(room);
   });
 
   // Handle game control from host
@@ -464,6 +528,8 @@ io.on('connection', (socket) => {
 
     io.to(socket.roomCode).emit('game-started', { gameType });
     broadcastGameState(room);
+    // Bots answer their first round.
+    bots.scheduleBotActions(room, afterBotAction);
 
     console.log(`Game started in room ${socket.roomCode}: ${gameType}`);
   });
@@ -524,12 +590,19 @@ io.on('connection', (socket) => {
 
       r.removePlayer(playerId);
       io.to(code).emit('player-left', { playerId, playerCount: r.players.size });
+
+      // No humans left → tear down (don't leave bots playing to an empty room).
+      if (r.getHumanPlayers().length === 0) {
+        bots.clearBotTimers(r);
+        gameManager.removeRoom(code);
+        console.log(`Room ${code} cleaned up (no humans left)`);
+        return;
+      }
+      // Rebalance bots for the new human count (drops them below 2 humans) and
+      // refresh the board.
+      reconcileBots(r);
       if (r.isGameActive) {
         broadcastGameState(r);
-      }
-      if (r.players.size === 0) {
-        gameManager.removeRoom(code);
-        console.log(`Room ${code} cleaned up (empty)`);
       }
     }, config.room.reconnectGraceMs);
     if (timer.unref) timer.unref();

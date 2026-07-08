@@ -59,6 +59,9 @@ const waitUntil = (predicate, timeout = 5000) => new Promise((resolve, reject) =
 
 beforeAll(async () => {
   process.env.PORT = '0';
+  // Keep this a pure human-flow test — no auto-fill bots. Set before the server
+  // (and config) are required so rooms are created with botTarget 0.
+  process.env.BOT_TARGET = '0';
   // Isolated temp DB, set before requiring the server so start() seeds it and
   // the deck is sourced from the DB (proving E2 end-to-end).
   db = useTestDb('e2e');
