@@ -160,6 +160,9 @@ const BLACK_CARDS = [
   'My hands may be small, but they are ____.',
   'What did they find on the homebrew email server? ____.',
   'Last Week Tonight did a twenty-minute deep dive on ____.',
+  'The government released the files, but redacted the part about ____.',
+  'What are they definitely hiding from us? ____.',
+  'The classified documents turned out to be mostly ____.',
 ];
 
 const WHITE_CARDS = [
@@ -519,6 +522,15 @@ const WHITE_CARDS = [
   'A twenty-minute John Oliver rant about something you\'ve never heard of.',
   'John Oliver buying something deeply cursed at auction.',
   'A sewage plant named after John Oliver.',
+
+  // --- Government secrecy / redaction (institutional, no real cases) ---
+  'A document that is 90% black bars.',
+  'A page where every single name is redacted.',
+  'Whatever they classified "for national security."',
+  'Plausible deniability.',
+  'A conspiracy that turned out to be true.',
+  'The part they redacted.',
+  'Files that will be declassified in the year 3000.',
 ];
 
 module.exports = { BLACK_CARDS, WHITE_CARDS };
