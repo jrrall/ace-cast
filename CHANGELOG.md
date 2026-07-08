@@ -1,3 +1,8 @@
+## 1.8.0 (2026-07-08)
+
+* feat: S0 device identity + F2 card flagging (reconciled onto J1 renderer) (#19) ([6911021](https://github.com/jrrall/ace-cast/commit/6911021)), closes [#19](https://github.com/jrrall/ace-cast/issues/19) [#14](https://github.com/jrrall/ace-cast/issues/14) [#17](https://github.com/jrrall/ace-cast/issues/17)
+* chore(deploy): prep DB-backed deploy on Fly Postgres (F0) (#15) ([b710b7e](https://github.com/jrrall/ace-cast/commit/b710b7e)), closes [#15](https://github.com/jrrall/ace-cast/issues/15)
+
 ## 1.7.0 (2026-07-08)
 
 * Deploy/linode sqlite (#18) ([db2d755](https://github.com/jrrall/ace-cast/commit/db2d755)), closes [#18](https://github.com/jrrall/ace-cast/issues/18)
