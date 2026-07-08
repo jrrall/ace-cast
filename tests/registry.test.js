@@ -17,7 +17,7 @@ describe('game registry', () => {
 
   test('getGame returns the MadLad entry with its engine', () => {
     const game = registry.getGame('madlad');
-    expect(game.name).toBe('MadLad');
+    expect(game.name).toBe('unholy.cards');
     expect(game.minPlayers).toBe(MadLadGame.MIN_PLAYERS);
     expect(game.engine).toBe(MadLadGame);
   });

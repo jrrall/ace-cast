@@ -113,7 +113,7 @@ app.get('/healthz', async (req, res) => {
 
 // Routes
 app.get('/', (req, res) => {
-  res.render('host/index', { title: 'Ace Cast - Host', games: registry.listGames() });
+  res.render('host/index', { title: 'unholy.cards — Host', games: registry.listGames() });
 });
 
 // Public list of playable games (for the host UI / future clients).
@@ -124,14 +124,14 @@ app.get('/api/games', (req, res) => {
 app.get('/player/:roomCode', (req, res) => {
   const { roomCode } = req.params;
   res.render('player/index', {
-    title: 'Ace Cast - Player',
+    title: 'unholy.cards — Play',
     roomCode: roomCode || '',
   });
 });
 
 app.get('/player', (req, res) => {
   res.render('player/index', {
-    title: 'Ace Cast - Player',
+    title: 'unholy.cards — Play',
     roomCode: '',
   });
 });
@@ -157,7 +157,7 @@ app.get('/tv/:roomCode', async (req, res) => {
   }
 
   return res.render('tv/index', {
-    title: 'Ace Cast - TV Display',
+    title: 'unholy.cards — TV',
     roomCode,
     joinUrl,
     qrCode,
@@ -618,7 +618,7 @@ if (sweepTimer.unref) sweepTimer.unref();
 
 function logStartupBanner() {
   const port = server.address() ? server.address().port : PORT;
-  console.log(`🎮 Ace Cast Server running on port ${port}`);
+  console.log(`🃏 unholy.cards server running on port ${port}`);
   if (config.server.publicUrl) {
     console.log(`🌍 Public URL: ${config.server.publicUrl}`);
   }

@@ -22,7 +22,7 @@ const TestGame = require('./games/TestGame');
 const GAMES = [
   {
     id: 'madlad',
-    name: 'MadLad',
+    name: 'unholy.cards',
     description: 'A fill-in-the-blank party game. Each round one judge picks the funniest answer.',
     minPlayers: MadLadGame.MIN_PLAYERS,
     maxPlayers: config.room.maxPlayers,
