@@ -5,8 +5,10 @@ const cors = require('cors');
 const path = require('path');
 const QRCode = require('qrcode');
 const os = require('os');
+const crypto = require('crypto');
 
 const config = require('../utils/config');
+const identityToken = require('../utils/identity');
 
 const app = express();
 const server = http.createServer(app);
@@ -24,6 +26,8 @@ const dbmod = require('../db');
 const DeckService = require('../content/DeckService');
 const CardStatsRepository = require('../content/CardStatsRepository');
 const CardEventsRepository = require('../content/CardEventsRepository');
+const CardFlagRepository = require('../content/CardFlagRepository');
+const IdentityRepository = require('../content/IdentityRepository');
 
 const PORT = config.server.port;
 
@@ -68,6 +72,26 @@ app.use(express.json());
 app.use(express.static(path.join(__dirname, '../../public')));
 app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, '../../views'));
+
+// Device identity (S0): ensure every visitor carries a signed identity cookie so
+// their card flags can be attributed (and, later, linked to an account). Issued
+// on page loads; the socket reads it from the handshake.
+app.use((req, res, next) => {
+  const cookies = identityToken.parseCookies(req.headers.cookie);
+  let id = identityToken.verifyToken(cookies[config.identity.cookieName]);
+  if (!id) {
+    id = crypto.randomUUID();
+    res.cookie(config.identity.cookieName, identityToken.makeToken(id), {
+      httpOnly: true,
+      sameSite: 'lax',
+      maxAge: config.identity.cookieMaxAgeMs,
+      secure: config.server.trustProxy,
+    });
+    IdentityRepository.ensure(id).catch(() => {});
+  }
+  req.identityId = id;
+  next();
+});
 
 // Health check for cloud platforms / uptime monitors. Probes the DB so a
 // broken connection surfaces as 503 (degraded) instead of a silent 200.
@@ -139,6 +163,21 @@ function allowRoomCreate(ip) {
   }
   hits.push(now);
   createHits.set(ip, hits);
+  return true;
+}
+
+// Per-identity rate limit for card flagging.
+const flagHits = new Map(); // flaggerId -> [timestamps]
+function allowFlag(flaggerId) {
+  const now = Date.now();
+  const windowStart = now - config.rateLimit.flagWindowMs;
+  const hits = (flagHits.get(flaggerId) || []).filter((t) => t > windowStart);
+  if (hits.length >= config.rateLimit.flagMaxPerWindow) {
+    flagHits.set(flaggerId, hits);
+    return false;
+  }
+  hits.push(now);
+  flagHits.set(flaggerId, hits);
   return true;
 }
 
@@ -248,6 +287,16 @@ async function recordCardOutcome(room, actionData) {
 io.on('connection', (socket) => {
   console.log(`Client connected: ${socket.id}`);
 
+  // Resolve the device identity (S0) from the handshake cookie. A bare socket
+  // client with no cookie gets an ephemeral, per-connection id so flagging still
+  // works (just not durably attributed).
+  const cookies = identityToken.parseCookies(socket.handshake.headers.cookie);
+  const cookieId = identityToken.verifyToken(cookies[config.identity.cookieName]);
+  socket.identityId = cookieId || `ephemeral:${socket.id}`;
+  if (cookieId) {
+    IdentityRepository.ensure(cookieId).catch(() => {});
+  }
+
   // Handle room joining
   socket.on('join-room', ({
     roomCode, playerName, deviceType, clientId,
@@ -352,6 +401,24 @@ io.on('connection', (socket) => {
       broadcastGameState(room);
       // Fire-and-forget: telemetry must never block or crash the round loop.
       recordCardOutcome(room, data);
+    }
+  });
+
+  // Player flags a card as not_funny / broken (F2). Persisted best-effort and
+  // attributed to the device identity; rate-limited per identity.
+  socket.on('flag-card', async ({ cardId, reason } = {}) => {
+    const id = Number(cardId);
+    if (!Number.isInteger(id) || id <= 0) return;
+    if (!CardFlagRepository.REASONS.includes(reason)) return;
+
+    const flaggerId = socket.identityId || `ephemeral:${socket.id}`;
+    if (!allowFlag(flaggerId)) return;
+
+    try {
+      await CardFlagRepository.recordFlag({ cardId: id, reason, flaggerId });
+      socket.emit('flag-recorded', { cardId: id, reason });
+    } catch (error) {
+      console.error('Failed to record card flag:', error);
     }
   });
 

@@ -379,7 +379,7 @@ class PlayerController {
             (state.submissions || []).forEach((sub) => {
                 const card = this.whiteCard(sub.text);
                 card.onclick = () => this.sendAction('pick-winner', { submissionId: sub.id });
-                grid.appendChild(card);
+                grid.appendChild(this.wrapWithFlag(card, sub.cardId));
             });
             this.playerArea.appendChild(grid);
         } else if (state.phase === 'results' && state.lastWinner) {
@@ -397,7 +397,7 @@ class PlayerController {
             (state.hand || []).forEach((card) => {
                 const el = this.whiteCard(card.text);
                 el.onclick = () => this.sendAction('submit-card', { cardIndex: card.index });
-                grid.appendChild(el);
+                grid.appendChild(this.wrapWithFlag(el, card.cardId));
             });
             this.playerArea.appendChild(grid);
         } else if (state.phase === 'answering' && you.hasSubmitted) {
@@ -443,6 +443,59 @@ class PlayerController {
 
     whiteCard(text) {
         return window.CardRender.renderCard({ kind: 'answer', text }, { variant: 'hand', as: 'button' });
+    }
+
+    // Wrap a card with a small flag control (F2). Cards without an id (e.g. the
+    // blank fallback) are returned unwrapped. Used on hand cards (answering) and
+    // on the judge's submission grid (judging) — flagging the card's DB id.
+    wrapWithFlag(cardEl, cardId) {
+        if (cardId == null) return cardEl;
+        const wrap = document.createElement('div');
+        wrap.className = 'madlad-card-wrap';
+        wrap.style.position = 'relative';
+        wrap.appendChild(cardEl);
+
+        const flagBtn = document.createElement('button');
+        flagBtn.type = 'button';
+        flagBtn.className = 'madlad-flag';
+        flagBtn.textContent = '⚑';
+        flagBtn.title = 'Flag this card';
+        flagBtn.setAttribute('aria-label', 'Flag this card');
+        flagBtn.style.cssText = 'position:absolute;top:4px;right:4px;border:none;background:transparent;font-size:14px;line-height:1;opacity:.45;cursor:pointer;z-index:2;';
+        flagBtn.onclick = (e) => {
+            e.stopPropagation();
+            this.showFlagMenu(wrap, cardId, flagBtn);
+        };
+        wrap.appendChild(flagBtn);
+        return wrap;
+    }
+
+    showFlagMenu(wrap, cardId, flagBtn) {
+        if (wrap.querySelector('.madlad-flag-menu')) return;
+        const menu = document.createElement('div');
+        menu.className = 'madlad-flag-menu';
+        menu.style.cssText = 'position:absolute;top:22px;right:4px;display:flex;flex-direction:column;gap:2px;background:#222;padding:4px;border-radius:6px;z-index:5;';
+        [['not_funny', 'Not funny'], ['broken', 'Broken']].forEach(([reason, label]) => {
+            const b = document.createElement('button');
+            b.type = 'button';
+            b.textContent = label;
+            b.style.cssText = 'font-size:12px;padding:4px 8px;border:none;border-radius:4px;background:#444;color:#fff;cursor:pointer;';
+            b.onclick = (e) => {
+                e.stopPropagation();
+                this.flagCard(cardId, reason);
+                menu.remove();
+                flagBtn.textContent = '✓';
+                flagBtn.style.opacity = '1';
+                flagBtn.disabled = true;
+            };
+            menu.appendChild(b);
+        });
+        wrap.appendChild(menu);
+    }
+
+    flagCard(cardId, reason) {
+        if (cardId == null || !this.socket || !this.connected) return;
+        this.socket.emit('flag-card', { cardId, reason });
     }
 
     banner(text) {

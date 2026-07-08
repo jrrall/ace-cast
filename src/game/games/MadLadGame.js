@@ -440,6 +440,9 @@ class MadLadGame extends BaseGame {
       ? this.state.submissions.map((s) => ({
         id: s.id,
         text: s.text,
+        // Card DB id, exposed so the client can flag it (F2). Carries no
+        // authorship, so it's safe during anonymous judging. Null for blanks.
+        cardId: s.card && s.card.id != null ? s.card.id : null,
         playerName: revealAuthors ? this.state.players[s.playerId]?.name : undefined,
         isWinner: revealAuthors && this.state.lastWinner
           ? s.playerId === this.state.lastWinner.playerId
@@ -496,7 +499,7 @@ class MadLadGame extends BaseGame {
         hasSubmitted: Boolean(player.submittedCardId),
         score: player.score,
       },
-      hand: player.hand.map((card, index) => ({ index, text: card.text })),
+      hand: player.hand.map((card, index) => ({ index, text: card.text, cardId: card.id })),
       availableActions,
     };
   }
