@@ -1,3 +1,9 @@
+## 1.7.0 (2026-07-08)
+
+* Deploy/linode sqlite (#18) ([db2d755](https://github.com/jrrall/ace-cast/commit/db2d755)), closes [#18](https://github.com/jrrall/ace-cast/issues/18)
+* feat(j1): shared card design system + renderer for TV and phone clients (#14) ([829a8b5](https://github.com/jrrall/ace-cast/commit/829a8b5)), closes [#14](https://github.com/jrrall/ace-cast/issues/14)
+* docs(kanban): reconcile board with shipped work (#13) ([7f72eb7](https://github.com/jrrall/ace-cast/commit/7f72eb7)), closes [#13](https://github.com/jrrall/ace-cast/issues/13)
+
 ## 1.6.0 (2026-07-07)
 
 * feat: reconnect grace window and per-play humor metrics (#17) ([1bc7ce8](https://github.com/jrrall/ace-cast/commit/1bc7ce8)), closes [#17](https://github.com/jrrall/ace-cast/issues/17)
