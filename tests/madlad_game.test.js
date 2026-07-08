@@ -72,6 +72,41 @@ describe('MadLadGame', () => {
       expect(second).toBeNull();
       expect(game.state.submissions).toHaveLength(1);
     });
+
+    test('a player can take their card back before the round locks', () => {
+      const game = makeGame(4); // 3 answerers, so one submission stays in 'answering'
+      const answerer = game.getActiveNonJudgeIds()[0];
+      const handBefore = game.state.players[answerer].hand.length;
+
+      game.handlePlayerAction(answerer, { action: 'submit-card', data: { cardIndex: 0 } });
+      expect(game.state.submissions).toHaveLength(1);
+      expect(game.state.players[answerer].hand).toHaveLength(handBefore - 1);
+
+      const result = game.handlePlayerAction(answerer, { action: 'unsubmit-card' });
+      expect(result).toEqual({ ok: true });
+      expect(game.state.submissions).toHaveLength(0);
+      expect(game.state.players[answerer].submittedCardId).toBeNull();
+      expect(game.state.players[answerer].hand).toHaveLength(handBefore); // card returned
+      expect(game.state.phase).toBe('answering');
+    });
+
+    test('cannot take a card back once the round advances to judging', () => {
+      const game = makeGame(3); // both answerers submit -> judging
+      everyoneSubmits(game);
+      expect(game.state.phase).toBe('judging');
+      const answerer = game.getActiveNonJudgeIds()[0];
+      expect(game.handlePlayerAction(answerer, { action: 'unsubmit-card' })).toBeNull();
+      expect(game.state.submissions).toHaveLength(2);
+    });
+
+    test('the take-back action is offered only while submitted', () => {
+      const game = makeGame(4);
+      const answerer = game.getActiveNonJudgeIds()[0];
+      const types = (id) => game.getStateForPlayer(id).availableActions.map((a) => a.type);
+      expect(types(answerer)).not.toContain('unsubmit-card');
+      game.handlePlayerAction(answerer, { action: 'submit-card', data: { cardIndex: 0 } });
+      expect(types(answerer)).toContain('unsubmit-card');
+    });
   });
 
   describe('state privacy', () => {

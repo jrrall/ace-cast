@@ -135,7 +135,7 @@ app.get('/player', (req, res) => {
   });
 });
 
-app.get('/tv/:roomCode', (req, res) => {
+app.get('/tv/:roomCode', async (req, res) => {
   const { roomCode } = req.params;
   const room = gameManager.getRoom(roomCode);
 
@@ -145,9 +145,21 @@ app.get('/tv/:roomCode', (req, res) => {
     });
   }
 
+  // Render a join QR right on the TV so players can scan it from the couch.
+  const baseUrl = getBaseUrl(req);
+  const joinUrl = `${baseUrl}/player/${roomCode}`;
+  let qrCode = null;
+  try {
+    qrCode = await QRCode.toDataURL(joinUrl, { margin: 1, width: 360 });
+  } catch (error) {
+    console.error('Failed to build TV join QR:', error);
+  }
+
   return res.render('tv/index', {
     title: 'Ace Cast - TV Display',
     roomCode,
+    joinUrl,
+    qrCode,
   });
 });
 

@@ -1,24 +1,23 @@
 /* ==========================================================================
-   Shared card design system
-   Used by both the TV (public/js/tv.js) and phone (public/js/player.js)
-   clients via the shared renderer (public/js/card-render.js). Minimalist,
-   high-contrast, CAH-style: black prompt cards / white answer cards.
+   unholy.cards — card design system ("Unholy Ritual")
+   Shared by the TV (tv.js) and phone (player.js) via card-render.js.
+   Prompt = a void tablet edged in blood; Answer = aged bone parchment.
+   Tokens come from theme.css.
    ========================================================================== */
 
 .card {
-    --card-radius: 16px;
-    --card-font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-
+    position: relative;
     box-sizing: border-box;
     display: flex;
     flex-direction: column;
-    font-family: var(--card-font);
-    border-radius: var(--card-radius);
+    font-family: var(--font-body);
+    border-radius: var(--radius);
     text-align: left;
-    line-height: 1.35;
+    line-height: 1.32;
     -webkit-font-smoothing: antialiased;
     border: none;
     margin: 0;
+    isolation: isolate;
 }
 
 .card__inner {
@@ -27,13 +26,12 @@
     gap: 10px;
     width: 100%;
     height: 100%;
+    position: relative;
+    z-index: 1;
 }
 
-/* Reserved for future per-card sprite art (E3). Empty/hidden for now so the
-   text-only card face stays clean; a future pass can un-hide + size this. */
-.card__sprite-slot {
-    display: none;
-}
+/* Reserved for future per-card sprite art (E3). */
+.card__sprite-slot { display: none; }
 
 .card__text {
     white-space: pre-wrap;
@@ -44,25 +42,62 @@
     display: inline-block;
     min-width: 1.6em;
     margin: 0 0.15em;
-    border-bottom: 3px solid currentColor;
+    border-bottom: 3px solid var(--ember);
 }
 
-/* ---- Prompt (black) card ------------------------------------------------ */
+/* ---- Prompt (black) card: a ritual tablet ------------------------------- */
 .card--prompt {
-    background: #0d0d0f;
-    color: #fdfdfd;
+    background:
+        radial-gradient(120% 80% at 50% 0%, rgba(139, 30, 45, 0.35), transparent 60%),
+        linear-gradient(160deg, #17121a 0%, #0b0910 100%);
+    color: var(--text);
+    font-family: var(--font-display);
     font-weight: 700;
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+    letter-spacing: 0.01em;
+    border: 1px solid rgba(224, 75, 47, 0.28);
+    box-shadow: var(--shadow-card), inset 0 1px 0 rgba(255, 255, 255, 0.04);
 }
 
-/* ---- Answer (white) card ------------------------------------------------ */
+/* Blood seam along the top edge + a ritual mark in the corner. */
+.card--prompt::before {
+    content: "";
+    position: absolute;
+    inset: 0 0 auto 0;
+    height: 4px;
+    border-radius: var(--radius) var(--radius) 0 0;
+    background: linear-gradient(90deg, transparent, var(--oxblood) 20%, var(--ember) 50%, var(--oxblood) 80%, transparent);
+    opacity: 0.9;
+}
+.card--prompt::after {
+    content: "\271D"; /* dagger cross */
+    position: absolute;
+    top: 10px;
+    right: 14px;
+    font-size: 0.9em;
+    color: var(--ember);
+    opacity: 0.5;
+    z-index: 0;
+}
+
+/* ---- Answer (white) card: aged bone parchment --------------------------- */
 .card--answer {
-    background: #fdfdfd;
-    color: #111;
+    background:
+        linear-gradient(180deg, #f6efe0 0%, var(--bone) 55%, var(--bone-shade) 100%);
+    color: #17110c;
     font-weight: 600;
-    border: 1px solid rgba(0, 0, 0, 0.08);
-    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.18);
+    border: 1px solid rgba(90, 18, 32, 0.22);
+    box-shadow: var(--shadow-card), inset 0 1px 0 rgba(255, 255, 255, 0.6);
     cursor: default;
+}
+/* Hairline blood rule near the top — the mark of the deck. */
+.card--answer::before {
+    content: "";
+    position: absolute;
+    left: 12px;
+    right: 12px;
+    top: 10px;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(139, 30, 45, 0.5), transparent);
 }
 
 button.card {
@@ -71,90 +106,77 @@ button.card {
     appearance: none;
     -webkit-appearance: none;
     background-color: transparent;
-    transition: transform 0.12s ease, box-shadow 0.12s ease;
+    transition: transform 0.14s ease, box-shadow 0.14s ease, border-color 0.14s ease;
 }
 
 button.card--answer:hover,
 button.card--answer:active {
-    transform: translateY(-3px);
-    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.28);
+    transform: translateY(-4px) rotate(-0.6deg);
+    border-color: var(--oxblood);
+    box-shadow: 0 16px 34px rgba(0, 0, 0, 0.6), var(--glow-ember);
 }
 
-/* Winner highlight, shared across TV + phone. */
+/* Winner: an ember brand + gold filigree, not a flat outline. */
 .card--winner {
-    outline: 5px solid #ffd166;
-    outline-offset: 2px;
+    border-color: var(--gold) !important;
+    box-shadow: var(--shadow-card), var(--glow-gold), 0 0 0 2px rgba(201, 162, 39, 0.55) !important;
+    animation: unholy-winner 1.6s ease-in-out infinite alternate;
+}
+@keyframes unholy-winner {
+    from { box-shadow: var(--shadow-card), 0 0 14px rgba(201,162,39,0.35), 0 0 0 2px rgba(201,162,39,0.5); }
+    to   { box-shadow: var(--shadow-card), 0 0 30px rgba(224,75,47,0.55), 0 0 0 2px rgba(201,162,39,0.85); }
 }
 
-/* ---- Card back (branded, for future use — e.g. face-down hands) -------- */
+/* ---- Card back — a warded sigil ---------------------------------------- */
 .card--back {
-    background: repeating-linear-gradient(
-        135deg,
-        #1c1c22,
-        #1c1c22 10px,
-        #232330 10px,
-        #232330 20px
-    );
-    border: 2px solid #34344a;
+    background:
+        radial-gradient(circle at 50% 50%, rgba(224,75,47,0.10), transparent 60%),
+        repeating-linear-gradient(135deg, #16121c, #16121c 9px, #1e1826 9px, #1e1826 18px);
+    border: 1px solid rgba(201, 162, 39, 0.35);
     display: flex;
     align-items: center;
     justify-content: center;
 }
-
 .card--back::after {
-    content: "AC";
-    font-family: var(--card-font);
-    font-weight: 800;
-    letter-spacing: 0.05em;
-    color: rgba(255, 255, 255, 0.55);
-    font-size: 1.4em;
+    content: "\26E7"; /* inverted pentagram-ish glyph */
+    font-family: var(--font-display);
+    color: rgba(201, 162, 39, 0.7);
+    font-size: 2em;
 }
 
-/* ---- Sizing variants ----------------------------------------------------
-   tv    - big board display, readable across a room
-   phone - the current prompt shown at the top of the phone screen
-   hand  - smaller tap-target cards inside the hand/submission grid
-   ------------------------------------------------------------------------- */
-
+/* ---- Sizing variants: tv / phone / hand -------------------------------- */
 .card--tv.card--prompt {
-    padding: 40px 36px;
-    font-size: 2.2em;
-    max-width: 900px;
+    padding: clamp(24px, 3.2vw, 46px) clamp(22px, 3vw, 40px);
+    font-size: clamp(1.4rem, 3vw, 2.6rem);
+    max-width: min(70vw, 1000px);
 }
-
 .card--tv.card--answer {
-    padding: 26px 22px;
-    font-size: 1.5em;
-    max-width: 320px;
-    min-width: 200px;
+    padding: clamp(16px, 1.6vw, 26px) clamp(14px, 1.4vw, 22px);
+    font-size: clamp(1rem, 1.5vw, 1.6rem);
+    width: clamp(150px, 15vw, 300px);
+    min-width: 140px;
     text-align: center;
 }
-
-.card--tv.card--answer .card__text {
-    text-align: center;
-}
+.card--tv.card--answer .card__text { text-align: center; }
 
 .card--phone.card--prompt {
     padding: 22px 18px;
-    font-size: 1.25em;
-    min-height: 90px;
+    font-size: 1.3rem;
+    min-height: 96px;
 }
-
 .card--hand.card--answer {
     padding: 16px 12px;
-    font-size: 1em;
-    min-height: 80px;
+    font-size: 1rem;
+    min-height: 82px;
     width: 100%;
 }
 
 @media (max-width: 480px) {
-    .card--tv.card--prompt {
-        font-size: 1.4em;
-        padding: 24px 20px;
-    }
+    .card--tv.card--prompt { font-size: 1.4rem; padding: 22px 18px; }
+    .card--tv.card--answer { font-size: 1.05rem; padding: 16px 14px; }
+}
 
-    .card--tv.card--answer {
-        font-size: 1.1em;
-        padding: 18px 16px;
-    }
+@media (prefers-reduced-motion: reduce) {
+    .card--winner { animation: none; }
+    button.card { transition: none; }
 }

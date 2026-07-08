@@ -368,23 +368,21 @@ class TVController {
 
     addActionToFeed(message, type = 'info') {
         if (!this.actionsList) return;
-        
+
+        // Transient corner toast — appears briefly, then fades and is removed so
+        // the feed never occupies permanent screen space (cards own the board).
         const actionItem = document.createElement('div');
         actionItem.className = 'action-item';
-        
-        const timestamp = new Date().toLocaleTimeString();
-        actionItem.innerHTML = `
-            <span class="action-text">${message}</span>
-            <span class="action-time" style="float: right; opacity: 0.7; font-size: 0.9em;">${timestamp}</span>
-        `;
-        
-        // Add to top of list
+        actionItem.dataset.type = type;
+        actionItem.textContent = message;
+
         this.actionsList.insertBefore(actionItem, this.actionsList.firstChild);
-        
-        // Remove old actions (keep only last 10)
-        while (this.actionsList.children.length > 10) {
+        // Keep at most a few on screen at once.
+        while (this.actionsList.children.length > 3) {
             this.actionsList.removeChild(this.actionsList.lastChild);
         }
+        // Drop the node after its fade-out (see .action-item animation in tv.css).
+        setTimeout(() => actionItem.remove(), 5200);
     }
 
     startGameTimer() {

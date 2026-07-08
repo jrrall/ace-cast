@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><%= title %></title>
+    <link rel="stylesheet" href="/css/theme.css">
     <link rel="stylesheet" href="/css/cards.css">
     <link rel="stylesheet" href="/css/tv.css">
 </head>
@@ -22,14 +23,21 @@
         <main class="tv-main">
             <div id="tv-lobby-screen" class="tv-screen active">
                 <div class="waiting-content">
-                    <div class="game-logo">
-                        🎲🃏🎯
+                    <h2>Summon your circle</h2>
+
+                    <div class="tv-join">
+                        <% if (typeof qrCode !== 'undefined' && qrCode) { %>
+                            <img class="tv-qr" src="<%= qrCode %>" alt="Scan to join">
+                        <% } %>
+                        <div class="tv-join-info">
+                            <p class="tv-join-label">Scan to join</p>
+                            <% if (typeof joinUrl !== 'undefined' && joinUrl) { %>
+                                <p class="tv-join-url"><%= joinUrl.replace(/^https?:\/\//, '') %></p>
+                            <% } %>
+                            <p class="tv-join-code">Room <span><%= roomCode %></span></p>
+                        </div>
                     </div>
-                    <h2>Waiting for Players</h2>
-                    <p class="join-instructions">
-                        Players scan the QR code or visit the room code to join
-                    </p>
-                    
+
                     <div class="connected-players">
                         <h3>Connected Players</h3>
                         <div id="tv-players-grid" class="players-grid">
@@ -70,6 +78,12 @@
                         </div>
                     </div>
                 </div>
+                <% if (typeof qrCode !== 'undefined' && qrCode) { %>
+                    <div class="tv-join-badge" title="Scan to join">
+                        <img src="<%= qrCode %>" alt="Scan to join">
+                        <span>Join · <%= roomCode %></span>
+                    </div>
+                <% } %>
             </div>
 
             <div id="tv-error-screen" class="tv-screen">
