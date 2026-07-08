@@ -37,10 +37,22 @@ const config = {
     reconnectGraceMs: toInt(process.env.RECONNECT_GRACE_MS, 90 * 1000),
   },
 
-  // Lightweight abuse protection for room creation (per client IP).
+  // Lightweight abuse protection for room creation (per client IP) and card
+  // flagging (per device identity).
   rateLimit: {
     createWindowMs: toInt(process.env.CREATE_WINDOW_MS, 60 * 1000),
     createMaxPerWindow: toInt(process.env.CREATE_MAX_PER_WINDOW, 15),
+    // Card flagging (per identity).
+    flagWindowMs: toInt(process.env.FLAG_WINDOW_MS, 60 * 1000),
+    flagMaxPerWindow: toInt(process.env.FLAG_MAX_PER_WINDOW, 30),
+  },
+
+  // Device identity (S0): a signed cookie that outlives socket.id, used to
+  // attribute card flags now and to link accounts later.
+  identity: {
+    secret: process.env.IDENTITY_SECRET || 'dev-insecure-identity-secret-change-me',
+    cookieName: 'acecast_did',
+    cookieMaxAgeMs: toInt(process.env.IDENTITY_COOKIE_MAX_AGE_MS, 365 * 24 * 60 * 60 * 1000),
   },
 
   validation: {
