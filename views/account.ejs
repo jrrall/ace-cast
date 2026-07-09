@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title><%= title %></title>
+    <link rel="stylesheet" href="/css/theme.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🃏 unholy.cards</h1>
+            <p>Your account</p>
+        </header>
+        <main>
+            <div class="setup-card">
+                <h2>Account</h2>
+                <dl>
+                    <dt>Email</dt>
+                    <dd><%= user.email %></dd>
+                    <dt>Display name</dt>
+                    <dd><%= user.display_name || '—' %></dd>
+                    <dt>This device</dt>
+                    <dd><%= deviceLinked ? 'Linked to this account' : 'Not linked' %></dd>
+                </dl>
+                <p>Guests can still create and join rooms and play with just a name — accounts only unlock paid features.</p>
+                <form action="/logout" method="post">
+                    <button type="submit" class="primary-btn">Log out</button>
+                </form>
+                <p><a href="/">Back to games</a></p>
+            </div>
+        </main>
+    </div>
+</body>
+</html>

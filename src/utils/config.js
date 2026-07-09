@@ -61,6 +61,22 @@ const config = {
     cookieMaxAgeMs: toInt(process.env.IDENTITY_COOKIE_MAX_AGE_MS, 365 * 24 * 60 * 60 * 1000),
   },
 
+  // Accounts (E4). A pluggable auth provider gates ONLY /account, never
+  // gameplay. `provider` selects how a login is established:
+  //   - 'dev'     (default): in-app email login form, no external IdP.
+  //   - 'forward' (prod):    trust Remote-* headers from a forward-auth proxy
+  //                          (Caddy → Authelia). Only safe when trustProxy.
+  auth: {
+    provider: process.env.AUTH_PROVIDER || 'dev',
+    // The app's own login session — a signed cookie (same storeless HMAC
+    // approach as the S0 device cookie), independent secret.
+    session: {
+      secret: process.env.AUTH_SESSION_SECRET || 'dev-insecure-auth-session-secret-change-me',
+      cookieName: 'acecast_sid',
+      cookieMaxAgeMs: toInt(process.env.AUTH_SESSION_MAX_AGE_MS, 30 * 24 * 60 * 60 * 1000),
+    },
+  },
+
   validation: {
     roomCode: /^[A-Z]{4}$/,
     maxPlayerNameLength: 32,

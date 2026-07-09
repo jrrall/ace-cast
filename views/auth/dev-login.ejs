@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title><%= title %></title>
+    <link rel="stylesheet" href="/css/theme.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🃏 unholy.cards</h1>
+            <p>Dev login</p>
+        </header>
+        <main>
+            <div class="setup-card">
+                <h2>Sign in (dev)</h2>
+                <p>Local development login — no external identity provider. In production this is replaced by the Authelia sign-in portal.</p>
+                <% if (error) { %>
+                    <p class="error-message"><%= error %></p>
+                <% } %>
+                <form action="/auth/dev-login" method="post">
+                    <label for="email">Email</label>
+                    <input type="email" id="email" name="email" required placeholder="you@example.com">
+                    <label for="displayName">Display name (optional)</label>
+                    <input type="text" id="displayName" name="displayName" placeholder="Your name">
+                    <button type="submit" class="primary-btn">Sign in</button>
+                </form>
+                <p><a href="/">Back to games</a></p>
+            </div>
+        </main>
+    </div>
+</body>
+</html>

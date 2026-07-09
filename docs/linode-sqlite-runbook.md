@@ -183,5 +183,75 @@ git pull && docker compose -f docker-compose.sqlite.yml up -d --build   # update
 
 ---
 
+## 11. Accounts (E4) — Authelia forward-auth
+
+Accounts are **prod-only** and gate **only** `/account*` (and `/admin*`). Gameplay is
+never touched: guests still create/join rooms and play with just a name + their device
+identity. Locally you don't run Authelia at all — `AUTH_PROVIDER` defaults to `dev`, which
+serves an in-app `/login` form. In this deploy the app runs with `AUTH_PROVIDER=forward`
+and trusts the `Remote-*` headers Caddy forwards from Authelia.
+
+**Why Authelia (not authentik):** it's a *single* lightweight service (local file users +
+SQLite storage, ~30-50 MB RSS). authentik needs Postgres + Redis + a worker, which would
+blow the 1 GB Nanode's memory budget next to app + Caddy + SQLite.
+
+Files (in [`deploy/linode/`](../deploy/linode/)):
+`docker-compose.sqlite.yml` (the `authelia` service), `Caddyfile` (the `forward_auth`
+block), and `authelia/configuration.yml` + `authelia/users_database.yml` (examples).
+
+### 11a. Set the secrets
+
+In `deploy/linode/.env` (copied from `.env.sqlite.example`), fill four secrets — generate
+each with `openssl rand -hex 32`, **never commit them**:
+
+```ini
+AUTH_SESSION_SECRET=<random>              # the app's own login-session cookie
+AUTHELIA_JWT_SECRET=<random>
+AUTHELIA_SESSION_SECRET=<random>
+AUTHELIA_STORAGE_ENCRYPTION_KEY=<random>
+```
+
+### 11b. Add a user
+
+Edit `deploy/linode/authelia/users_database.yml`. The shipped entry is an **example** with
+a placeholder hash — replace it. Generate a real argon2id hash on the box:
+
+```bash
+cd deploy/linode
+docker compose -f docker-compose.sqlite.yml run --rm authelia \
+  authelia crypto hash generate argon2 --password 'your-strong-password'
+```
+
+Paste the `$argon2id$...` string as the user's `password`, set `email` (this is what the
+app receives as `Remote-Email` and keys the account on), then bring the stack up:
+
+```bash
+docker compose -f docker-compose.sqlite.yml up -d --build
+```
+
+### 11c. The forward-auth flow
+
+1. A player hits `https://<domain>/account`.
+2. Caddy's `forward_auth` asks Authelia (`/api/verify`). Unauthenticated → redirect to the
+   Authelia portal (served under `/authelia`).
+3. After sign-in Authelia approves the verify request and returns
+   `Remote-User / Remote-Email / Remote-Name / Remote-Groups`; Caddy `copy_headers` copies
+   them onto the upstream request to the app.
+4. The app (`ForwardAuthProvider`) reads `Remote-Email`, upserts the `users` row, issues its
+   own signed session cookie, and **links the current device identity** to the account
+   (`identities.user_id`) so future durable stats attach to it. `/account` renders.
+
+**Security boundary:** the app trusts `Remote-*` **only** because `TRUST_PROXY=true` and the
+headers arrive via Caddy. Those headers are spoofable if the app port is reachable directly,
+so the app never reads them when un-proxied (locally `AUTH_PROVIDER=dev` ignores them
+entirely). Keep the app on the internal Docker network (`expose`, not `ports`) — only Caddy
+is published. Every non-gated path stays public, so gameplay never requires a login.
+
+**RAM footprint:** the `authelia` container adds roughly **30-50 MB** RSS — comfortable on
+the 1 GB Nanode next to app + Caddy + SQLite. (Resize to 2 GB only if you later add heavy
+services; Authelia itself won't push you there.)
+
+---
+
 **Golden rule:** one `app` container, and the `acecast_data` volume *is* your database —
 back it up. Moving to Postgres later is a config swap (`DATABASE_URL`), not a rewrite.

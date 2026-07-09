@@ -29,6 +29,7 @@ const CardEventsRepository = require('../content/CardEventsRepository');
 const bots = require('./bots');
 const CardFlagRepository = require('../content/CardFlagRepository');
 const IdentityRepository = require('../content/IdentityRepository');
+const auth = require('../auth');
 
 const PORT = config.server.port;
 
@@ -70,6 +71,8 @@ function getBaseUrl(req) {
 // Middleware
 app.use(cors({ origin: config.getCorsOrigin() }));
 app.use(express.json());
+// Form posts (the dev-login form) arrive url-encoded.
+app.use(express.urlencoded({ extended: false }));
 app.use(express.static(path.join(__dirname, '../../public')));
 app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, '../../views'));
@@ -93,6 +96,12 @@ app.use((req, res, next) => {
   req.identityId = id;
   next();
 });
+
+// Accounts (E4). The selected provider (dev locally, forward-auth in prod) gates
+// ONLY /account + its API — every gameplay path stays public. Mounted after the
+// identity middleware so req.identityId is available for the guest→account merge.
+const authProvider = auth.createProvider();
+auth.mountAuthRoutes(app, authProvider);
 
 // Health check for cloud platforms / uptime monitors. Probes the DB so a
 // broken connection surfaces as 503 (degraded) instead of a silent 200.

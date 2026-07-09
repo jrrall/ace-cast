@@ -1,0 +1,18 @@
+# Authelia file user backend (E4) — EXAMPLE. Copy the shape; replace the user.
+#
+# The password below is a PLACEHOLDER argon2id hash (do NOT reuse it). Generate a
+# real one on the box with:
+#
+#   docker compose -f docker-compose.sqlite.yml run --rm authelia \
+#     authelia crypto hash generate argon2 --password 'your-strong-password'
+#
+# Paste the resulting `$argon2id$...` string as `password`. Add one block per
+# user. `email` is what the app receives as Remote-Email and keys the account on.
+users:
+  admin:
+    displayname: 'Admin'
+    # PLACEHOLDER — replace with a freshly generated argon2id hash.
+    password: '$argon2id$v=19$m=65536,t=3,p=4$REPLACE_ME_WITH_A_REAL_HASH$REPLACE_ME_WITH_A_REAL_HASH'
+    email: 'admin@example.com'
+    groups:
+      - admins

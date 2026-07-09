@@ -7,7 +7,28 @@
 #
 # For a local run, set SITE_ADDRESS=localhost: Caddy serves HTTPS with its own
 # internal cert and skips Let's Encrypt entirely.
+#
+# E4 accounts: gameplay stays 100% public. Only /account* and /admin* are gated
+# by Authelia via forward-auth — on success Authelia returns Remote-User /
+# Remote-Email / Remote-Name / Remote-Groups, which we copy onto the upstream
+# request so the app can trust them (it only does so because TRUST_PROXY=true).
 {$SITE_ADDRESS} {
 	encode zstd gzip
+
+	# Authelia's own portal (login page + verify endpoint), reverse-proxied
+	# under /authelia so it shares the app's domain (single cookie domain).
+	handle_path /authelia/* {
+		reverse_proxy authelia:9091
+	}
+
+	# Gate account + admin surfaces. Unauthenticated requests are redirected to
+	# the Authelia portal; authenticated ones continue with Remote-* headers.
+	@protected path /account /account/* /admin /admin/*
+	forward_auth @protected authelia:9091 {
+		uri /api/verify?rd=https://{$SITE_ADDRESS}/authelia/
+		copy_headers Remote-User Remote-Email Remote-Name Remote-Groups
+	}
+
+	# Everything else (create/join/play, TV, health) is public — no auth.
 	reverse_proxy app:3000
 }
