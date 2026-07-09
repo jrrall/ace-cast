@@ -28,6 +28,8 @@ const CardStatsRepository = require('../content/CardStatsRepository');
 const CardEventsRepository = require('../content/CardEventsRepository');
 const bots = require('./bots');
 const CardFlagRepository = require('../content/CardFlagRepository');
+const CardRepository = require('../content/CardRepository');
+const FeedbackRepository = require('../content/FeedbackRepository');
 const IdentityRepository = require('../content/IdentityRepository');
 
 const PORT = config.server.port;
@@ -162,6 +164,103 @@ app.get('/tv/:roomCode', async (req, res) => {
     joinUrl,
     qrCode,
   });
+});
+
+// F3/F4 — admin gate. No accounts yet (E4), so admin routes are gated behind a
+// single shared-secret token instead: `?token=`, `X-Admin-Token`, or HTTP
+// Basic (password = token, username ignored). If ADMIN_TOKEN is unset the
+// whole feature is off — every admin route 404s, same as an unrecognized
+// token, so an unauthenticated caller can't even tell the routes exist.
+function suppliedAdminToken(req) {
+  if (req.query.token) return req.query.token;
+  const header = req.get('X-Admin-Token');
+  if (header) return header;
+  const auth = req.get('Authorization') || '';
+  const match = /^Basic\s+(.+)$/i.exec(auth);
+  if (!match) return null;
+  const decoded = Buffer.from(match[1], 'base64').toString('utf8');
+  const sep = decoded.indexOf(':');
+  return sep === -1 ? decoded : decoded.slice(sep + 1);
+}
+
+function denyAdmin(req, res) {
+  if (req.path.startsWith('/api/')) {
+    res.status(404).json({ error: 'Not found' });
+  } else {
+    res.status(404).render('error', { message: 'Not found' });
+  }
+}
+
+function requireAdmin(req, res, next) {
+  const { token } = config.admin;
+  if (!token || suppliedAdminToken(req) !== token) {
+    denyAdmin(req, res);
+    return;
+  }
+  next();
+}
+
+// F3 — feedback dashboard: per-card plays/wins/win-rate + flag counts, plus
+// rollups (top winners, dead weight, most-flagged) and F4 suggested
+// retirements. Same read model serves the HTML view and the JSON API.
+app.get('/admin/feedback', requireAdmin, async (req, res) => {
+  try {
+    const dashboard = await FeedbackRepository.buildDashboard({
+      minPlays: config.feedback.minPlays,
+      thresholds: config.feedback,
+    });
+    res.render('admin/feedback', {
+      title: 'unholy.cards — Feedback',
+      adminToken: typeof req.query.token === 'string' ? req.query.token : '',
+      ...dashboard,
+    });
+  } catch (error) {
+    console.error('Failed to build feedback dashboard:', error);
+    res.status(500).render('error', { message: 'Failed to load feedback dashboard' });
+  }
+});
+
+app.get('/api/admin/feedback', requireAdmin, async (req, res) => {
+  try {
+    const dashboard = await FeedbackRepository.buildDashboard({
+      minPlays: config.feedback.minPlays,
+      thresholds: config.feedback,
+    });
+    res.json(dashboard);
+  } catch (error) {
+    console.error('Failed to build feedback dashboard:', error);
+    res.status(500).json({ error: 'Failed to load feedback dashboard' });
+  }
+});
+
+// F4 — explicit, reversible retirement. Not a cron: an admin acts on a
+// suggestion (or their own judgment) from the dashboard.
+app.post('/api/admin/cards/:id/retire', requireAdmin, async (req, res) => {
+  const id = Number(req.params.id);
+  if (!Number.isInteger(id) || id <= 0) {
+    return res.status(400).json({ error: 'Invalid card id' });
+  }
+  try {
+    await CardRepository.retire(id);
+    return res.json({ id, retired: true });
+  } catch (error) {
+    console.error('Failed to retire card:', error);
+    return res.status(500).json({ error: 'Failed to retire card' });
+  }
+});
+
+app.post('/api/admin/cards/:id/unretire', requireAdmin, async (req, res) => {
+  const id = Number(req.params.id);
+  if (!Number.isInteger(id) || id <= 0) {
+    return res.status(400).json({ error: 'Invalid card id' });
+  }
+  try {
+    await CardRepository.unretire(id);
+    return res.json({ id, retired: false });
+  } catch (error) {
+    console.error('Failed to unretire card:', error);
+    return res.status(500).json({ error: 'Failed to unretire card' });
+  }
 });
 
 // Simple in-memory, per-IP rate limiter for room creation.
