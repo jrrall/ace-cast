@@ -1,3 +1,7 @@
+## 1.14.0 (2026-07-09)
+
+* feat(healthz): report the deployed version from package.json (#41) ([56cbd0e](https://github.com/jrrall/ace-cast/commit/56cbd0e)), closes [#41](https://github.com/jrrall/ace-cast/issues/41)
+
 ## 1.13.0 (2026-07-09)
 
 * feat(lobby): auto-start countdown once enough players are seated (#40) ([b70c9cc](https://github.com/jrrall/ace-cast/commit/b70c9cc)), closes [#40](https://github.com/jrrall/ace-cast/issues/40)
