@@ -1,3 +1,10 @@
+## 1.11.0 (2026-07-09)
+
+* feat(f3): feedback dashboard + card retirement (F4) (#28) ([72a3e79](https://github.com/jrrall/ace-cast/commit/72a3e79)), closes [#28](https://github.com/jrrall/ace-cast/issues/28)
+* feat(j2): fanned hand with tap-to-lift + confirm-to-play on phone (#29) ([81a6e9d](https://github.com/jrrall/ace-cast/commit/81a6e9d)), closes [#29](https://github.com/jrrall/ace-cast/issues/29)
+* feat(j5): TV board choreography — deal-in, paced reveal, judge spotlight, animated scoreboard (#30) ([84cfb49](https://github.com/jrrall/ace-cast/commit/84cfb49)), closes [#30](https://github.com/jrrall/ace-cast/issues/30)
+* feat(s1): persistent & resumable room sessions (#27) ([4159ccb](https://github.com/jrrall/ace-cast/commit/4159ccb)), closes [#27](https://github.com/jrrall/ace-cast/issues/27)
+
 ## <small>1.10.2 (2026-07-09)</small>
 
 * docs(kanban): reconcile board — stack merged to main via #25 ([4affcc6](https://github.com/jrrall/ace-cast/commit/4affcc6)), closes [#25](https://github.com/jrrall/ace-cast/issues/25) [#19](https://github.com/jrrall/ace-cast/issues/19) [#20](https://github.com/jrrall/ace-cast/issues/20) [#21](https://github.com/jrrall/ace-cast/issues/21) [#24](https://github.com/jrrall/ace-cast/issues/24) [#25](https://github.com/jrrall/ace-cast/issues/25) [#19](https://github.com/jrrall/ace-cast/issues/19)
