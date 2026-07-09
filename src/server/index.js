@@ -9,6 +9,9 @@ const crypto = require('crypto');
 
 const config = require('../utils/config');
 const identityToken = require('../utils/identity');
+// App version for /healthz — semantic-release keeps package.json's version
+// current post-release, so this reflects the deployed build.
+const { version } = require('../../package.json');
 
 const app = express();
 const server = http.createServer(app);
@@ -118,6 +121,7 @@ app.get('/healthz', async (req, res) => {
   }
   res.status(dbOk ? 200 : 503).json({
     status: dbOk ? 'ok' : 'degraded',
+    version,
     db: dbOk,
     rooms: gameManager.getRoomCount(),
     uptime: process.uptime(),
