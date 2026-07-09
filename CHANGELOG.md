@@ -1,3 +1,8 @@
+## <small>1.12.1 (2026-07-09)</small>
+
+* fix(deploy): bootstrap generates E4 Authelia secrets + admin user (#32) ([f3df494](https://github.com/jrrall/ace-cast/commit/f3df494)), closes [#32](https://github.com/jrrall/ace-cast/issues/32)
+* fix(deploy): bootstrap generates E4 Authelia secrets + admin user (#33) ([ae71449](https://github.com/jrrall/ace-cast/commit/ae71449)), closes [#33](https://github.com/jrrall/ace-cast/issues/33) [#32](https://github.com/jrrall/ace-cast/issues/32)
+
 ## 1.12.0 (2026-07-09)
 
 * feat(e4): user accounts behind a pluggable auth provider + Authelia forward-auth (#26) ([cb08695](https://github.com/jrrall/ace-cast/commit/cb08695)), closes [#26](https://github.com/jrrall/ace-cast/issues/26)
