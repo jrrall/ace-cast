@@ -35,6 +35,11 @@ class TVController {
         
         // Lobby elements
         this.playersGrid = document.getElementById('tv-players-grid');
+        // The lobby heading doubles as the waiting/countdown message.
+        this.lobbyHeading = this.lobbyScreen
+            ? this.lobbyScreen.querySelector('.waiting-content h2')
+            : null;
+        this.lobbyHeadingDefault = this.lobbyHeading ? this.lobbyHeading.textContent : '';
         
         // Game elements
         this.gameType = document.getElementById('tv-game-type');
@@ -93,7 +98,21 @@ class TVController {
             this.handlePlayerLeft(data);
         });
 
+        this.socket.on('start-countdown', (data) => {
+            const n = data && data.secondsLeft;
+            if (this.lobbyHeading && n) {
+                this.lobbyHeading.textContent = `Game starting in ${n}…`;
+            }
+        });
+
+        this.socket.on('start-countdown-cancelled', () => {
+            if (this.lobbyHeading) {
+                this.lobbyHeading.textContent = this.lobbyHeadingDefault;
+            }
+        });
+
         this.socket.on('game-started', (data) => {
+            if (this.lobbyHeading) this.lobbyHeading.textContent = this.lobbyHeadingDefault;
             this.handleGameStarted(data);
         });
 

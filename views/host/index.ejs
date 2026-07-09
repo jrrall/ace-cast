@@ -56,16 +56,11 @@
 
                 <div class="game-controls">
                     <h3>Game Options</h3>
-                    <div class="game-selection">
-                        <label for="game-type">Choose Game:</label>
-                        <select id="game-type">
-                            <% games.forEach(function (game, i) { %>
-                                <option value="<%= game.id %>" data-min="<%= game.minPlayers %>" data-name="<%= game.name %>" <%= i === 0 ? 'selected' : '' %>><%= game.name %></option>
-                            <% }); %>
-                        </select>
-                        <p class="help-text" id="game-hint"></p>
+                    <p class="help-text" id="countdown-status"></p>
+                    <div class="start-controls">
+                        <button id="start-game-btn" class="primary-btn" disabled>Start now</button>
+                        <button id="autostart-toggle-btn" class="secondary-btn" type="button">Hold</button>
                     </div>
-                    <button id="start-game-btn" class="primary-btn" disabled>Start Game</button>
                     <button id="end-game-btn" class="secondary-btn" style="display: none;">End Game</button>
                 </div>
 

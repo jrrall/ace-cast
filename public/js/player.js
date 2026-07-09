@@ -214,6 +214,19 @@ class PlayerController {
             this.handlePlayerLeft(data);
         });
 
+        this.socket.on('start-countdown', (data) => {
+            const n = data && data.secondsLeft;
+            if (this.playerStatus && n) {
+                this.playerStatus.textContent = `Game starting in ${n}…`;
+            }
+        });
+
+        this.socket.on('start-countdown-cancelled', () => {
+            if (this.playerStatus) {
+                this.playerStatus.textContent = "You've joined the game!";
+            }
+        });
+
         this.socket.on('game-started', (data) => {
             this.handleGameStarted(data);
         });

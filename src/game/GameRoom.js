@@ -17,6 +17,11 @@ class GameRoom {
     this.botTarget = config.room.botTargetDefault;
     // Pending "release this room after game over" timer (set by the server).
     this.gameOverTimer = null;
+    // Auto-start: once enough players are seated the server runs a short
+    // countdown then starts the game. `autoStart` is the host's Hold/Auto
+    // toggle; `startCountdownTimer` is the running countdown interval.
+    this.autoStart = true;
+    this.startCountdownTimer = null;
   }
 
   /** Human (non-bot) players, connected or holding a seat. */
@@ -268,6 +273,10 @@ class GameRoom {
     if (this.gameOverTimer) {
       clearTimeout(this.gameOverTimer);
       this.gameOverTimer = null;
+    }
+    if (this.startCountdownTimer) {
+      clearInterval(this.startCountdownTimer);
+      this.startCountdownTimer = null;
     }
     // Disconnect all players and cancel any pending reconnect grace timers.
     Array.from(this.players.values()).forEach((player) => {

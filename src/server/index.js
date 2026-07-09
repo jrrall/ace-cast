@@ -582,6 +582,94 @@ function afterBotAction(room, actionData) {
   startGameOverCountdown(room);
 }
 
+// --- Auto-start countdown --------------------------------------------------
+// Once enough players are seated the lobby counts down and auto-starts the
+// (single prod) game. The host keeps Start now / Hold + the bot controls.
+
+// The game the lobby auto-starts: the first non-dev game in the registry
+// (MadLad in prod). Null when none is registered (guarded by callers).
+function defaultGame() {
+  const [first] = registry.listGames();
+  return first ? registry.getGame(first.id) : null;
+}
+
+// Shared "start the game now" path used by both the host's explicit Start now
+// (`start-game`) and the auto-start countdown. Builds + injects a deck for
+// card-backed games (engine stays pure), then boots the engine and bots. May
+// throw (bad options / engine); callers decide how to surface it.
+async function startGameNow(room, gameType, options = {}) {
+  const game = registry.getGame(gameType);
+  let startOptions = options || {};
+
+  // Card-backed games get their deck built from the DB and injected, so the
+  // engine stays pure (never touches the DB). packIds is unused until E6.
+  if (game && game.cardBacked) {
+    const deck = await DeckService.buildDeck({
+      gameId: game.id,
+      packIds: (options && options.packIds) || [],
+      maturityMax: options && options.maturityMax != null ? options.maturityMax : 3,
+    });
+    startOptions = { ...startOptions, deck };
+  }
+
+  room.startGame(gameType, startOptions);
+
+  io.to(room.code).emit('game-started', { gameType });
+  broadcastGameState(room);
+  // Persist the opening snapshot so a crash right after start is still
+  // resumable (S1).
+  scheduleSnapshot(room);
+  // Bots answer their first round.
+  bots.scheduleBotActions(room, afterBotAction);
+
+  console.log(`Game started in room ${room.code}: ${gameType}`);
+}
+
+// Stop a running start-countdown. When `notify`, tell clients so their lobby
+// reverts to the normal waiting message (skip it when the countdown is being
+// superseded by an actual start, or the room is going away).
+function cancelStartCountdown(room, notify = true) {
+  if (!room || !room.startCountdownTimer) return;
+  clearInterval(room.startCountdownTimer);
+  room.startCountdownTimer = null;
+  if (notify) io.to(room.code).emit('start-countdown-cancelled', {});
+}
+
+// Arm the auto-start countdown when the lobby is ready. Self-guards so it is
+// safe to call on any join/leave/bot change: no-op when a game is active, a
+// countdown is already running, auto-start is held, there is no default game,
+// or there aren't enough active players yet.
+function maybeStartCountdown(room) {
+  if (!room || room.isGameActive || room.startCountdownTimer || !room.autoStart) return;
+  const game = defaultGame();
+  if (!game) return;
+  if (room.getActivePlayerCount() < game.minPlayers) return;
+
+  let secondsLeft = Math.max(1, Math.round(config.room.startCountdownMs / 1000));
+  io.to(room.code).emit('start-countdown', { secondsLeft });
+
+  room.startCountdownTimer = setInterval(() => {
+    // Re-check the guard every tick: a game may have started, the host may have
+    // held, or players may have dropped below the minimum since we armed.
+    if (room.isGameActive || !room.autoStart
+      || room.getActivePlayerCount() < game.minPlayers) {
+      cancelStartCountdown(room);
+      return;
+    }
+    secondsLeft -= 1;
+    if (secondsLeft > 0) {
+      io.to(room.code).emit('start-countdown', { secondsLeft });
+      return;
+    }
+    // Reached zero: clear the timer (no cancel event — it's a real start) and
+    // boot the game. Best-effort: never throw into the interval.
+    clearInterval(room.startCountdownTimer);
+    room.startCountdownTimer = null;
+    startGameNow(room, game.id, {}).catch(console.error);
+  }, 1000);
+  if (room.startCountdownTimer.unref) room.startCountdownTimer.unref();
+}
+
 // Fill (or trim) bot seats toward room.botTarget once >= 2 humans are present.
 // Humans are always preferred; bots only fill the remaining seats. Emits
 // join/leave so the host + TV update. Safe to call on any join/leave (a no-op
@@ -613,6 +701,10 @@ function reconcileBots(room) {
     broadcastGameState(room);
     bots.scheduleBotActions(room, afterBotAction);
   }
+
+  // Any join/leave/bot change re-evaluates the auto-start countdown (self-guards
+  // when a game is active or the table isn't ready yet).
+  maybeStartCountdown(room);
 }
 
 // Socket.IO connection handling
@@ -788,43 +880,45 @@ io.on('connection', (socket) => {
     reconcileBots(room);
   });
 
-  // Handle game control from host
-  socket.on('start-game', async ({ gameType, options }) => {
+  // Host toggles the auto-start behaviour: Hold (on:false) pauses any pending
+  // countdown; resuming (on:true) re-arms it if the table is ready.
+  socket.on('set-autostart', ({ on } = {}) => {
+    if (socket.deviceType !== 'host') return;
+    const room = gameManager.getRoom(socket.roomCode);
+    if (!room) return;
+
+    room.autoStart = Boolean(on);
+    if (room.autoStart) {
+      maybeStartCountdown(room);
+    } else {
+      cancelStartCountdown(room);
+    }
+    io.to(room.code).emit('autostart-state', { on: room.autoStart });
+  });
+
+  // Handle game control from host — "Start now" (immediate). Falls back to the
+  // default game when no/invalid type is supplied, and pre-empts any countdown.
+  socket.on('start-game', async ({ gameType, options } = {}) => {
     if (socket.deviceType !== 'host') return;
 
     const room = gameManager.getRoom(socket.roomCode);
     if (!room) return;
 
-    try {
-      const game = registry.getGame(gameType);
-      let startOptions = options || {};
+    // Superseding the countdown with a real start — no cancel event to clients
+    // (they'll get game-started instead).
+    cancelStartCountdown(room, false);
 
-      // Card-backed games get their deck built from the DB and injected, so the
-      // engine stays pure (never touches the DB). packIds is unused until E6.
-      if (game && game.cardBacked) {
-        const deck = await DeckService.buildDeck({
-          gameId: game.id,
-          packIds: (options && options.packIds) || [],
-          maturityMax: options && options.maturityMax != null ? options.maturityMax : 3,
-        });
-        startOptions = { ...startOptions, deck };
-      }
-
-      room.startGame(gameType, startOptions);
-    } catch (error) {
-      socket.emit('error', { message: error.message });
+    const type = registry.getGame(gameType) ? gameType : (defaultGame() && defaultGame().id);
+    if (!type) {
+      socket.emit('error', { message: 'No game available to start' });
       return;
     }
 
-    io.to(socket.roomCode).emit('game-started', { gameType });
-    broadcastGameState(room);
-    // Persist the opening snapshot so a crash right after start is still
-    // resumable (S1).
-    scheduleSnapshot(room);
-    // Bots answer their first round.
-    bots.scheduleBotActions(room, afterBotAction);
-
-    console.log(`Game started in room ${socket.roomCode}: ${gameType}`);
+    try {
+      await startGameNow(room, type, options || {});
+    } catch (error) {
+      socket.emit('error', { message: error.message });
+    }
   });
 
   // Handle ending a game from the host
@@ -838,6 +932,7 @@ io.on('connection', (socket) => {
       clearTimeout(room.gameOverTimer);
       room.gameOverTimer = null;
     }
+    cancelStartCountdown(room, false);
     room.endGame();
     // Host ended the game deliberately — mark the session done (S1).
     markSession(room.code, 'completed');
@@ -850,6 +945,9 @@ io.on('connection', (socket) => {
       isGameActive: roomState.isGameActive,
       gameType: roomState.gameType,
     });
+
+    // Back in the lobby: re-arm the auto-start countdown if the table is ready.
+    maybeStartCountdown(room);
 
     console.log(`Game ended in room ${socket.roomCode}`);
   });
