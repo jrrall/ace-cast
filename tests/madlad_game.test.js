@@ -40,7 +40,7 @@ describe('MadLadGame', () => {
       expect(game.state.blackCard).toBeTruthy();
       expect(game.state.judgeId).toBe('p1');
       Object.values(game.state.players).forEach((p) => {
-        expect(p.hand).toHaveLength(7);
+        expect(p.hand).toHaveLength(game.state.handSize);
       });
     });
 
@@ -163,7 +163,7 @@ describe('MadLadGame', () => {
       const view = game.getStateForPlayer('p2');
       expect(view.you.id).toBe('p2');
       expect(view.you.isJudge).toBe(false);
-      expect(view.hand).toHaveLength(7);
+      expect(view.hand).toHaveLength(game.state.handSize);
     });
 
     test('reveals authors only after a winner is picked', () => {
@@ -276,7 +276,7 @@ describe('MadLadGame', () => {
     test('a late joiner receives a full hand', () => {
       const game = makeGame(3);
       game.addLatePlayer('p9', 'Latecomer');
-      expect(game.state.players.p9.hand).toHaveLength(7);
+      expect(game.state.players.p9.hand).toHaveLength(game.state.handSize);
     });
   });
 
