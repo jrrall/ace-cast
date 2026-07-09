@@ -109,6 +109,106 @@ describe('MadLadGame', () => {
     });
   });
 
+  describe('discard / swap a card (once per round)', () => {
+    // Use 4 players so a single submission keeps the round in 'answering'.
+    test('discarding draws a replacement and keeps the hand full', () => {
+      const game = makeGame(4);
+      const answerer = game.getActiveNonJudgeIds()[0];
+      const hand = game.state.players[answerer].hand;
+      const discarded = hand[2];
+
+      const result = game.handlePlayerAction(answerer, { action: 'discard-card', data: { cardIndex: 2 } });
+      expect(result).toEqual({ ok: true });
+      expect(game.state.players[answerer].hand).toHaveLength(game.state.handSize);
+      // The discarded card is gone from the hand and retired to the discard pile.
+      expect(game.state.players[answerer].hand).not.toContain(discarded);
+      expect(game.discardPile).toContain(discarded);
+      expect(game.state.players[answerer].discardsThisRound).toBe(1);
+    });
+
+    test('a second discard in the same round is rejected', () => {
+      const game = makeGame(4);
+      const answerer = game.getActiveNonJudgeIds()[0];
+      expect(game.handlePlayerAction(answerer, { action: 'discard-card', data: { cardIndex: 0 } })).toEqual({ ok: true });
+      const second = game.handlePlayerAction(answerer, { action: 'discard-card', data: { cardIndex: 0 } });
+      expect(second).toBeNull();
+      expect(game.state.players[answerer].hand).toHaveLength(game.state.handSize);
+      expect(game.state.players[answerer].discardsThisRound).toBe(1);
+    });
+
+    test('the swap budget resets on the next round', () => {
+      const game = makeGame(3);
+      const first = game.getActiveNonJudgeIds()[0];
+      expect(game.handlePlayerAction(first, { action: 'discard-card', data: { cardIndex: 0 } })).toEqual({ ok: true });
+
+      // Play out the round to advance.
+      everyoneSubmits(game);
+      game.handlePlayerAction('p1', { action: 'pick-winner', data: { submissionId: game.state.submissions[0].id } });
+      game.handlePlayerAction('p2', { action: 'next-round' });
+      expect(game.state.phase).toBe('answering');
+
+      // Budget refreshed: every player is back to zero and can discard again.
+      Object.values(game.state.players).forEach((p) => expect(p.discardsThisRound).toBe(0));
+      const answerer = game.getActiveNonJudgeIds()[0];
+      expect(game.handlePlayerAction(answerer, { action: 'discard-card', data: { cardIndex: 0 } })).toEqual({ ok: true });
+    });
+
+    test('cannot discard after submitting this round', () => {
+      const game = makeGame(4);
+      const answerer = game.getActiveNonJudgeIds()[0];
+      game.handlePlayerAction(answerer, { action: 'submit-card', data: { cardIndex: 0 } });
+      expect(game.handlePlayerAction(answerer, { action: 'discard-card', data: { cardIndex: 0 } })).toBeNull();
+    });
+
+    test('the judge cannot discard', () => {
+      const game = makeGame(3);
+      const { judgeId } = game.state;
+      expect(game.handlePlayerAction(judgeId, { action: 'discard-card', data: { cardIndex: 0 } })).toBeNull();
+    });
+
+    test('cannot discard outside the answering phase', () => {
+      const game = makeGame(3);
+      everyoneSubmits(game); // -> judging
+      expect(game.state.phase).toBe('judging');
+      const answerer = game.getActiveNonJudgeIds()[0];
+      expect(game.handlePlayerAction(answerer, { action: 'discard-card', data: { cardIndex: 0 } })).toBeNull();
+    });
+
+    test('an out-of-range card index is a no-op', () => {
+      const game = makeGame(4);
+      const answerer = game.getActiveNonJudgeIds()[0];
+      expect(game.handlePlayerAction(answerer, { action: 'discard-card', data: { cardIndex: 99 } })).toBeNull();
+      expect(game.handlePlayerAction(answerer, { action: 'discard-card', data: { cardIndex: -1 } })).toBeNull();
+      expect(game.state.players[answerer].hand).toHaveLength(game.state.handSize);
+      expect(game.state.players[answerer].discardsThisRound).toBe(0);
+    });
+
+    test('canDiscard reflects the per-round budget in the player view', () => {
+      const game = makeGame(4);
+      const answerer = game.getActiveNonJudgeIds()[0];
+      expect(game.getStateForPlayer(answerer).you.canDiscard).toBe(true);
+      // Judge never gets the affordance.
+      expect(game.getStateForPlayer(game.state.judgeId).you.canDiscard).toBe(false);
+      game.handlePlayerAction(answerer, { action: 'discard-card', data: { cardIndex: 0 } });
+      expect(game.getStateForPlayer(answerer).you.canDiscard).toBe(false);
+    });
+
+    test('the used budget survives serialize / restore for the current round', () => {
+      const game = makeGame(4);
+      const answerer = game.getActiveNonJudgeIds()[0];
+      game.handlePlayerAction(answerer, { action: 'discard-card', data: { cardIndex: 0 } });
+
+      const restored = MadLadGame.restore(
+        makeRoom(makePlayers(4)),
+        JSON.parse(JSON.stringify(game.serialize())),
+      );
+      expect(restored.state.players[answerer].discardsThisRound).toBe(1);
+      expect(restored.getStateForPlayer(answerer).you.canDiscard).toBe(false);
+      // The spent budget still blocks a second swap after rehydration.
+      expect(restored.handlePlayerAction(answerer, { action: 'discard-card', data: { cardIndex: 0 } })).toBeNull();
+    });
+  });
+
   describe('bots', () => {
     const withBots = () => new MadLadGame(makeRoom([
       { id: 'h1', name: 'Ada', isActive: true },

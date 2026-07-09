@@ -3,6 +3,8 @@ const BaseGame = require('./BaseGame');
 const HAND_SIZE = 8;
 const DEFAULT_TARGET_SCORE = 5;
 const MIN_PLAYERS = 3;
+// A player may swap one card for a fresh draw per round, for free.
+const MAX_DISCARDS_PER_ROUND = 1;
 
 /**
  * MadLad game engine.
@@ -74,6 +76,8 @@ class MadLadGame extends BaseGame {
       score: 0,
       isActive: player.isActive !== false,
       submittedCardId: null,
+      // Per-round free swaps used (reset in startRound); caps at MAX_DISCARDS_PER_ROUND.
+      discardsThisRound: 0,
     };
   }
 
@@ -146,6 +150,8 @@ class MadLadGame extends BaseGame {
     activeIds.forEach((id) => {
       const player = this.state.players[id];
       player.submittedCardId = null;
+      // Refresh the free-swap budget so each round gets exactly one.
+      player.discardsThisRound = 0;
       this.refillHand(player);
     });
 
@@ -202,6 +208,8 @@ class MadLadGame extends BaseGame {
       return this.handleSubmitCard(playerId, data);
     case 'unsubmit-card':
       return this.handleUnsubmit(playerId);
+    case 'discard-card':
+      return this.handleDiscardCard(playerId, data);
     case 'pick-winner':
       return this.handlePickWinner(playerId, data);
     case 'next-round':
@@ -248,6 +256,32 @@ class MadLadGame extends BaseGame {
     const [sub] = this.state.submissions.splice(idx, 1);
     player.hand.push(sub.card);
     player.submittedCardId = null;
+    return { ok: true };
+  }
+
+  /**
+   * Swap a single card for a fresh draw — free, but capped at one per round.
+   * Only while still collecting cards ('answering'), only before this player has
+   * submitted, and only if the per-round budget hasn't been spent. The discarded
+   * card goes to the discard pile and refillHand tops the hand back to HAND_SIZE.
+   */
+  handleDiscardCard(playerId, data) {
+    if (this.state.phase !== 'answering') return null;
+    if (playerId === this.state.judgeId) return null;
+
+    const player = this.state.players[playerId];
+    if (!player || !player.isActive || player.submittedCardId) return null;
+    if ((player.discardsThisRound || 0) >= MAX_DISCARDS_PER_ROUND) return null;
+
+    const cardIndex = Number(data.cardIndex);
+    if (!Number.isInteger(cardIndex) || cardIndex < 0 || cardIndex >= player.hand.length) {
+      return null;
+    }
+
+    const [card] = player.hand.splice(cardIndex, 1);
+    this.discardPile.push(card);
+    this.refillHand(player); // draws exactly one replacement back up to HAND_SIZE
+    player.discardsThisRound = (player.discardsThisRound || 0) + 1;
     return { ok: true };
   }
 
@@ -525,6 +559,11 @@ class MadLadGame extends BaseGame {
     }
 
     const isJudge = playerId === this.state.judgeId;
+    // A player can swap a card while answering, before submitting, with budget left.
+    const canDiscard = this.state.phase === 'answering'
+      && !isJudge
+      && !player.submittedCardId
+      && (player.discardsThisRound || 0) < MAX_DISCARDS_PER_ROUND;
     const availableActions = [];
     if (this.state.phase === 'results') {
       availableActions.push({ type: 'next-round', label: 'Next Round' });
@@ -541,6 +580,7 @@ class MadLadGame extends BaseGame {
         name: player.name,
         isJudge,
         hasSubmitted: Boolean(player.submittedCardId),
+        canDiscard,
         score: player.score,
       },
       hand: player.hand.map((card, index) => ({ index, text: card.text, cardId: card.id })),

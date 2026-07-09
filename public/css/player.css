@@ -115,6 +115,18 @@ header h1 {
 .madlad-banner { background: rgba(139, 30, 45, 0.18); color: var(--bone); border: 1px solid rgba(224,75,47,0.3); border-radius: 10px; padding: 14px; font-weight: 700; text-align: center; margin: 10px 0; font-size: 1.1em; }
 .madlad-note { text-align: center; color: var(--text-dim); margin: 10px 0; font-size: 1em; }
 
+/* One free swap per round: corner control that replaces (not plays) the card.
+   Sits top-left so it clears the flag control (top-right); doesn't affect the
+   fixed 168px card height since the wrapper stays sized by the card. */
+.madlad-card-wrap { position: relative; }
+.madlad-discard {
+    position: absolute; top: 4px; left: 4px; z-index: 2;
+    border: none; background: rgba(0, 0, 0, 0.35); border-radius: 6px;
+    font-size: 14px; line-height: 1; padding: 2px 4px; cursor: pointer;
+    opacity: 0.75;
+}
+.madlad-discard:hover { opacity: 1; }
+
 /* ---- Played state: obvious, can't be confused with "still choosing" ---- */
 .hand-played__card-wrap { position: relative; max-width: 160px; margin: 14px auto 0; }
 .card--played { opacity: 0.55; filter: grayscale(0.2); }
