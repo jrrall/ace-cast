@@ -1,3 +1,8 @@
+## 1.12.0 (2026-07-09)
+
+* feat(e4): user accounts behind a pluggable auth provider + Authelia forward-auth (#26) ([cb08695](https://github.com/jrrall/ace-cast/commit/cb08695)), closes [#26](https://github.com/jrrall/ace-cast/issues/26)
+* feat(j6): synthesized sound + haptics for card play, flip, and win (#31) ([50f1d7b](https://github.com/jrrall/ace-cast/commit/50f1d7b)), closes [#31](https://github.com/jrrall/ace-cast/issues/31)
+
 ## 1.11.0 (2026-07-09)
 
 * feat(f3): feedback dashboard + card retirement (F4) (#28) ([72a3e79](https://github.com/jrrall/ace-cast/commit/72a3e79)), closes [#28](https://github.com/jrrall/ace-cast/issues/28)
