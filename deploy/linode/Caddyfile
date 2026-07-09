@@ -15,20 +15,26 @@
 {$SITE_ADDRESS} {
 	encode zstd gzip
 
-	# Authelia's own portal (login page + verify endpoint), reverse-proxied
-	# under /authelia so it shares the app's domain (single cookie domain).
-	handle_path /authelia/* {
+	# Authelia's own portal (login page + verify endpoint), served under /authelia
+	# so it shares the app's domain. Use `handle` (NOT handle_path) so the prefix
+	# is preserved — Authelia is configured to serve under /authelia, so its
+	# assets + /authelia/api/* line up. `handle` blocks are mutually exclusive,
+	# so this and the app block below never fight over a path.
+	handle /authelia/* {
 		reverse_proxy authelia:9091
 	}
 
-	# Gate account + admin surfaces. Unauthenticated requests are redirected to
-	# the Authelia portal; authenticated ones continue with Remote-* headers.
-	@protected path /account /account/* /admin /admin/*
-	forward_auth @protected authelia:9091 {
-		uri /api/verify?rd=https://{$SITE_ADDRESS}/authelia/
-		copy_headers Remote-User Remote-Email Remote-Name Remote-Groups
-	}
+	# Everything else. Account + admin surfaces are gated by Authelia forward-auth
+	# (unauthenticated → redirected to the portal); every other path — create/join/
+	# play, TV, health — is public. Wrapped in `handle` so it's the exclusive
+	# fallthrough after the /authelia block.
+	handle {
+		@protected path /account /account/* /admin /admin/*
+		forward_auth @protected authelia:9091 {
+			uri /authelia/api/verify?rd=https://{$SITE_ADDRESS}/authelia/
+			copy_headers Remote-User Remote-Email Remote-Name Remote-Groups
+		}
 
-	# Everything else (create/join/play, TV, health) is public — no auth.
-	reverse_proxy app:3000
+		reverse_proxy app:3000
+	}
 }

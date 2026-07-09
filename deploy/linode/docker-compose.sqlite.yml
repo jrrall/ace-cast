@@ -49,9 +49,13 @@ services:
       AUTHELIA_JWT_SECRET: ${AUTHELIA_JWT_SECRET:?set AUTHELIA_JWT_SECRET in .env}
       AUTHELIA_SESSION_SECRET: ${AUTHELIA_SESSION_SECRET:?set AUTHELIA_SESSION_SECRET in .env}
       AUTHELIA_STORAGE_ENCRYPTION_KEY: ${AUTHELIA_STORAGE_ENCRYPTION_KEY:?set AUTHELIA_STORAGE_ENCRYPTION_KEY in .env}
-      # The public domain, used to build Authelia's session cookie + redirect.
-      AUTHELIA_SESSION_DOMAIN: ${SITE_ADDRESS}
+      # Session cookie (4.38 multi-domain form). DOMAIN scopes the cookie;
+      # AUTHELIA_URL is the portal's public base — Authelia needs it to build the
+      # forward-auth redirect. (The old singular AUTHELIA_SESSION_DOMAIN is
+      # deprecated and conflicts with COOKIES_0_*, so it's gone.)
+      AUTHELIA_SESSION_COOKIES_0_DOMAIN: ${SITE_ADDRESS}
       AUTHELIA_SESSION_COOKIES_0_AUTHELIA_URL: https://${SITE_ADDRESS}/authelia
+      AUTHELIA_SESSION_COOKIES_0_NAME: authelia_session
     volumes:
       - ./authelia/configuration.yml:/config/configuration.yml:ro
       - ./authelia/users_database.yml:/config/users_database.yml:ro

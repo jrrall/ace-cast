@@ -9,8 +9,12 @@
 
 theme: dark
 
+# Served under /authelia (Caddy proxies /authelia/* here WITHOUT stripping the
+# prefix), so portal assets + the /api/verify endpoint all live under /authelia
+# and line up with the public URL. Change the path here and in the Caddyfile
+# together if you ever move it.
 server:
-  address: 'tcp://0.0.0.0:9091'
+  address: 'tcp://0.0.0.0:9091/authelia'
 
 log:
   level: info
@@ -34,8 +38,9 @@ access_control:
       policy: one_factor
 
 session:
-  name: authelia_session
-  # secret + cookie domain/url come from AUTHELIA_SESSION_* env vars.
+  # secret + per-cookie domain/name/authelia_url come from AUTHELIA_SESSION_*
+  # env vars (see docker-compose.sqlite.yml). expiration/inactivity are defaults
+  # applied to the cookie.
   expiration: 1h
   inactivity: 15m
 
