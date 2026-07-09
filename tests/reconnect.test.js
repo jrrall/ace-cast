@@ -29,7 +29,7 @@ describe('MadLadGame disconnect / reconnect', () => {
     const pid = nonJudges[0];
     game.state.players[pid].score = 3;
     const handBefore = game.state.players[pid].hand.map((c) => c.text);
-    expect(handBefore).toHaveLength(7);
+    expect(handBefore).toHaveLength(game.state.handSize);
 
     game.handlePlayerDisconnect(pid);
     expect(game.state.players[pid].isActive).toBe(false);

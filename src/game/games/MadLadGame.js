@@ -1,6 +1,6 @@
 const BaseGame = require('./BaseGame');
 
-const HAND_SIZE = 7;
+const HAND_SIZE = 8;
 const DEFAULT_TARGET_SCORE = 5;
 const MIN_PLAYERS = 3;
 
