@@ -25,17 +25,44 @@ services:
       ALLOWED_ORIGINS: ${PUBLIC_URL}
       TRUST_PROXY: "true"
       PORT: "3000"
+      # E4 accounts: prod trusts the Remote-* headers Caddy forwards from
+      # Authelia (safe only because TRUST_PROXY is true and /account* is proxied).
+      AUTH_PROVIDER: "forward"
+      AUTH_SESSION_SECRET: ${AUTH_SESSION_SECRET:?set AUTH_SESSION_SECRET in .env}
     volumes:
       # The database lives here — this is what makes data durable across redeploys.
       - acecast_data:/app/data
     expose:
       - "3000"
 
+  # Self-hosted IdP (E4). A single lightweight service — local file users
+  # backend + SQLite storage — so it fits alongside app+Caddy+SQLite on a 1 GB
+  # Nanode (~30-50 MB RSS; contrast authentik's Postgres+Redis+worker, which
+  # would exhaust the box). Caddy forward-auths /account* + /admin* to it.
+  authelia:
+    image: authelia/authelia:4.38
+    restart: unless-stopped
+    expose:
+      - "9091"
+    environment:
+      # Secrets come from .env (never committed). See authelia/configuration.yml.
+      AUTHELIA_JWT_SECRET: ${AUTHELIA_JWT_SECRET:?set AUTHELIA_JWT_SECRET in .env}
+      AUTHELIA_SESSION_SECRET: ${AUTHELIA_SESSION_SECRET:?set AUTHELIA_SESSION_SECRET in .env}
+      AUTHELIA_STORAGE_ENCRYPTION_KEY: ${AUTHELIA_STORAGE_ENCRYPTION_KEY:?set AUTHELIA_STORAGE_ENCRYPTION_KEY in .env}
+      # The public domain, used to build Authelia's session cookie + redirect.
+      AUTHELIA_SESSION_DOMAIN: ${SITE_ADDRESS}
+      AUTHELIA_SESSION_COOKIES_0_AUTHELIA_URL: https://${SITE_ADDRESS}/authelia
+    volumes:
+      - ./authelia/configuration.yml:/config/configuration.yml:ro
+      - ./authelia/users_database.yml:/config/users_database.yml:ro
+      - authelia_data:/data
+
   caddy:
     image: caddy:2-alpine
     restart: unless-stopped
     depends_on:
       - app
+      - authelia
     ports:
       - "80:80"
       - "443:443"
@@ -48,5 +75,6 @@ services:
 
 volumes:
   acecast_data:
+  authelia_data:
   caddy_data:
   caddy_config:

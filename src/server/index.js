@@ -33,6 +33,7 @@ const FeedbackRepository = require('../content/FeedbackRepository');
 const IdentityRepository = require('../content/IdentityRepository');
 const SessionRepository = require('../content/SessionRepository');
 const { isResumable } = require('../game/contract');
+const auth = require('../auth');
 
 const PORT = config.server.port;
 
@@ -74,6 +75,8 @@ function getBaseUrl(req) {
 // Middleware
 app.use(cors({ origin: config.getCorsOrigin() }));
 app.use(express.json());
+// Form posts (the dev-login form) arrive url-encoded.
+app.use(express.urlencoded({ extended: false }));
 app.use(express.static(path.join(__dirname, '../../public')));
 app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, '../../views'));
@@ -97,6 +100,12 @@ app.use((req, res, next) => {
   req.identityId = id;
   next();
 });
+
+// Accounts (E4). The selected provider (dev locally, forward-auth in prod) gates
+// ONLY /account + its API — every gameplay path stays public. Mounted after the
+// identity middleware so req.identityId is available for the guest→account merge.
+const authProvider = auth.createProvider();
+auth.mountAuthRoutes(app, authProvider);
 
 // Health check for cloud platforms / uptime monitors. Probes the DB so a
 // broken connection surfaces as 503 (degraded) instead of a silent 200.
@@ -177,8 +186,8 @@ function suppliedAdminToken(req) {
   if (req.query.token) return req.query.token;
   const header = req.get('X-Admin-Token');
   if (header) return header;
-  const auth = req.get('Authorization') || '';
-  const match = /^Basic\s+(.+)$/i.exec(auth);
+  const authHeader = req.get('Authorization') || '';
+  const match = /^Basic\s+(.+)$/i.exec(authHeader);
   if (!match) return null;
   const decoded = Buffer.from(match[1], 'base64').toString('utf8');
   const sep = decoded.indexOf(':');

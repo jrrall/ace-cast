@@ -1,0 +1,56 @@
+# Authelia configuration (E4) — minimal, single-box, SQLite storage + file users.
+#
+# Secrets are NOT here: JWT / session / storage-encryption keys are injected as
+# AUTHELIA_* env vars from .env (see docker-compose.sqlite.yml). Keep this file
+# committed; keep .env secret.
+#
+# This is the smallest viable setup that fits a 1 GB Nanode: local file user
+# backend, SQLite storage, in-memory rate limiting. No external database.
+
+theme: dark
+
+server:
+  address: 'tcp://0.0.0.0:9091'
+
+log:
+  level: info
+
+# One-factor is enough to gate /account (it just identifies the user for the
+# app). Bump to two_factor here if you want TOTP/WebAuthn on admin surfaces.
+authentication_backend:
+  file:
+    path: /config/users_database.yml
+    password:
+      algorithm: argon2
+
+access_control:
+  default_policy: deny
+  rules:
+    # This Authelia instance only fronts one host (Caddy forward-auths just
+    # /account* and /admin*), so a wildcard domain = "any authenticated user may
+    # pass"; the app then does its own per-user authorization from the Remote-*
+    # headers. Tighten with a `subject`/`groups` clause if you want admin-only.
+    - domain: '*'
+      policy: one_factor
+
+session:
+  name: authelia_session
+  # secret + cookie domain/url come from AUTHELIA_SESSION_* env vars.
+  expiration: 1h
+  inactivity: 15m
+
+storage:
+  # encryption_key comes from AUTHELIA_STORAGE_ENCRYPTION_KEY.
+  local:
+    path: /data/db.sqlite3
+
+notifier:
+  # No SMTP on the box: password-reset / verification notifications are written
+  # to a file. Swap for an smtp notifier if you wire up email later.
+  filesystem:
+    filename: /data/notification.txt
+
+regulation:
+  max_retries: 3
+  find_time: 2m
+  ban_time: 5m
