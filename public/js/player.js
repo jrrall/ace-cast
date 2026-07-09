@@ -487,7 +487,11 @@ class PlayerController {
                     if (window.SoundFX) window.SoundFX.playCard();
                     this.sendAction('submit-card', { cardIndex: card.index });
                 };
-                grid.appendChild(this.wrapWithFlag(el, card.cardId));
+                let wrapped = this.wrapWithFlag(el, card.cardId);
+                // One free swap per round: overlay a discard/swap control that
+                // replaces the card instead of playing it.
+                if (you.canDiscard) wrapped = this.withDiscardControl(wrapped, card);
+                grid.appendChild(wrapped);
             });
             this.playerArea.appendChild(grid);
         } else if (state.phase === 'answering' && you.hasSubmitted) {
@@ -582,6 +586,34 @@ class PlayerController {
             this.showFlagMenu(wrap, cardId, flagBtn);
         };
         wrap.appendChild(flagBtn);
+        return wrap;
+    }
+
+    // Overlay a discard/swap control on a hand card (one free swap per round).
+    // `el` may be a bare card or an existing flag-wrap; ensure a positioned
+    // container either way. Tapping it swaps the card WITHOUT playing it, so it
+    // stops propagation to the card body's play handler.
+    withDiscardControl(el, card) {
+        let wrap = el;
+        if (!el.classList || !el.classList.contains('madlad-card-wrap')) {
+            wrap = document.createElement('div');
+            wrap.className = 'madlad-card-wrap';
+            wrap.style.position = 'relative';
+            wrap.appendChild(el);
+        }
+
+        const swapBtn = document.createElement('button');
+        swapBtn.type = 'button';
+        swapBtn.className = 'madlad-discard';
+        swapBtn.textContent = '🔄';
+        swapBtn.title = 'Swap this card (once per round)';
+        swapBtn.setAttribute('aria-label', 'Swap this card for a new one');
+        swapBtn.onclick = (e) => {
+            e.stopPropagation();
+            if (window.SoundFX) window.SoundFX.playCard();
+            this.sendAction('discard-card', { cardIndex: card.index });
+        };
+        wrap.appendChild(swapBtn);
         return wrap;
     }
 
