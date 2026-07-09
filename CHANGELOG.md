@@ -1,3 +1,7 @@
+## <small>1.12.4 (2026-07-09)</small>
+
+* fix(deploy): Authelia default_policy one_factor (fixes /account 403) (#36) ([909f44c](https://github.com/jrrall/ace-cast/commit/909f44c)), closes [#36](https://github.com/jrrall/ace-cast/issues/36)
+
 ## <small>1.12.3 (2026-07-09)</small>
 
 * fix(deploy): define Authelia session.cookies in config (env list unsupported) (#35) ([76bfe03](https://github.com/jrrall/ace-cast/commit/76bfe03)), closes [#35](https://github.com/jrrall/ace-cast/issues/35)
