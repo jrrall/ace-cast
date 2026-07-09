@@ -1,3 +1,7 @@
+## <small>1.12.3 (2026-07-09)</small>
+
+* fix(deploy): define Authelia session.cookies in config (env list unsupported) (#35) ([76bfe03](https://github.com/jrrall/ace-cast/commit/76bfe03)), closes [#35](https://github.com/jrrall/ace-cast/issues/35)
+
 ## <small>1.12.2 (2026-07-09)</small>
 
 * fix(deploy): make Authelia portal reachable under /authelia (#34) ([9d1c3aa](https://github.com/jrrall/ace-cast/commit/9d1c3aa)), closes [#34](https://github.com/jrrall/ace-cast/issues/34)
