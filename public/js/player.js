@@ -194,7 +194,15 @@ class PlayerController {
 
         this.socket.on('error', (data) => {
             console.error('Socket error:', data);
-            this.showError(data.message || 'Connection error occurred');
+            const message = (data && data.message) || 'Connection error occurred';
+            // The room we were (re)joining is gone — the game ended and the
+            // session was released. Stop auto-rejoining a dead game: reset to the
+            // join screen instead of looping on the error each reconnect.
+            if (message === 'Room not found' && this.roomCode) {
+                this.handleSessionClosed();
+                return;
+            }
+            this.showError(message);
         });
 
         this.socket.on('room-state', (data) => {

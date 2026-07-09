@@ -98,6 +98,27 @@ describe('S1 session persistence', () => {
     expect(revived).toBeNull();
   });
 
+  test('does not resurrect a finished (gameover) game, even from an active row', async () => {
+    const code = 'OVER';
+    const room = gameManager.createRoom(code);
+    ['q1', 'q2', 'q3'].forEach((id) => room.addPlayer(id, id.toUpperCase(), global.createMockSocket()));
+    room.startGame('madlad', { deck: makeDeck(), targetScore: 5 });
+
+    // Force a terminal phase and snapshot it while the row is still 'active'
+    // (this is exactly the reconnect-races-release window the bug hit).
+    room.gameEngine.state.phase = 'gameover';
+    await serverMod.writeSnapshot(room);
+    expect((await SessionRepository.getByRoomCode(code)).status).toBe('active');
+
+    gameManager.removeRoom(code);
+
+    // The racing reconnect must get nothing back — no zombie room to re-join...
+    const revived = await serverMod.rehydrateRoom(code);
+    expect(revived).toBeNull();
+    // ...and the session is closed out so it isn't retried.
+    expect((await SessionRepository.getByRoomCode(code)).status).toBe('completed');
+  });
+
   test('TTL sweep abandons + drops stale paused sessions, keeps fresh ones', async () => {
     // Stale paused session, aged well past the TTL.
     await SessionRepository.snapshot({

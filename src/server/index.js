@@ -494,6 +494,18 @@ async function rehydrateRoom(code) {
     const game = registry.getGame(rec.gameType);
     if (!game || !isResumable(game.engine)) return null;
 
+    // Never resurrect a finished game. A snapshot captured at the terminal
+    // ('gameover') phase means the session is done — this happens when a phone's
+    // reconnect races the game-over release. Close it out instead of rebuilding a
+    // zombie room the phones would sit re-joining. (Checked off the raw snapshot,
+    // before seat reconstruction pauses players and resets the phase.)
+    const snapshotState = rec.serializedState.state || {};
+    if (snapshotState.phase === 'gameover') {
+      await markSession(code, 'completed');
+      console.log(`Room ${code} snapshot was finished (gameover) — not resurrected`);
+      return null;
+    }
+
     const room = gameManager.createRoom(code);
     const snapshot = rec.serializedState;
     const engine = game.engine.restore(room, snapshot, {});
@@ -564,14 +576,20 @@ function startGameOverCountdown(room) {
 
   const closesInSec = Math.round(config.room.gameOverCloseMs / 1000);
   io.to(room.code).emit('game-over', { closesInSec });
-  room.gameOverTimer = setTimeout(() => {
+  room.gameOverTimer = setTimeout(async () => {
     const r = gameManager.getRoom(room.code);
     if (!r) return;
     bots.clearBotTimers(r);
     r.endGame();
-    // Normal game-over: the session is done, not resumable.
-    markSession(r.code, 'completed');
+    // Tell clients the session is over so they leave cleanly.
     io.to(r.code).emit('session-closed', {});
+    // AWAIT the terminal status before tearing the room down. This matters:
+    // removeRoom() force-disconnects every socket, and those phones auto-
+    // reconnect + re-join within milliseconds. If the row were still 'active'
+    // they'd rehydrate a zombie game (stuck at 'gameover'). Committing
+    // 'completed' first closes that race — and the await also lets the
+    // session-closed packet flush before the sockets are dropped.
+    await markSession(r.code, 'completed');
     gameManager.removeRoom(r.code);
     console.log(`Room ${r.code} released after game over`);
   }, config.room.gameOverCloseMs);
