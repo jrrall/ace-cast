@@ -1,3 +1,7 @@
+## <small>1.12.5 (2026-07-09)</small>
+
+* revert(j2): flat tap-to-play hand instead of the fanned lift+confirm (#37) ([4073d7a](https://github.com/jrrall/ace-cast/commit/4073d7a)), closes [#37](https://github.com/jrrall/ace-cast/issues/37)
+
 ## <small>1.12.4 (2026-07-09)</small>
 
 * fix(deploy): Authelia default_policy one_factor (fixes /account 403) (#36) ([909f44c](https://github.com/jrrall/ace-cast/commit/909f44c)), closes [#36](https://github.com/jrrall/ace-cast/issues/36)
