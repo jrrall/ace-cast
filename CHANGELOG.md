@@ -1,3 +1,7 @@
+## 1.13.0 (2026-07-09)
+
+* feat(lobby): auto-start countdown once enough players are seated (#40) ([b70c9cc](https://github.com/jrrall/ace-cast/commit/b70c9cc)), closes [#40](https://github.com/jrrall/ace-cast/issues/40)
+
 ## <small>1.12.7 (2026-07-09)</small>
 
 * fix(cards): taller uniform hand cards (168px, 6-line clamp) (#39) ([383ec01](https://github.com/jrrall/ace-cast/commit/383ec01)), closes [#39](https://github.com/jrrall/ace-cast/issues/39)
