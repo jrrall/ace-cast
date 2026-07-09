@@ -161,15 +161,15 @@ button.card--answer:active {
 .card--hand.card--answer {
     padding: 14px 12px;
     font-size: 0.95rem;
-    height: 124px;
+    height: 168px;
     width: 100%;
 }
 .card--hand.card--answer .card__inner { justify-content: center; }
 .card--hand.card--answer .card__text {
     display: -webkit-box;
     -webkit-box-orient: vertical;
-    -webkit-line-clamp: 4;
-    line-clamp: 4;
+    -webkit-line-clamp: 6;
+    line-clamp: 6;
     overflow: hidden;
 }
 
