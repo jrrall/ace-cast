@@ -1,3 +1,7 @@
+## 1.16.0 (2026-07-09)
+
+* feat(madlad): discard/swap a card once per round during answering (#44) ([4ada94d](https://github.com/jrrall/ace-cast/commit/4ada94d)), closes [#44](https://github.com/jrrall/ace-cast/issues/44)
+
 ## 1.15.0 (2026-07-09)
 
 * fix(test): update remaining hand-size assertions to 8 (#43) ([57f9577](https://github.com/jrrall/ace-cast/commit/57f9577)), closes [#43](https://github.com/jrrall/ace-cast/issues/43) [#42](https://github.com/jrrall/ace-cast/issues/42)
