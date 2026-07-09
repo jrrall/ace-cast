@@ -28,14 +28,15 @@ authentication_backend:
       algorithm: argon2
 
 access_control:
-  default_policy: deny
-  rules:
-    # This Authelia instance only fronts one host (Caddy forward-auths just
-    # /account* and /admin*), so a wildcard domain = "any authenticated user may
-    # pass"; the app then does its own per-user authorization from the Remote-*
-    # headers. Tighten with a `subject`/`groups` clause if you want admin-only.
-    - domain: '*'
-      policy: one_factor
+  # This Authelia instance only fronts /account* + /admin* (Caddy forward-auths
+  # just those), so "any authenticated user may pass" is exactly right — the app
+  # does its own per-user authorization from the Remote-* headers. We use
+  # default_policy instead of a `domain` rule on purpose: a bare `domain: '*'`
+  # does NOT match a multi-label host like unholy.cards (Authelia's `*` only
+  # wildcards one leftmost label), so it left unauthenticated hits denied with a
+  # 403 instead of redirecting them to the login portal. Add rules with
+  # `domain_regex`/`subject`/`groups` here if you later want admin-only gating.
+  default_policy: one_factor
 
 session:
   # `secret` comes from AUTHELIA_SESSION_SECRET (a scalar env var — that works).
