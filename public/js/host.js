@@ -4,7 +4,10 @@ class HostController {
         this.roomCode = null;
         this.players = new Map();
         this.gameActive = false;
-        
+        // Host's Hold/Auto toggle. Mirrors the server's room.autoStart; the
+        // server is authoritative (autostart-state), this is the optimistic view.
+        this.autoStart = true;
+
         this.initializeElements();
         this.bindEvents();
         this.initializeSocket();
@@ -28,8 +31,8 @@ class HostController {
         this.playersList = document.getElementById('players-list');
         this.playerCount = document.getElementById('player-count');
         this.gameStatusContent = document.getElementById('game-status-content');
-        this.gameTypeSelect = document.getElementById('game-type');
-        this.gameHint = document.getElementById('game-hint');
+        this.countdownStatus = document.getElementById('countdown-status');
+        this.autostartToggleBtn = document.getElementById('autostart-toggle-btn');
         this.addBotBtn = document.getElementById('add-bot-btn');
         this.removeBotBtn = document.getElementById('remove-bot-btn');
     }
@@ -38,26 +41,30 @@ class HostController {
         this.createRoomBtn.addEventListener('click', () => this.createRoom());
         this.startGameBtn.addEventListener('click', () => this.startGame());
         this.endGameBtn.addEventListener('click', () => this.endGame());
-        this.gameTypeSelect.addEventListener('change', () => this.updateGameHint());
+        if (this.autostartToggleBtn) {
+            this.autostartToggleBtn.addEventListener('click', () => this.toggleAutoStart());
+        }
         if (this.addBotBtn) {
             this.addBotBtn.addEventListener('click', () => this.socket && this.socket.emit('add-bot'));
         }
         if (this.removeBotBtn) {
             this.removeBotBtn.addEventListener('click', () => this.socket && this.socket.emit('remove-bot'));
         }
-        this.updateGameHint();
     }
 
-    updateGameHint() {
-        if (!this.gameHint || !this.gameTypeSelect) return;
-        const option = this.gameTypeSelect.selectedOptions[0];
-        if (!option) {
-            this.gameHint.textContent = '';
-            return;
-        }
-        const min = option.dataset.min;
-        const name = option.dataset.name || option.textContent;
-        this.gameHint.textContent = min ? `${name} needs at least ${min} players.` : '';
+    // Hold pauses the auto-start countdown; Auto resumes it. The server echoes
+    // the resulting state back via 'autostart-state'.
+    toggleAutoStart() {
+        if (!this.socket) return;
+        this.socket.emit('set-autostart', { on: !this.autoStart });
+    }
+
+    updateAutostartButton() {
+        if (!this.autostartToggleBtn) return;
+        // Label is the action the button performs: "Hold" while auto is on,
+        // "Auto" (resume) while held.
+        this.autostartToggleBtn.textContent = this.autoStart ? 'Hold' : 'Auto';
+        this.autostartToggleBtn.disabled = this.gameActive;
     }
 
     initializeSocket() {
@@ -90,8 +97,25 @@ class HostController {
 
         this.socket.on('game-started', (data) => {
             this.gameActive = true;
+            this.setCountdownStatus('');
             this.updateGameControls();
             this.updateGameStatus(`Game started: ${data.gameType}`);
+        });
+
+        this.socket.on('start-countdown', (data) => {
+            const n = data && data.secondsLeft;
+            this.setCountdownStatus(n ? `Starting in ${n}…` : '');
+        });
+
+        this.socket.on('start-countdown-cancelled', () => {
+            this.setCountdownStatus('');
+        });
+
+        this.socket.on('autostart-state', (data) => {
+            this.autoStart = Boolean(data && data.on);
+            if (!this.autoStart) this.setCountdownStatus('Auto-start held');
+            else this.setCountdownStatus('');
+            this.updateAutostartButton();
         });
 
         this.socket.on('game-update', (data) => {
@@ -100,6 +124,7 @@ class HostController {
 
         this.socket.on('game-ended', () => {
             this.gameActive = false;
+            this.setCountdownStatus('');
             this.updateGameControls();
             this.updateGameStatus('Game ended');
         });
@@ -212,32 +237,32 @@ class HostController {
     }
 
     startGame() {
-        const gameType = this.gameTypeSelect.value;
-        
-        this.socket.emit('start-game', {
-            gameType: gameType,
-            options: {}
-        });
+        // Start now: the server picks the default (only prod) game.
+        this.socket.emit('start-game', {});
     }
 
     endGame() {
         this.socket.emit('end-game');
         this.gameActive = false;
+        this.setCountdownStatus('');
         this.updateGameControls();
         this.updateGameStatus('Game ended');
+    }
+
+    setCountdownStatus(message) {
+        if (this.countdownStatus) this.countdownStatus.textContent = message || '';
     }
 
     updateGameControls() {
         if (this.gameActive) {
             this.startGameBtn.style.display = 'none';
             this.endGameBtn.style.display = 'inline-block';
-            this.gameTypeSelect.disabled = true;
         } else {
             this.startGameBtn.style.display = 'inline-block';
             this.endGameBtn.style.display = 'none';
-            this.gameTypeSelect.disabled = false;
             this.updatePlayerCount(); // Re-check start button state
         }
+        this.updateAutostartButton();
     }
 
     updateGameStatus(message) {

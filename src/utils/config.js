@@ -46,6 +46,9 @@ const config = {
     // After the game is won, hold on the results for this long (a visible
     // countdown), then release the room/session.
     gameOverCloseMs: toInt(process.env.GAME_OVER_CLOSE_MS, 20 * 1000),
+    // Once enough players are seated the lobby auto-starts after a short
+    // countdown (host can Start now / Hold). How long that countdown runs.
+    startCountdownMs: toInt(process.env.START_COUNTDOWN_MS, 5000),
   },
 
   // Lightweight abuse protection for room creation (per client IP) and card
