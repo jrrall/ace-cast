@@ -5,6 +5,31 @@ Status Legend:
 
 ---
 
+## ✅ STACK MERGED — `main` is now `1.10.1`
+
+The formerly-unmerged stack **landed on `main` via PR #25** (`content/topical-cards`
+squash-merged in). `main`'s tree is now byte-for-byte identical to the tested tip, so
+every feature below (S0 identity, F2 flagging, Unholy theme, card rescind, bots,
+game-over countdown, +230 topical cards, unholy.cards rebrand) is **live on `main`**.
+The old feature branches (`feat/bots`, `feat/ui-polish-tv-rescind`, `chore/rebrand-unholy`,
+`fix/card-line-gameover-countdown`, `feat/s0-f2-*`) are subsets already contained in `main`
+and can be pruned.
+
+| PR | What shipped | On `main` |
+| --- | --- | --- |
+| #19 | **S0 device identity** + **F2 card flagging** (on the J1 renderer) | ✅ — see [S0]/[F2] |
+| #20 | **"Unholy Ritual" theme**, TV cast fixes, **card rescind** (take back a played card) | ✅ — see [J8]/[X1] |
+| #21 | **Bots** — fill a small table so 2 humans play like a full room | ✅ — see [X2] |
+| #22/#23 | Rebrand user-facing strings to **unholy.cards** | ✅ — supports F0 deploy |
+| #24 | Remove stray card line; **game-over countdown + session release** | ✅ — see [X3] |
+| #25 | **+230 topical/political cards**, additive core seed (integration tip) | ✅ — see [X4] |
+
+> **Product caveat still open:** the +230 topical/political cards (X4) ship the ungroomed
+> **age-gating / content-policy** concern (see the E-epic caveat). It's now on `main`, so
+> that gate is a pre-**public-playtest** decision, not a merge blocker. F0 deploys `main`.
+
+---
+
 ## ✅ COMPLETED — Playable MadLad prototype
 
 Ace Cast now has one game that works end-to-end for friends playing in person:
@@ -123,10 +148,10 @@ multiple servers. Everything is in-memory today (`GameManager` map; a live
 **Sequencing:** `E1 → S0 → S1 → S2 (after E4) → S3` (build S3 only once real
 concurrency demands it).
 
-### [S0] Stable player identity *(prereq; needs E1)* — `M`
-- [ ] Durable, signed player token that outlives `socket.id` (survives reconnect/restart)
-- [ ] `identities` table; rooms key players by stable id, `user_id?` linked when E4 lands
-- [ ] Guests still get an ephemeral id (no drop-in regression)
+### [S0] ✅ Stable player identity *(shipped — #19, on `main`)* — `M`
+- [x] Device-token identity shipped (`src/utils/identity.js`, `identities` migration, `IdentityRepository`) — outlives `socket.id`
+- [x] `identities` table; guests get an ephemeral device id (no drop-in regression)
+- [ ] Remaining: **signed** token + `user_id` link when E4 lands (this is "S0-lite" until then)
 - *Linchpin: resume, seat re-attach, and stat attribution all depend on this.*
 
 ### [S1] Persistent & resumable sessions *(needs E1 + S0)* — `L`
@@ -135,7 +160,7 @@ concurrency demands it).
       implemented for MadLad + Test (shipped early in E2.3b; round-trip tests pass)
 - [ ] Write-through snapshot after each action (async, never blocks gameplay)
 - [ ] Lazy rehydrate a room on re-access; re-attach reconnecting players to their seats
-- [ ] Reconnect grace window; paused-session TTL → abandoned
+- [~] Reconnect grace window shipped (`RECONNECT_GRACE_MS`, default 90s — holds seat/hand/score across phone-lock/wifi-blip/reload, #17); paused-session TTL → abandoned still outstanding
 - *Open Q: how long a paused game stays resumable; who may resume it.*
 
 ### [S2] Session history & stats *(needs E1 + E4)* — `L`
@@ -168,10 +193,10 @@ Today the phone hand is a flat tap-to-play grid and the TV does static swaps; ca
 rendered by duplicated `gameType` branches in `tv.js`/`player.js`. Hands already persist
 round-to-round mechanically — the anticipation just isn't *surfaced* yet.
 
-### [J1] Card design system + shared renderer *(foundation)* — `M`
-- [ ] Real card face (typography, texture, rounded corners, shadow, card-back); prompt/answer variants
-- [ ] One `renderCard()` shared by `tv.js` + `player.js` — kills the client render asymmetry
-- [ ] Reserve a sprite region so E3 art drops in without rework
+### [J1] ✅ Card design system + shared renderer *(shipped — #14)* — `M`
+- [x] Real card face (typography, texture, rounded corners, shadow, card-back); prompt/answer variants
+- [x] One `renderCard()` shared by `tv.js` + `player.js` — kills the client render asymmetry (`public/js/card-render.js`)
+- [x] Reserve a sprite region so E3 art drops in without rework
 
 ### [J2] Hand feel on the phone *(core of the ask)* — `L`
 - [ ] Fanned/overlapping hand, swipe-through with momentum
@@ -213,18 +238,36 @@ the playtest** · generation runs on **your own models** (model-agnostic).
 
 **Playtest can start after F0 + F2 (+F1).** F5 (agent) only helps once data exists.
 
-### [F0] Deploy DB-backed build on Postgres (Fly) *(critical path)* — `M`
-- [ ] Fly Postgres + attach (`DATABASE_URL`); boot-time migrate+seed creates `madlad-core`
-- [ ] `/healthz` DB ok; play a real prod game sourced from the DB; update `DEPLOY.md`
-- Depends on **E2.3 merged**
+### [F0] Deploy DB-backed build on Linode (SQLite, single box) *(critical path)* — `M`
+> Target changed from Fly+Postgres → **Linode + SQLite on a volume** (single-instance, rooms
+> in memory ⇒ a DB server buys nothing until S3). Postgres remains a supported dialect for a
+> future scale-out. See `docs/linode-sqlite-runbook.md` + `deploy/linode/`.
+- [x] Boot-time migrate+seed creates `madlad-core` (`DB_MIGRATE_ON_BOOT`; 268 cards)
+- [x] `/healthz` probes the DB, returns 503 when unreachable (`src/server/index.js`)
+- [x] Deploy assets: `docker-compose.sqlite.yml`, `Caddyfile`, `bootstrap.sh`, `.env.sqlite.example`; DB survives container recreation (validated locally)
+- Depends on **E2.3 merged** ✅ · full mechanics in `docs/linode-sqlite-runbook.md`
+
+**Remaining — go-live checklist** *(each box = one action; runbook §refs)*
+- [x] **Stack merged to `main`** (#25) — S0 device identity + F2 flagging + `unholy.cards` rebrand all live; deploy `main` directly
+- [ ] Provision **Nanode 1 GB / Ubuntu 24.04**, note IPv4; add **A record** `unholy.cards → IPv4`, confirm `dig +short unholy.cards` resolves *before* deploying (else Caddy cert fails) — §2
+- [ ] Harden: `deploy` sudo user, copy SSH key, `ufw` allow OpenSSH/80/443 — §2.3
+- [ ] Install Docker + compose plugin; re-login for the `docker` group — §3
+- [ ] Clone repo, `cp .env.sqlite.example .env`, set `SITE_ADDRESS=unholy.cards` + `PUBLIC_URL=https://unholy.cards` — §4
+- [ ] `docker compose -f docker-compose.sqlite.yml up -d --build`; watch `logs app` ("running on port 3000") + `logs caddy` ("certificate obtained") — §5
+- [ ] Verify: `curl https://unholy.cards/healthz` → `db:true`; `cards = 268`; **one** `app` container — §6a/6b
+- [ ] **Real prod game**: create a room, join from 2+ phones, play a full MadLad round to a winner over HTTPS — §6c *(the actual F0 exit criterion)*
+- [ ] Confirm `card_stats` **and** `card_flags` rows land after play (proves telemetry + F2 in prod) — §6d
+- [ ] Confirm data survives `down && up` (volume-backed); set up the nightly backup cron — §8
+- [ ] Update `DEPLOY.md` / footer to point at the live Linode+SQLite deploy as the canonical prod path
 
 ### [F1] ✅ Card outcome telemetry *(shipped — 1.5.0)* — `M`
 - [x] On `pick-winner`, persist submitted card ids + which won (via `MadLadGame.getLastRoundOutcome()`)
 - [x] `card_stats` counters (plays/wins), upsert-increment; written in the server layer, engine stays pure
 
-### [F2] Card flagging — `M`
-- [ ] `card_flags` (card_id, reason `not_funny`|`broken`, flagger_id); unique per flagger
-- [ ] Phone flag affordance (two reasons); rate-limited endpoint; flagger id = device token (S0-lite)
+### [F2] ✅ Card flagging *(shipped — #19, on `main`)* — `M`
+- [x] `card_flags` (card_id, reason `not_funny`|`broken`, flagger_id); unique per flagger (`CardFlagRepository`, migration, `card_flags.test.js`)
+- [x] Phone flag affordance (two reasons); rate-limited endpoint; flagger id = S0 device token
+- On `main`; deploy target for F0's flagging verification (§6d)
 
 ### [F3] Feedback dashboard — `M`
 - [ ] Per-card win-rate (min-plays floor), plays, flag counts; top winners / dead weight / most-flagged; admin-gated
@@ -239,6 +282,35 @@ the playtest** · generation runs on **your own models** (model-agnostic).
 
 ### [F6] Close the loop — `M`
 - [ ] Generated cards accrue their own telemetry; prune losers, reseed from winners
+
+---
+
+## ✅ SHIPPED — new work not previously groomed
+
+These landed with the merged stack (see the callout up top) as new features/fixes with
+no prior board item. Listed here so they're tracked; all are **on `main`** as of #25,
+shipped with tests via PRs #20–#25.
+
+### [J8] ✅ "Unholy Ritual" theme *(answers the J-epic visual-direction open question)* — (#20)
+- [x] Theme layer (`public/css/theme.css`), TV CSS overhaul, TV cast fixes
+- Resolves the J-epic's open "minimalist B/W vs. richer themed" question → **richer themed (Unholy Ritual)**
+
+### [X1] ✅ Card rescind — (#20)
+- [x] Take back a played card before the judge locks the round
+- Relates to the nice-to-have "played state" clarity in [J2]
+
+### [X2] ✅ Bots — fill a small table — (#21)
+- [x] `src/server/bots.js` + tests; lets 2 humans play like a full room
+- New feature, no prior board item; big enabler for **playtesting with few people present**
+
+### [X3] ✅ Game-over countdown + session release — (#24)
+- [x] Auto-countdown on the game-over screen; releases the session (frees the room)
+- [x] Fix: removed a stray red line on cards
+- Touches S1 session lifecycle; adjacent to the "Play again from game-over" nice-to-have
+
+### [X4] ✅ +230 topical / political cards — (#25)
+- [x] Seven content batches (~230 cards); core seed made **additive** (new cards don't clobber existing)
+- Hand-authored content track, distinct from F5 AI-generation; **needs the age-gating/policy caveat** before any public playtest
 
 ---
 
@@ -268,4 +340,4 @@ the playtest** · generation runs on **your own models** (model-agnostic).
 
 ---
 
-*Last updated: 2026-07-06 — reconciled: E1 + E2 shipped (1.4.0), S1 serialize/restore done in E2.3b. Epics on the board: Card Platform (E1–E9), Persistent Sessions & Scale (S0–S3), Card & Hand Game-Feel (J1–J7), Playtest Feedback Loop (F0–F6).*
+*Last updated: 2026-07-08 — **stack merged**: the unmerged stack landed on `main` via #25 (`content/topical-cards` squash-merged); `main` is now `1.10.1` and matches the tested tip. Flipped S0 + F2 (#19), J8 (Unholy theme, #20), X1 (card rescind, #20), X2 (bots, #21), X3 (game-over countdown/session release, #24), X4 (+230 topical cards, #25) to ✅ on `main`. F0's "merge #19 first" is done — deploy `main` directly. Old feature branches are now subsets of `main` and can be pruned. Earlier same day: J1 shipped (#14); S1 reconnect grace window (#17); F0 retargeted to Linode+SQLite. Prior: E1+E2 (1.4.0), S1 serialize/restore (E2.3b), F1 telemetry (1.5.0). Epics: Card Platform (E1–E9), Persistent Sessions & Scale (S0–S3), Card & Hand Game-Feel (J1–J8), Playtest Feedback Loop (F0–F6).*
