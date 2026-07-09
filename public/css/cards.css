@@ -154,11 +154,23 @@ button.card--answer:active {
     font-size: 1.3rem;
     min-height: 96px;
 }
+/* Hand + judge-pick cards share the .madlad-hand grid, so they get a FIXED
+   height (not min-height) — every card is the same size regardless of answer
+   length. Text is vertically centered; a long answer clamps with an ellipsis
+   rather than stretching its card taller than the rest. */
 .card--hand.card--answer {
-    padding: 16px 12px;
-    font-size: 1rem;
-    min-height: 82px;
+    padding: 14px 12px;
+    font-size: 0.95rem;
+    height: 124px;
     width: 100%;
+}
+.card--hand.card--answer .card__inner { justify-content: center; }
+.card--hand.card--answer .card__text {
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 4;
+    line-clamp: 4;
+    overflow: hidden;
 }
 
 @media (max-width: 480px) {
