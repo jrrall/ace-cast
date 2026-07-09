@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title><%= title %></title>
+    <link rel="stylesheet" href="/css/theme.css">
+    <link rel="stylesheet" href="/css/admin.css">
+</head>
+<body data-admin-token="<%= adminToken %>">
+    <div class="container">
+        <header>
+            <h1>🃏 unholy.cards</h1>
+            <p>Feedback dashboard (F3) &amp; retirement (F4) — internal, admin-gated.</p>
+        </header>
+
+        <main>
+            <section class="panel">
+                <h2>Thresholds</h2>
+                <ul class="thresholds">
+                    <li>Min plays to rank a card: <strong><%= thresholds.minPlays %></strong></li>
+                    <li>Suggest retirement below win-rate: <strong><%= (thresholds.lowWinRateThreshold * 100).toFixed(0) %>%</strong></li>
+                    <li>Suggest retirement above flag-rate: <strong><%= (thresholds.highFlagRateThreshold * 100).toFixed(0) %>%</strong></li>
+                </ul>
+            </section>
+
+            <section class="panel">
+                <h2>Suggested retirements (<%= suggestedRetirements.length %>)</h2>
+                <% if (suggestedRetirements.length === 0) { %>
+                    <p class="help-text">No cards currently cross the retirement thresholds.</p>
+                <% } else { %>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Card</th><th>Pack</th><th>Plays</th><th>Win-rate</th><th>Flags</th><th>Why</th><th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <% suggestedRetirements.forEach(function (c) { %>
+                        <tr data-card-row="<%= c.id %>">
+                            <td><%= c.text %></td>
+                            <td><%= c.packName || '—' %></td>
+                            <td><%= c.plays %></td>
+                            <td><%= c.winRate == null ? '—' : (c.winRate * 100).toFixed(0) + '%' %></td>
+                            <td><%= c.totalFlags %></td>
+                            <td>
+                                <% if (c.winRate != null && c.winRate < thresholds.lowWinRateThreshold) { %>low win-rate<% } %>
+                                <% if (c.flagRate > thresholds.highFlagRateThreshold) { %> high flag-rate<% } %>
+                            </td>
+                            <td><button type="button" class="secondary-btn retire-btn" data-action="retire" data-card-id="<%= c.id %>">Retire</button></td>
+                        </tr>
+                        <% }); %>
+                    </tbody>
+                </table>
+                <% } %>
+            </section>
+
+            <section class="panel">
+                <h2>Top winners</h2>
+                <table>
+                    <thead><tr><th>Card</th><th>Pack</th><th>Plays</th><th>Wins</th><th>Win-rate</th></tr></thead>
+                    <tbody>
+                        <% topWinners.forEach(function (c) { %>
+                        <tr>
+                            <td><%= c.text %></td>
+                            <td><%= c.packName || '—' %></td>
+                            <td><%= c.plays %></td>
+                            <td><%= c.wins %></td>
+                            <td><%= (c.winRate * 100).toFixed(0) %>%</td>
+                        </tr>
+                        <% }); %>
+                    </tbody>
+                </table>
+            </section>
+
+            <section class="panel">
+                <h2>Dead weight (low win-rate, enough plays)</h2>
+                <table>
+                    <thead><tr><th>Card</th><th>Pack</th><th>Plays</th><th>Wins</th><th>Win-rate</th></tr></thead>
+                    <tbody>
+                        <% deadWeight.forEach(function (c) { %>
+                        <tr>
+                            <td><%= c.text %></td>
+                            <td><%= c.packName || '—' %></td>
+                            <td><%= c.plays %></td>
+                            <td><%= c.wins %></td>
+                            <td><%= (c.winRate * 100).toFixed(0) %>%</td>
+                        </tr>
+                        <% }); %>
+                    </tbody>
+                </table>
+            </section>
+
+            <section class="panel">
+                <h2>Most-flagged</h2>
+                <table>
+                    <thead><tr><th>Card</th><th>Pack</th><th>Plays</th><th>Not funny</th><th>Broken</th></tr></thead>
+                    <tbody>
+                        <% mostFlagged.forEach(function (c) { %>
+                        <tr>
+                            <td><%= c.text %></td>
+                            <td><%= c.packName || '—' %></td>
+                            <td><%= c.plays %></td>
+                            <td><%= c.flags.not_funny %></td>
+                            <td><%= c.flags.broken %></td>
+                        </tr>
+                        <% }); %>
+                    </tbody>
+                </table>
+            </section>
+
+            <section class="panel">
+                <h2>All cards (<%= cards.length %>)</h2>
+                <label for="pack-filter" class="help-text">Filter by pack:</label>
+                <select id="pack-filter">
+                    <option value="">All packs</option>
+                    <% [...new Set(cards.map(function (c) { return c.packSlug; }).filter(Boolean))].forEach(function (slug) { %>
+                        <option value="<%= slug %>"><%= slug %></option>
+                    <% }); %>
+                </select>
+                <table id="all-cards-table">
+                    <thead>
+                        <tr>
+                            <th>Card</th><th>Kind</th><th>Pack</th><th>Plays</th><th>Wins</th>
+                            <th>Win-rate</th><th>Not funny</th><th>Broken</th><th>Status</th><th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <% cards.forEach(function (c) { %>
+                        <tr data-card-row="<%= c.id %>" data-pack="<%= c.packSlug || '' %>">
+                            <td><%= c.text %></td>
+                            <td><%= c.kind %></td>
+                            <td><%= c.packName || '—' %></td>
+                            <td><%= c.plays %></td>
+                            <td><%= c.wins %></td>
+                            <td><%= c.insufficientData ? 'insufficient data' : (c.winRate * 100).toFixed(0) + '%' %></td>
+                            <td><%= c.flags.not_funny %></td>
+                            <td><%= c.flags.broken %></td>
+                            <td><%= c.retiredAt ? 'retired' : 'active' %></td>
+                            <td>
+                                <% if (c.retiredAt) { %>
+                                    <button type="button" class="secondary-btn unretire-btn" data-action="unretire" data-card-id="<%= c.id %>">Unretire</button>
+                                <% } else { %>
+                                    <button type="button" class="secondary-btn retire-btn" data-action="retire" data-card-id="<%= c.id %>">Retire</button>
+                                <% } %>
+                            </td>
+                        </tr>
+                        <% }); %>
+                    </tbody>
+                </table>
+            </section>
+        </main>
+    </div>
+
+    <script src="/js/admin-feedback.js"></script>
+</body>
+</html>

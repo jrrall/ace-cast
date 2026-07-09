@@ -54,4 +54,21 @@ describe('DeckService', () => {
       DeckService.buildDeck({ gameId: 'nonexistent-game' }),
     ).rejects.toThrow(/no default pack/i);
   });
+
+  // F4 — retired cards are excluded from the deck, and unretiring restores them.
+  test('excludes retired cards from the deck', async () => {
+    // eslint-disable-next-line global-require
+    const CardRepository = require('../src/content/CardRepository');
+    const before = await DeckService.buildDeck({ gameId: 'madlad' });
+    const answerId = before.answers[0].id;
+
+    await CardRepository.retire(answerId);
+    const afterRetire = await DeckService.buildDeck({ gameId: 'madlad' });
+    expect(afterRetire.answers).toHaveLength(before.answers.length - 1);
+    expect(afterRetire.answers.some((c) => c.id === answerId)).toBe(false);
+
+    await CardRepository.unretire(answerId);
+    const afterUnretire = await DeckService.buildDeck({ gameId: 'madlad' });
+    expect(afterUnretire.answers).toHaveLength(before.answers.length);
+  });
 });
