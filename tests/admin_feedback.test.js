@@ -8,6 +8,7 @@ describe('GET /admin/feedback (admin gate)', () => {
   let db;
   let app;
   let server;
+  let ioServer;
 
   beforeAll(async () => {
     process.env.PORT = '0';
@@ -17,10 +18,12 @@ describe('GET /admin/feedback (admin gate)', () => {
     const mod = require('../src/server/index');
     app = mod.app;
     server = mod.server;
+    ioServer = mod.io;
     await mod.start(); // migrate + seed + listen
   });
 
   afterAll(async () => {
+    ioServer.close();
     await new Promise((resolve) => server.close(resolve));
     await db.close();
     cleanupTestDb();

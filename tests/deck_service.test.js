@@ -6,6 +6,7 @@ describe('DeckService', () => {
   let db;
   let DeckService;
   let PackRepository;
+  let CardRepository;
 
   beforeAll(async () => {
     db = useTestDb('deck');
@@ -13,6 +14,10 @@ describe('DeckService', () => {
     await db.seedRun();
     DeckService = require('../src/content/DeckService');
     PackRepository = require('../src/content/PackRepository');
+    // Required here (not inside a test) so it's captured before setup.js's
+    // global afterEach calls jest.resetModules() — requiring it later would
+    // re-evaluate src/db too, opening a second, never-closed connection.
+    CardRepository = require('../src/content/CardRepository');
   });
 
   afterAll(async () => {
@@ -57,8 +62,6 @@ describe('DeckService', () => {
 
   // F4 — retired cards are excluded from the deck, and unretiring restores them.
   test('excludes retired cards from the deck', async () => {
-    // eslint-disable-next-line global-require
-    const CardRepository = require('../src/content/CardRepository');
     const before = await DeckService.buildDeck({ gameId: 'madlad' });
     const answerId = before.answers[0].id;
 
