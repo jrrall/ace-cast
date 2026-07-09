@@ -38,11 +38,18 @@ access_control:
       policy: one_factor
 
 session:
-  # secret + per-cookie domain/name/authelia_url come from AUTHELIA_SESSION_*
-  # env vars (see docker-compose.sqlite.yml). expiration/inactivity are defaults
-  # applied to the cookie.
-  expiration: 1h
-  inactivity: 15m
+  # `secret` comes from AUTHELIA_SESSION_SECRET (a scalar env var — that works).
+  # The cookies LIST cannot be set via env vars in 4.38 (AUTHELIA_SESSION_COOKIES_0_*
+  # is rejected as "not expected"), so it lives here. SITE_ADDRESS is injected by
+  # the `template` config filter (X_AUTHELIA_CONFIG_FILTERS=template + the
+  # SITE_ADDRESS env var, both set in docker-compose.sqlite.yml). authelia_url is
+  # the portal's public base so the forward-auth redirect has somewhere to go.
+  cookies:
+    - domain: '{{ env "SITE_ADDRESS" }}'
+      authelia_url: 'https://{{ env "SITE_ADDRESS" }}/authelia'
+      name: 'authelia_session'
+      expiration: '1h'
+      inactivity: '15m'
 
 storage:
   # encryption_key comes from AUTHELIA_STORAGE_ENCRYPTION_KEY.
