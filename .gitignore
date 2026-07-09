@@ -362,3 +362,7 @@ CHANGELOG.md
 
 # Claude Code local state / agent worktrees
 .claude/
+
+# Deploy: bootstrap-generated Authelia users (real argon2id hashes) — never commit.
+# The committed users_database.example.yml is the template.
+deploy/linode/authelia/users_database.yml
