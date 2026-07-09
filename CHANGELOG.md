@@ -1,3 +1,7 @@
+## <small>1.12.6 (2026-07-09)</small>
+
+* fix(cards): uniform hand/judge card size in the shared grid (#38) ([d3882fd](https://github.com/jrrall/ace-cast/commit/d3882fd)), closes [#38](https://github.com/jrrall/ace-cast/issues/38)
+
 ## <small>1.12.5 (2026-07-09)</small>
 
 * revert(j2): flat tap-to-play hand instead of the fanned lift+confirm (#37) ([4073d7a](https://github.com/jrrall/ace-cast/commit/4073d7a)), closes [#37](https://github.com/jrrall/ace-cast/issues/37)
