@@ -6,6 +6,9 @@ class PlayerController {
         this.playerId = null;
         this.gameState = null;
         this.connected = false;
+        // Round+phase signature last used to fire a J6 sound/haptic cue —
+        // prevents re-firing on every redundant game-update re-render.
+        this._lastSoundSig = null;
 
         // Durable anonymous identity in a first-party cookie. Survives reloads
         // and reconnects; it's both the reconnect key and the telemetry visitor id.
@@ -384,8 +387,23 @@ class PlayerController {
         this.renderScores(gameState.scores);
     }
 
+    // Fire sound/haptics (J6) exactly once per round+phase transition, not on
+    // every re-render (e.g. repeated 'answering' updates as others submit).
+    trackSoundEvents(state) {
+        if (!window.SoundFX) return;
+        const sig = `${state.round}:${state.phase}`;
+        if (sig === this._lastSoundSig) return;
+        this._lastSoundSig = sig;
+        if (state.phase === 'judging') {
+            window.SoundFX.playFlip();
+        } else if ((state.phase === 'results' || state.phase === 'gameover') && state.lastWinner) {
+            window.SoundFX.playWin();
+        }
+    }
+
     renderMadLad(state) {
         const you = state.you || {};
+        this.trackSoundEvents(state);
         this.gameStatus.textContent = `Round ${state.round} · First to ${state.targetScore}`;
         this.gameMessage.innerHTML = '';
         if (state.blackCard) {
@@ -421,7 +439,10 @@ class PlayerController {
             grid.className = 'madlad-hand';
             (state.submissions || []).forEach((sub) => {
                 const card = this.whiteCard(sub.text);
-                card.onclick = () => this.sendAction('pick-winner', { submissionId: sub.id });
+                card.onclick = () => {
+                    if (window.SoundFX) window.SoundFX.playCard();
+                    this.sendAction('pick-winner', { submissionId: sub.id });
+                };
                 grid.appendChild(this.wrapWithFlag(card, sub.cardId));
             });
             this.playerArea.appendChild(grid);
@@ -439,7 +460,10 @@ class PlayerController {
             grid.className = 'madlad-hand';
             (state.hand || []).forEach((card) => {
                 const el = this.whiteCard(card.text);
-                el.onclick = () => this.sendAction('submit-card', { cardIndex: card.index });
+                el.onclick = () => {
+                    if (window.SoundFX) window.SoundFX.playCard();
+                    this.sendAction('submit-card', { cardIndex: card.index });
+                };
                 grid.appendChild(this.wrapWithFlag(el, card.cardId));
             });
             this.playerArea.appendChild(grid);

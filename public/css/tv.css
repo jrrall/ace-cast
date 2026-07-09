@@ -44,12 +44,14 @@ body {
     letter-spacing: 0.12em;
     color: var(--gold);
 }
+.tv-header-right { display: flex; align-items: center; gap: clamp(12px, 1.6vw, 24px); }
 .player-counter {
     font-size: clamp(1.1rem, 1.8vw, 2rem);
     font-weight: 700;
     color: var(--bone);
 }
 .player-counter #tv-player-count { color: var(--ember); }
+.tv-header-right .sound-toggle { font-size: clamp(1rem, 1.6vw, 1.4rem); padding: clamp(6px, 0.9vw, 10px) clamp(9px, 1.1vw, 13px); }
 
 /* ---- Screens ------------------------------------------------------------ */
 .tv-main { flex: 1; position: relative; overflow: hidden; }

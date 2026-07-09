@@ -7,7 +7,10 @@ class TVController {
         this.connected = false;
         this.gameStartTime = null;
         this.timerInterval = null;
-        
+        // Round+phase signature last used to fire a J6 sound/haptic cue —
+        // prevents re-firing on every redundant game-update re-render.
+        this._lastSoundSig = null;
+
         this.initializeElements();
         this.initializeSocket();
         
@@ -316,10 +319,25 @@ class TVController {
         this.updateScoreboard(gameState.scores);
     }
 
+    // Fire sound/haptics (J6) exactly once per round+phase transition, not on
+    // every re-render (e.g. repeated 'answering' updates as others submit).
+    trackSoundEvents(state) {
+        if (!window.SoundFX) return;
+        const sig = `${state.round}:${state.phase}`;
+        if (sig === this._lastSoundSig) return;
+        this._lastSoundSig = sig;
+        if (state.phase === 'judging') {
+            window.SoundFX.playFlip();
+        } else if ((state.phase === 'results' || state.phase === 'gameover') && state.lastWinner) {
+            window.SoundFX.playWin();
+        }
+    }
+
     updateGameContent(gameState) {
         if (!this.gameContent) return;
 
         if (gameState.gameType === 'madlad') {
+            this.trackSoundEvents(gameState);
             this.gameContent.innerHTML = this.renderMadLadContent(gameState);
             return;
         }
