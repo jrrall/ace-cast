@@ -15,8 +15,11 @@
                 <h1>🃏 unholy.cards</h1>
                 <span class="room-code">Room: <%= roomCode %></span>
             </div>
-            <div class="player-counter">
-                <span id="tv-player-count">0</span> Players
+            <div class="tv-header-right">
+                <div class="player-counter">
+                    <span id="tv-player-count">0</span> Players
+                </div>
+                <button id="sound-toggle" class="sound-toggle" type="button" aria-pressed="false" aria-label="Mute sound">🔊</button>
             </div>
         </header>
 
@@ -111,6 +114,7 @@
         window.ROOM_CODE = '<%= roomCode %>';
     </script>
     <script src="/js/card-render.js"></script>
+    <script src="/js/sound.js"></script>
     <script src="/js/tv.js"></script>
 </body>
 </html>

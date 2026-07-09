@@ -56,6 +56,22 @@ body {
     background-attachment: fixed;
 }
 
+/* Global mute toggle (J6) — small icon button shared by phone + TV views;
+   each view positions it via its own stylesheet. */
+.sound-toggle {
+    cursor: pointer;
+    border: 1px solid var(--ink-line);
+    background: rgba(21, 17, 27, 0.85);
+    color: var(--text);
+    border-radius: 999px;
+    font-size: 1.1rem;
+    line-height: 1;
+    padding: 8px 10px;
+    transition: transform 0.14s ease, border-color 0.14s ease, box-shadow 0.14s ease;
+}
+.sound-toggle:hover { border-color: var(--gold); box-shadow: var(--glow-gold); }
+.sound-toggle.is-muted { color: var(--text-faint); }
+
 /* Game-over release countdown — a centered banner injected by the clients. */
 .gameover-timer {
     position: fixed;

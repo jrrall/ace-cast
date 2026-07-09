@@ -11,6 +11,7 @@
 <body>
     <div class="container">
         <header>
+            <button id="sound-toggle" class="sound-toggle" type="button" aria-pressed="false" aria-label="Mute sound">🔊</button>
             <h1>🃏 unholy.cards</h1>
             <div id="room-info" style="display: none;">
                 <span class="room-code">Room: <span id="current-room-code"></span></span>
@@ -90,6 +91,7 @@
 
     <script src="/socket.io/socket.io.js"></script>
     <script src="/js/card-render.js"></script>
+    <script src="/js/sound.js"></script>
     <script src="/js/player.js"></script>
 </body>
 </html>
