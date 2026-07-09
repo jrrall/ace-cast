@@ -1,3 +1,7 @@
+## <small>1.16.1 (2026-07-09)</small>
+
+* fix(session): stop phones rejoining a dead game after game-over (#45) ([d85d9b7](https://github.com/jrrall/ace-cast/commit/d85d9b7)), closes [#45](https://github.com/jrrall/ace-cast/issues/45)
+
 ## 1.16.0 (2026-07-09)
 
 * feat(madlad): discard/swap a card once per round during answering (#44) ([4ada94d](https://github.com/jrrall/ace-cast/commit/4ada94d)), closes [#44](https://github.com/jrrall/ace-cast/issues/44)
