@@ -40,7 +40,7 @@ describe('MadLadGame disconnect / reconnect', () => {
     game.handlePlayerReconnect(pid);
     expect(game.state.players[pid].isActive).toBe(true);
     expect(game.state.players[pid].score).toBe(3);
-    expect(game.state.players[pid].hand).toHaveLength(7);
+    expect(game.state.players[pid].hand).toHaveLength(game.state.handSize);
   });
 
   test('a permanent leave discards the hand (contrast)', () => {

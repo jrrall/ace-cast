@@ -106,7 +106,7 @@ test('plays a full MadLad round through real sockets', async () => {
   host.emit('start-game', { gameType: 'madlad', options: { targetScore: 1 } });
 
   // Every player receives a private view with a full hand.
-  await waitUntil(() => players.every((p) => p.last && p.last.you && p.last.hand.length === 7));
+  await waitUntil(() => players.every((p) => p.last && p.last.you && p.last.hand.length === 8));
 
   const judge = players.find((p) => p.last.you.isJudge);
   const answerers = players.filter((p) => !p.last.you.isJudge);
