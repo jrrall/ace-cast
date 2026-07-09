@@ -1,3 +1,8 @@
+## 1.15.0 (2026-07-09)
+
+* fix(test): update remaining hand-size assertions to 8 (#43) ([57f9577](https://github.com/jrrall/ace-cast/commit/57f9577)), closes [#43](https://github.com/jrrall/ace-cast/issues/43) [#42](https://github.com/jrrall/ace-cast/issues/42)
+* feat(madlad): deal 8-card hands (was 7) (#42) ([7927257](https://github.com/jrrall/ace-cast/commit/7927257)), closes [#42](https://github.com/jrrall/ace-cast/issues/42)
+
 ## 1.14.0 (2026-07-09)
 
 * feat(healthz): report the deployed version from package.json (#41) ([56cbd0e](https://github.com/jrrall/ace-cast/commit/56cbd0e)), closes [#41](https://github.com/jrrall/ace-cast/issues/41)
