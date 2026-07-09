@@ -1,3 +1,7 @@
+## <small>1.12.2 (2026-07-09)</small>
+
+* fix(deploy): make Authelia portal reachable under /authelia (#34) ([9d1c3aa](https://github.com/jrrall/ace-cast/commit/9d1c3aa)), closes [#34](https://github.com/jrrall/ace-cast/issues/34)
+
 ## <small>1.12.1 (2026-07-09)</small>
 
 * fix(deploy): bootstrap generates E4 Authelia secrets + admin user (#32) ([f3df494](https://github.com/jrrall/ace-cast/commit/f3df494)), closes [#32](https://github.com/jrrall/ace-cast/issues/32)
