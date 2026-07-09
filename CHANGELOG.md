@@ -1,3 +1,7 @@
+## <small>1.12.7 (2026-07-09)</small>
+
+* fix(cards): taller uniform hand cards (168px, 6-line clamp) (#39) ([383ec01](https://github.com/jrrall/ace-cast/commit/383ec01)), closes [#39](https://github.com/jrrall/ace-cast/issues/39)
+
 ## <small>1.12.6 (2026-07-09)</small>
 
 * fix(cards): uniform hand/judge card size in the shared grid (#38) ([d3882fd](https://github.com/jrrall/ace-cast/commit/d3882fd)), closes [#38](https://github.com/jrrall/ace-cast/issues/38)
