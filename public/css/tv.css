@@ -167,6 +167,99 @@ body {
     .action-item { animation: toastIn 0.2s ease forwards; }
 }
 
+/* ---- J5: TV board choreography ------------------------------------------
+   Driven entirely off state already in game-update/game-over — no server
+   payload changes. All of this is gated behind prefers-reduced-motion in JS
+   (tv.js only adds these classes when motion is allowed); the media query
+   below is defense-in-depth for anything that slips through. */
+
+/* Deal-in: the whole board settles in when a new round begins. */
+.madlad-board--deal { animation: madladDealIn 0.5s ease both; }
+@keyframes madladDealIn {
+    from { opacity: 0; transform: translateY(14px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+
+/* Prompt "slam": the black card drops in oversized/rotated and slams to rest. */
+.card--slam { animation: madladSlam 0.6s cubic-bezier(0.22, 0.9, 0.32, 1.3) both; }
+@keyframes madladSlam {
+    0%   { opacity: 0; transform: scale(1.5) rotate(-6deg) translateY(-40px); }
+    60%  { opacity: 1; transform: scale(0.96) rotate(1.5deg) translateY(4px); }
+    80%  { transform: scale(1.02) rotate(-0.5deg); }
+    100% { opacity: 1; transform: scale(1) rotate(0deg) translateY(0); }
+}
+
+/* Judge spotlight: extra emphasis on the Czar while judging is happening. */
+.madlad-czar--spotlight { animation: madladSpotlight 1.4s ease-in-out infinite alternate; }
+@keyframes madladSpotlight {
+    from { text-shadow: var(--glow-gold); }
+    to   { text-shadow: 0 0 26px rgba(224, 75, 47, 0.7), var(--glow-gold); }
+}
+
+/* Paced submission reveal: each card flips face-up one at a time (delay is
+   set per-card inline by tv.js so it scales with player count). */
+.madlad-submissions { perspective: 1000px; }
+.card--reveal { animation: madladCardFlip 0.45s ease both; transform-origin: center center; }
+@keyframes madladCardFlip {
+    0%   { opacity: 0; transform: rotateY(-90deg) scale(0.85); }
+    60%  { opacity: 1; transform: rotateY(10deg) scale(1.02); }
+    100% { opacity: 1; transform: rotateY(0deg) scale(1); }
+}
+
+/* Winner: a one-shot celebratory pop layered on top of the shared winner glow.
+   Re-declares card--winner's unholy-winner keyframe alongside the pop since
+   this rule (loaded after cards.css) would otherwise replace it outright —
+   the `animation` shorthand only takes one value per rule. */
+.card--winner-pop {
+    animation:
+        madladWinnerPop 0.7s cubic-bezier(0.34, 1.56, 0.64, 1) both,
+        unholy-winner 1.6s ease-in-out infinite alternate;
+}
+@keyframes madladWinnerPop {
+    0%   { transform: scale(0.6); opacity: 0; }
+    60%  { transform: scale(1.12); opacity: 1; }
+    100% { transform: scale(1); opacity: 1; }
+}
+
+/* Confetti burst on the winner card. */
+.tv-confetti { position: relative; width: 100%; height: 0; }
+.tv-confetti__piece {
+    position: absolute;
+    top: -20px;
+    left: calc(50% + (var(--i) - 5.5) * 22px);
+    width: 8px; height: 14px;
+    background: var(--gold);
+    opacity: 0.9;
+    animation: madladConfettiFall 1.1s ease-in calc(var(--i) * 0.04s) both;
+}
+.tv-confetti__piece:nth-child(3n)   { background: var(--ember); }
+.tv-confetti__piece:nth-child(3n+1) { background: var(--oxblood); }
+.tv-confetti__piece:nth-child(even) { width: 6px; height: 10px; }
+@keyframes madladConfettiFall {
+    0%   { opacity: 0; transform: translateY(0) rotate(0deg); }
+    15%  { opacity: 1; }
+    100% { opacity: 0; transform: translateY(90px) rotate(340deg); }
+}
+
+/* Animated scoreboard: score number ticks/pulses on change (re-rank position
+   tweening is JS-driven FLIP in tv.js, gated the same way). */
+.tv-score-item .score--tick { animation: madladScoreTick 0.55s ease; }
+@keyframes madladScoreTick {
+    0%   { transform: scale(1); color: var(--gold); }
+    40%  { transform: scale(1.35); color: var(--ember-bright); }
+    100% { transform: scale(1); color: var(--gold); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .madlad-board--deal,
+    .card--slam,
+    .madlad-czar--spotlight,
+    .card--reveal,
+    .card--winner-pop,
+    .tv-confetti__piece,
+    .tv-score-item .score--tick { animation: none !important; }
+}
+
 /* ---- Join QR (lobby feature + in-game drop-in badge) -------------------- */
 .tv-join {
     display: flex;
