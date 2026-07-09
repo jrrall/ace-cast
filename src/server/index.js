@@ -28,7 +28,11 @@ const CardStatsRepository = require('../content/CardStatsRepository');
 const CardEventsRepository = require('../content/CardEventsRepository');
 const bots = require('./bots');
 const CardFlagRepository = require('../content/CardFlagRepository');
+const CardRepository = require('../content/CardRepository');
+const FeedbackRepository = require('../content/FeedbackRepository');
 const IdentityRepository = require('../content/IdentityRepository');
+const SessionRepository = require('../content/SessionRepository');
+const { isResumable } = require('../game/contract');
 
 const PORT = config.server.port;
 
@@ -164,6 +168,103 @@ app.get('/tv/:roomCode', async (req, res) => {
   });
 });
 
+// F3/F4 — admin gate. No accounts yet (E4), so admin routes are gated behind a
+// single shared-secret token instead: `?token=`, `X-Admin-Token`, or HTTP
+// Basic (password = token, username ignored). If ADMIN_TOKEN is unset the
+// whole feature is off — every admin route 404s, same as an unrecognized
+// token, so an unauthenticated caller can't even tell the routes exist.
+function suppliedAdminToken(req) {
+  if (req.query.token) return req.query.token;
+  const header = req.get('X-Admin-Token');
+  if (header) return header;
+  const auth = req.get('Authorization') || '';
+  const match = /^Basic\s+(.+)$/i.exec(auth);
+  if (!match) return null;
+  const decoded = Buffer.from(match[1], 'base64').toString('utf8');
+  const sep = decoded.indexOf(':');
+  return sep === -1 ? decoded : decoded.slice(sep + 1);
+}
+
+function denyAdmin(req, res) {
+  if (req.path.startsWith('/api/')) {
+    res.status(404).json({ error: 'Not found' });
+  } else {
+    res.status(404).render('error', { message: 'Not found' });
+  }
+}
+
+function requireAdmin(req, res, next) {
+  const { token } = config.admin;
+  if (!token || suppliedAdminToken(req) !== token) {
+    denyAdmin(req, res);
+    return;
+  }
+  next();
+}
+
+// F3 — feedback dashboard: per-card plays/wins/win-rate + flag counts, plus
+// rollups (top winners, dead weight, most-flagged) and F4 suggested
+// retirements. Same read model serves the HTML view and the JSON API.
+app.get('/admin/feedback', requireAdmin, async (req, res) => {
+  try {
+    const dashboard = await FeedbackRepository.buildDashboard({
+      minPlays: config.feedback.minPlays,
+      thresholds: config.feedback,
+    });
+    res.render('admin/feedback', {
+      title: 'unholy.cards — Feedback',
+      adminToken: typeof req.query.token === 'string' ? req.query.token : '',
+      ...dashboard,
+    });
+  } catch (error) {
+    console.error('Failed to build feedback dashboard:', error);
+    res.status(500).render('error', { message: 'Failed to load feedback dashboard' });
+  }
+});
+
+app.get('/api/admin/feedback', requireAdmin, async (req, res) => {
+  try {
+    const dashboard = await FeedbackRepository.buildDashboard({
+      minPlays: config.feedback.minPlays,
+      thresholds: config.feedback,
+    });
+    res.json(dashboard);
+  } catch (error) {
+    console.error('Failed to build feedback dashboard:', error);
+    res.status(500).json({ error: 'Failed to load feedback dashboard' });
+  }
+});
+
+// F4 — explicit, reversible retirement. Not a cron: an admin acts on a
+// suggestion (or their own judgment) from the dashboard.
+app.post('/api/admin/cards/:id/retire', requireAdmin, async (req, res) => {
+  const id = Number(req.params.id);
+  if (!Number.isInteger(id) || id <= 0) {
+    return res.status(400).json({ error: 'Invalid card id' });
+  }
+  try {
+    await CardRepository.retire(id);
+    return res.json({ id, retired: true });
+  } catch (error) {
+    console.error('Failed to retire card:', error);
+    return res.status(500).json({ error: 'Failed to retire card' });
+  }
+});
+
+app.post('/api/admin/cards/:id/unretire', requireAdmin, async (req, res) => {
+  const id = Number(req.params.id);
+  if (!Number.isInteger(id) || id <= 0) {
+    return res.status(400).json({ error: 'Invalid card id' });
+  }
+  try {
+    await CardRepository.unretire(id);
+    return res.json({ id, retired: false });
+  } catch (error) {
+    console.error('Failed to unretire card:', error);
+    return res.status(500).json({ error: 'Failed to unretire card' });
+  }
+});
+
 // Simple in-memory, per-IP rate limiter for room creation.
 const createHits = new Map(); // ip -> [timestamps]
 function allowRoomCreate(ip) {
@@ -296,6 +397,151 @@ async function recordCardOutcome(room, actionData) {
   }
 }
 
+// --- S1 persistent & resumable sessions -----------------------------------
+// All DB access lives here in the server layer (never in the engine). Every
+// path is best-effort and fully out-of-band: like recordCardOutcome it swallows
+// + logs errors so a failed write can never block or crash the round loop.
+// Gated behind config.session.persist (OFF under test, ON in dev/prod).
+
+// Debounce per room so a burst of moves coalesces into a single write.
+const snapshotTimers = new Map(); // roomCode -> timeout
+const SNAPSHOT_DEBOUNCE_MS = 200;
+
+// Write a snapshot of a live, resumable engine (status 'active'). No-op when
+// persistence is off, the room isn't running, or the engine can't serialize.
+async function writeSnapshot(room) {
+  try {
+    if (!config.session.persist) return;
+    if (!room || !room.isGameActive || !room.gameEngine) return;
+    const engine = room.gameEngine;
+    if (!isResumable(engine.constructor) || typeof engine.serialize !== 'function') return;
+    room.stateVersion = (room.stateVersion || 0) + 1;
+    await SessionRepository.snapshot({
+      roomCode: room.code,
+      gameType: room.gameType,
+      stateVersion: room.stateVersion,
+      serializedState: engine.serialize(),
+      status: 'active',
+    });
+  } catch (error) {
+    console.error('Failed to snapshot session:', error);
+  }
+}
+
+// Debounced snapshot for the hot action path.
+function scheduleSnapshot(room) {
+  if (!config.session.persist || !room || snapshotTimers.has(room.code)) return;
+  const { code } = room;
+  const timer = setTimeout(() => {
+    snapshotTimers.delete(code);
+    writeSnapshot(room);
+  }, SNAPSHOT_DEBOUNCE_MS);
+  if (timer.unref) timer.unref();
+  snapshotTimers.set(code, timer);
+}
+
+// Best-effort status transition (completed / paused / abandoned / active).
+async function markSession(roomCode, status) {
+  try {
+    if (!config.session.persist) return;
+    await SessionRepository.markStatus(roomCode, status);
+  } catch (error) {
+    console.error(`Failed to mark session ${roomCode} as ${status}:`, error);
+  }
+}
+
+// Capture the latest state and mark the session 'paused' so it can be resumed
+// within the TTL. Call BEFORE removeRoom (which nulls the engine) — serialize()
+// runs synchronously here, before the room is torn down.
+async function pauseSession(room) {
+  if (!config.session.persist || !room || !room.isGameActive || !room.gameEngine) return;
+  if (!isResumable(room.gameEngine.constructor)) return;
+  try {
+    await writeSnapshot(room);
+    await SessionRepository.markStatus(room.code, 'paused');
+  } catch (error) {
+    console.error(`Failed to pause session ${room.code}:`, error);
+  }
+}
+
+/**
+ * Lazily rebuild a room from a resumable ('active'|'paused') snapshot when it is
+ * absent from memory. Returns the rebuilt room, or null if nothing resumable
+ * exists. Who may resume: anyone presenting the room code (this rehydrate path);
+ * seat re-attach is still gated by device identity (the clientId reconnect path
+ * below), matching the live reconnect behavior.
+ */
+async function rehydrateRoom(code) {
+  if (!config.session.persist) return null;
+  try {
+    const rec = await SessionRepository.getByRoomCode(code);
+    if (!rec || !SessionRepository.RESUMABLE.includes(rec.status) || !rec.serializedState) {
+      return null;
+    }
+    const game = registry.getGame(rec.gameType);
+    if (!game || !isResumable(game.engine)) return null;
+
+    const room = gameManager.createRoom(code);
+    const snapshot = rec.serializedState;
+    const engine = game.engine.restore(room, snapshot, {});
+    room.gameEngine = engine;
+    room.gameType = game.id;
+    room.isGameActive = true;
+    room.stateVersion = rec.stateVersion || 0;
+
+    // Recreate seats from the snapshot. Humans come back as HELD (disconnected)
+    // seats — so a returning clientId hits the reconnect path and re-attaches to
+    // its exact seat — and the engine seat is paused to match. Stale bots are
+    // dropped; fresh bots are re-added by reconcileBots once humans return.
+    const seats = (snapshot.state && snapshot.state.players) || {};
+    Object.values(seats).forEach((p) => {
+      if (!p || !p.id) return;
+      if (p.isBot) {
+        if (typeof engine.handlePlayerLeave === 'function') engine.handlePlayerLeave(p.id);
+        return;
+      }
+      const held = room.addPlayer(p.id, p.name, null, false);
+      held.connected = false;
+      held.isActive = false;
+      if (typeof engine.handlePlayerDisconnect === 'function') {
+        engine.handlePlayerDisconnect(p.id);
+      }
+    });
+
+    room.gameState = typeof engine.getPublicState === 'function'
+      ? engine.getPublicState()
+      : {};
+
+    // Revive the session row (paused -> active); subsequent moves refresh it.
+    await markSession(code, 'active');
+    console.log(`Room ${code} rehydrated from snapshot (v${room.stateVersion})`);
+    return room;
+  } catch (error) {
+    console.error(`Failed to rehydrate room ${code}:`, error);
+    return null;
+  }
+}
+
+/**
+ * Resumable-TTL sweep: mark paused sessions older than config.session
+ * .resumableTtlMs as 'abandoned', then prune long-dead abandoned rows. Runs
+ * alongside the in-memory room sweep.
+ */
+async function sweepSessions() {
+  if (!config.session.persist) return;
+  try {
+    const ttl = config.session.resumableTtlMs;
+    const cutoff = Date.now() - ttl;
+    const resumable = await SessionRepository.listResumable();
+    await Promise.all(resumable
+      .filter((s) => s.status === 'paused' && s.lastActivity < cutoff)
+      .map((s) => SessionRepository.markStatus(s.roomCode, 'abandoned')));
+    await SessionRepository.pruneAbandoned(ttl);
+  } catch (error) {
+    console.error('Failed to sweep sessions:', error);
+  }
+}
+
 // After a game is won, hold on the results for a visible countdown, then release
 // the room (free the session). Idempotent — at most one countdown per room.
 function startGameOverCountdown(room) {
@@ -310,6 +556,8 @@ function startGameOverCountdown(room) {
     if (!r) return;
     bots.clearBotTimers(r);
     r.endGame();
+    // Normal game-over: the session is done, not resumable.
+    markSession(r.code, 'completed');
     io.to(r.code).emit('session-closed', {});
     gameManager.removeRoom(r.code);
     console.log(`Room ${r.code} released after game over`);
@@ -321,6 +569,7 @@ function startGameOverCountdown(room) {
 function afterBotAction(room, actionData) {
   broadcastGameState(room);
   recordCardOutcome(room, actionData);
+  scheduleSnapshot(room);
   startGameOverCountdown(room);
 }
 
@@ -372,7 +621,7 @@ io.on('connection', (socket) => {
   }
 
   // Handle room joining
-  socket.on('join-room', ({
+  socket.on('join-room', async ({
     roomCode, playerName, deviceType, clientId,
   }) => {
     const code = typeof roomCode === 'string' ? roomCode.toUpperCase() : '';
@@ -381,7 +630,12 @@ io.on('connection', (socket) => {
       return;
     }
 
-    const room = gameManager.getRoom(code);
+    let room = gameManager.getRoom(code);
+    if (!room) {
+      // S1: lazily rehydrate a resumable session for this code before giving up
+      // (no-op when persistence is off).
+      room = await rehydrateRoom(code);
+    }
     if (!room) {
       socket.emit('error', { message: 'Room not found' });
       return;
@@ -479,6 +733,9 @@ io.on('connection', (socket) => {
       broadcastGameState(room);
       // Fire-and-forget: telemetry must never block or crash the round loop.
       recordCardOutcome(room, data);
+      // Best-effort, debounced write-through snapshot (S1) — same out-of-band
+      // discipline as telemetry above.
+      scheduleSnapshot(room);
       // A human move may open a bot's turn (answer, or advance to the next round).
       bots.scheduleBotActions(room, afterBotAction);
       // If that move won the game, start the release countdown.
@@ -552,6 +809,9 @@ io.on('connection', (socket) => {
 
     io.to(socket.roomCode).emit('game-started', { gameType });
     broadcastGameState(room);
+    // Persist the opening snapshot so a crash right after start is still
+    // resumable (S1).
+    scheduleSnapshot(room);
     // Bots answer their first round.
     bots.scheduleBotActions(room, afterBotAction);
 
@@ -570,6 +830,8 @@ io.on('connection', (socket) => {
       room.gameOverTimer = null;
     }
     room.endGame();
+    // Host ended the game deliberately — mark the session done (S1).
+    markSession(room.code, 'completed');
 
     const roomState = room.getRoomState();
     io.to(socket.roomCode).emit('game-ended', {});
@@ -622,6 +884,10 @@ io.on('connection', (socket) => {
       // No humans left → tear down (don't leave bots playing to an empty room).
       if (r.getHumanPlayers().length === 0) {
         bots.clearBotTimers(r);
+        // Keep the (still-active) game resumable: snapshot + pause before we
+        // drop it from memory, so a returning player can rehydrate within the
+        // TTL. serialize() runs before removeRoom nulls the engine.
+        pauseSession(r);
         gameManager.removeRoom(code);
         console.log(`Room ${code} cleaned up (no humans left)`);
         return;
@@ -638,9 +904,11 @@ io.on('connection', (socket) => {
   });
 });
 
-// Periodically sweep inactive/empty rooms so long-running instances don't leak.
+// Periodically sweep inactive/empty rooms so long-running instances don't leak,
+// and (S1) abandon paused sessions past the resumable TTL + prune dead rows.
 const sweepTimer = setInterval(() => {
   gameManager.cleanupInactiveRooms();
+  sweepSessions();
 }, config.room.sweepIntervalMs);
 if (sweepTimer.unref) sweepTimer.unref();
 
@@ -698,5 +966,12 @@ process.on('SIGTERM', () => shutdown('SIGTERM'));
 process.on('SIGINT', () => shutdown('SIGINT'));
 
 module.exports = {
-  app, server, io, start,
+  app,
+  server,
+  io,
+  start,
+  // S1 persistence internals, exported for tests.
+  rehydrateRoom,
+  sweepSessions,
+  writeSnapshot,
 };

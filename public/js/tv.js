@@ -4,6 +4,8 @@ class TVController {
         this.roomCode = window.ROOM_CODE || null;
         this.players = new Map();
         this.gameState = null;
+        this.prevGameState = null;
+        this.prevScores = new Map();
         this.connected = false;
         this.gameStartTime = null;
         this.timerInterval = null;
@@ -242,7 +244,8 @@ class TVController {
 
     handleGameUpdate(data) {
         console.log('Game update:', data);
-        
+
+        this.prevGameState = this.gameState;
         this.gameState = data.gameState || data;
         this.updateGameDisplay(this.gameState);
         
@@ -333,12 +336,29 @@ class TVController {
         }
     }
 
+    // Detect meaningful phase/round transitions vs. incidental re-renders (e.g.
+    // another player submitting) so entrance choreography only plays once per
+    // actual moment, not on every game-update.
+    computeChoreographyFlags(gameState) {
+        const prev = this.prevGameState;
+        return {
+            isNewRound: Boolean(prev)
+                && (prev.round !== gameState.round || prev.blackCard !== gameState.blackCard),
+            enteredJudging: Boolean(prev)
+                && prev.phase !== 'judging' && gameState.phase === 'judging',
+            enteredResults: Boolean(prev)
+                && prev.phase !== 'results' && prev.phase !== 'gameover'
+                && (gameState.phase === 'results' || gameState.phase === 'gameover'),
+        };
+    }
+
     updateGameContent(gameState) {
         if (!this.gameContent) return;
 
         if (gameState.gameType === 'madlad') {
             this.trackSoundEvents(gameState);
-            this.gameContent.innerHTML = this.renderMadLadContent(gameState);
+            const flags = this.computeChoreographyFlags(gameState);
+            this.gameContent.innerHTML = this.renderMadLadContent(gameState, flags);
             return;
         }
 
@@ -360,39 +380,75 @@ class TVController {
         this.gameContent.innerHTML = content;
     }
 
-    renderMadLadContent(state) {
+    renderMadLadContent(state, flags = {}) {
+        const reduced = this.prefersReducedMotion();
+
         const black = state.blackCard
-            ? window.CardRender.renderCard({ kind: 'prompt', text: state.blackCard }, { variant: 'tv' }).outerHTML
+            ? window.CardRender.renderCard(
+                { kind: 'prompt', text: state.blackCard },
+                { variant: 'tv', className: (flags.isNewRound && !reduced) ? 'card--slam' : '' },
+            ).outerHTML
             : '';
+        const spotlight = state.phase === 'judging' ? ' madlad-czar--spotlight' : '';
         const czar = state.judgeName
-            ? `<div class="madlad-czar">👑 Card Czar: ${this.esc(state.judgeName)}</div>`
+            ? `<div class="madlad-czar${!reduced ? spotlight : ''}">👑 Card Czar: ${this.esc(state.judgeName)}</div>`
             : '';
 
         let body = '';
         if (state.phase === 'answering') {
             body = `<div class="madlad-status">${state.submittedCount}/${state.expectedCount} players have played</div>`;
         } else if (state.phase === 'judging') {
+            // Paced reveal: flip submissions face-up one at a time on first
+            // entering judging; static (no re-animation) on incidental re-renders.
+            const staggered = flags.enteredJudging && !reduced;
             const cards = (state.submissions || [])
-                .map((s) => window.CardRender.renderCard({ kind: 'answer', text: s.text }, { variant: 'tv' }).outerHTML)
+                .map((s, i) => {
+                    const el = window.CardRender.renderCard(
+                        { kind: 'answer', text: s.text },
+                        { variant: 'tv', className: staggered ? 'card--reveal' : '' },
+                    );
+                    if (staggered) {
+                        el.style.animationDelay = `${i * 0.22}s`;
+                    }
+                    return el.outerHTML;
+                })
                 .join('');
             body = `
                 <div class="madlad-status">${this.esc(state.judgeName)} is choosing...</div>
                 <div class="madlad-submissions">${cards}</div>
             `;
         } else if ((state.phase === 'results' || state.phase === 'gameover') && state.lastWinner) {
+            const celebrate = flags.enteredResults && !reduced;
             const winnerCard = window.CardRender.renderCard(
                 { kind: 'answer', text: state.lastWinner.text },
-                { variant: 'tv', winner: true },
+                { variant: 'tv', winner: true, className: celebrate ? 'card--winner-pop' : '' },
             ).outerHTML;
             body = `
                 <div class="madlad-winner-card">
+                    ${celebrate ? this.confettiHTML() : ''}
                     ${winnerCard}
                     <div class="madlad-winner-name">🏆 ${this.esc(state.lastWinner.playerName)}</div>
                 </div>
             `;
         }
 
-        return `<div class="madlad-board">${black}${czar}${body}</div>`;
+        const dealClass = (flags.isNewRound && !reduced) ? ' madlad-board--deal' : '';
+        return `<div class="madlad-board${dealClass}">${black}${czar}${body}</div>`;
+    }
+
+    // Small purely-decorative confetti burst for the winner celebration.
+    // Skipped entirely when prefers-reduced-motion is set.
+    confettiHTML() {
+        let html = '<div class="tv-confetti" aria-hidden="true">';
+        for (let i = 0; i < 12; i += 1) {
+            html += `<span class="tv-confetti__piece" style="--i:${i}"></span>`;
+        }
+        html += '</div>';
+        return html;
+    }
+
+    prefersReducedMotion() {
+        return Boolean(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
     }
 
     esc(text) {
@@ -402,19 +458,61 @@ class TVController {
     updateScoreboard(scores) {
         if (!this.scoreboard) return;
 
-        this.scoreboard.innerHTML = '';
-
         // MadLad / new engines provide a sorted array of { id, name, score }.
         if (!Array.isArray(scores)) return;
 
+        const reduced = this.prefersReducedMotion();
+        const prevScores = this.prevScores || new Map();
+
+        // FLIP step 1 (First): capture current on-screen positions, keyed by
+        // player id, before the re-rank re-sorts the DOM.
+        const prevRects = new Map();
+        if (!reduced) {
+            Array.from(this.scoreboard.children).forEach((child) => {
+                const id = child.dataset.playerId;
+                if (id) prevRects.set(id, child.getBoundingClientRect());
+            });
+        }
+
+        this.scoreboard.innerHTML = '';
+        const nextScores = new Map();
+
         scores.forEach((entry) => {
+            const prevVal = prevScores.has(entry.id) ? prevScores.get(entry.id) : entry.score;
+            const ticked = !reduced && prevVal !== entry.score;
+
             const scoreItem = document.createElement('div');
             scoreItem.className = 'tv-score-item slide-up';
+            scoreItem.dataset.playerId = entry.id;
             scoreItem.innerHTML = `
                 <div class="player-name">${this.esc(entry.name)}</div>
-                <div class="score">${entry.score}</div>
+                <div class="score${ticked ? ' score--tick' : ''}">${entry.score}</div>
             `;
             this.scoreboard.appendChild(scoreItem);
+            nextScores.set(entry.id, entry.score);
+        });
+
+        this.prevScores = nextScores;
+
+        if (reduced) return;
+
+        // FLIP step 2 (Invert + Play): any item that moved re-rank position
+        // slides from its old spot into its new one instead of teleporting.
+        requestAnimationFrame(() => {
+            Array.from(this.scoreboard.children).forEach((child) => {
+                const prevRect = prevRects.get(child.dataset.playerId);
+                if (!prevRect) return;
+                const newRect = child.getBoundingClientRect();
+                const dx = prevRect.left - newRect.left;
+                const dy = prevRect.top - newRect.top;
+                if (!dx && !dy) return;
+                child.style.transition = 'none';
+                child.style.transform = `translate(${dx}px, ${dy}px)`;
+                requestAnimationFrame(() => {
+                    child.style.transition = 'transform 0.5s ease';
+                    child.style.transform = '';
+                });
+            });
         });
     }
 

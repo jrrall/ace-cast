@@ -6,6 +6,7 @@ describe('DeckService', () => {
   let db;
   let DeckService;
   let PackRepository;
+  let CardRepository;
 
   beforeAll(async () => {
     db = useTestDb('deck');
@@ -13,6 +14,10 @@ describe('DeckService', () => {
     await db.seedRun();
     DeckService = require('../src/content/DeckService');
     PackRepository = require('../src/content/PackRepository');
+    // Required here (not inside a test) so it's captured before setup.js's
+    // global afterEach calls jest.resetModules() — requiring it later would
+    // re-evaluate src/db too, opening a second, never-closed connection.
+    CardRepository = require('../src/content/CardRepository');
   });
 
   afterAll(async () => {
@@ -53,5 +58,20 @@ describe('DeckService', () => {
     await expect(
       DeckService.buildDeck({ gameId: 'nonexistent-game' }),
     ).rejects.toThrow(/no default pack/i);
+  });
+
+  // F4 — retired cards are excluded from the deck, and unretiring restores them.
+  test('excludes retired cards from the deck', async () => {
+    const before = await DeckService.buildDeck({ gameId: 'madlad' });
+    const answerId = before.answers[0].id;
+
+    await CardRepository.retire(answerId);
+    const afterRetire = await DeckService.buildDeck({ gameId: 'madlad' });
+    expect(afterRetire.answers).toHaveLength(before.answers.length - 1);
+    expect(afterRetire.answers.some((c) => c.id === answerId)).toBe(false);
+
+    await CardRepository.unretire(answerId);
+    const afterUnretire = await DeckService.buildDeck({ gameId: 'madlad' });
+    expect(afterUnretire.answers).toHaveLength(before.answers.length);
   });
 });

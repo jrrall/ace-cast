@@ -10,6 +10,15 @@ class PlayerController {
         // prevents re-firing on every redundant game-update re-render.
         this._lastSoundSig = null;
 
+        // Hand-fan (J2) UI state: which card is currently "lifted" for
+        // confirm-to-play, and the text of the card we most recently
+        // submitted (so the post-submit "played" state can show it even
+        // though the server doesn't echo submitted card text back).
+        this.selectedCardId = null;
+        this.lastPlayedCardText = null;
+        this._justSelectedCardId = null;
+        this._handScrollLeft = 0;
+
         // Durable anonymous identity in a first-party cookie. Survives reloads
         // and reconnects; it's both the reconnect key and the telemetry visitor id.
         this.clientId = this.getClientId();
@@ -219,6 +228,8 @@ class PlayerController {
 
         this.socket.on('game-ended', () => {
             this.gameState = null;
+            this.selectedCardId = null;
+            this.lastPlayedCardText = null;
             this.showLobbyScreen();
         });
 
@@ -261,6 +272,8 @@ class PlayerController {
         this.clearGameOverCountdown();
         this.gameState = null;
         this.roomCode = null;
+        this.selectedCardId = null;
+        this.lastPlayedCardText = null;
         // Don't auto-rejoin a room that no longer exists.
         try { localStorage.removeItem('acecast_session'); } catch (e) { /* ignore */ }
         this.showJoinScreen();
@@ -412,6 +425,12 @@ class PlayerController {
             );
         }
 
+        // Capture the hand-fan scroll position before we blow away the old
+        // DOM below — by the time renderHandFan runs, the old .hand-fan
+        // node is already gone, so it can't read this off the live DOM.
+        const prevScroller = this.playerArea.querySelector('.hand-fan');
+        if (prevScroller) this._handScrollLeft = prevScroller.scrollLeft;
+
         this.playerArea.innerHTML = '';
 
         if (state.phase === 'gameover') {
@@ -455,20 +474,10 @@ class PlayerController {
 
     renderAnswererView(state, you) {
         if (state.phase === 'answering' && !you.hasSubmitted) {
-            this.playerArea.appendChild(this.note('Pick a card to play:'));
-            const grid = document.createElement('div');
-            grid.className = 'madlad-hand';
-            (state.hand || []).forEach((card) => {
-                const el = this.whiteCard(card.text);
-                el.onclick = () => {
-                    if (window.SoundFX) window.SoundFX.playCard();
-                    this.sendAction('submit-card', { cardIndex: card.index });
-                };
-                grid.appendChild(this.wrapWithFlag(el, card.cardId));
-            });
-            this.playerArea.appendChild(grid);
+            this.playerArea.appendChild(this.note('Tap a card to raise it, then confirm to play:'));
+            this.renderHandFan(state.hand || []);
         } else if (state.phase === 'answering' && you.hasSubmitted) {
-            this.playerArea.appendChild(this.note('✅ Card submitted — waiting for the others...'));
+            this.playerArea.appendChild(this.renderPlayedState());
         } else if (state.phase === 'judging') {
             this.playerArea.appendChild(this.note(`${this.esc(state.judgeName)} is choosing the winner...`));
         } else if (state.phase === 'results' && state.lastWinner) {
@@ -478,6 +487,148 @@ class PlayerController {
             ));
             this.playerArea.appendChild(this.note(`"${this.esc(state.lastWinner.text)}"`));
         }
+    }
+
+    // ---- Hand fan (J2: fanned/overlapping hand, tap-to-lift + confirm) ----
+    //
+    // Interaction model: tap a card to lift it (raise + focus); tap it again
+    // (or tap a different card) to change your mind; tap the confirm button
+    // that appears to actually submit. This — rather than drag-up-to-play —
+    // is the safer choice one-handed on a phone: a drag gesture is easy to
+    // misfire while scrolling through the fan, whereas tap+confirm can't
+    // accidentally submit a card.
+    //
+    // Rendered directly into `this.playerArea` (not returned) because a
+    // server-pushed `game-update` (e.g. another player submitting) can
+    // trigger a re-render mid-selection; we rebuild the DOM but restore
+    // scroll position / selection by cardId so the player's in-progress
+    // pick survives it.
+
+    renderHandFan(cards) {
+        // Drop a selection that no longer exists in the hand (e.g. it was
+        // just played, or the hand was refilled on reconnect).
+        if (this.selectedCardId != null && !cards.some((c) => c.cardId === this.selectedCardId)) {
+            this.selectedCardId = null;
+        }
+
+        const savedScrollLeft = this._handScrollLeft;
+        const justSelectedCardId = this._justSelectedCardId;
+        this._justSelectedCardId = null;
+
+        const wrap = document.createElement('div');
+        wrap.className = 'hand-fan-wrap';
+
+        const scroller = document.createElement('div');
+        scroller.className = 'hand-fan';
+
+        const track = document.createElement('div');
+        track.className = 'hand-fan__track';
+
+        const mid = (cards.length - 1) / 2;
+        cards.forEach((card, i) => {
+            const slot = document.createElement('div');
+            slot.className = 'hand-fan__slot';
+            if (card.cardId != null) slot.dataset.cardId = String(card.cardId);
+
+            const offset = i - mid;
+            const rotate = Math.max(-16, Math.min(16, offset * 5));
+            const rise = Math.min(Math.abs(offset) * 3, 14);
+            slot.style.setProperty('--rot', `${rotate}deg`);
+            slot.style.setProperty('--rise', `${rise}px`);
+            slot.style.setProperty('--order', String(i));
+
+            const cardEl = window.CardRender.renderCard({ kind: 'answer', text: card.text }, { variant: 'hand', as: 'button' });
+            cardEl.onclick = () => this.toggleHandSelection(card.cardId);
+            slot.appendChild(this.wrapWithFlag(cardEl, card.cardId));
+
+            if (this.selectedCardId != null && this.selectedCardId === card.cardId) {
+                slot.classList.add('is-lifted');
+            }
+
+            track.appendChild(slot);
+        });
+
+        scroller.appendChild(track);
+        wrap.appendChild(scroller);
+
+        const confirmBar = document.createElement('div');
+        confirmBar.className = 'hand-fan__confirm';
+        confirmBar.hidden = this.selectedCardId == null;
+        const playBtn = document.createElement('button');
+        playBtn.type = 'button';
+        playBtn.className = 'hand-fan__play-btn';
+        playBtn.textContent = '▶ Play This Card';
+        playBtn.onclick = () => this.confirmPlaySelected();
+        confirmBar.appendChild(playBtn);
+        wrap.appendChild(confirmBar);
+
+        this.playerArea.appendChild(wrap);
+
+        // Restore scroll position across a passive re-render, or (if this
+        // render was caused by the player tapping a card) glide the newly
+        // lifted card toward the center instead.
+        if (justSelectedCardId != null) {
+            const slot = track.querySelector(`[data-card-id="${justSelectedCardId}"]`);
+            if (slot) this.scrollSlotIntoView(slot);
+            else scroller.scrollLeft = savedScrollLeft;
+        } else {
+            scroller.scrollLeft = savedScrollLeft;
+        }
+    }
+
+    toggleHandSelection(cardId) {
+        const wasSelected = this.selectedCardId === cardId;
+        this.selectedCardId = wasSelected ? null : cardId;
+        this._justSelectedCardId = this.selectedCardId;
+        if (this.gameState) this.updateGameDisplay(this.gameState);
+    }
+
+    confirmPlaySelected() {
+        if (this.selectedCardId == null || !this.gameState) return;
+        const hand = this.gameState.hand || [];
+        const card = hand.find((c) => c.cardId === this.selectedCardId);
+        this.selectedCardId = null;
+        if (!card) return;
+        this.lastPlayedCardText = card.text;
+        if (window.SoundFX) window.SoundFX.playCard();
+        this.sendAction('submit-card', { cardIndex: card.index });
+    }
+
+    scrollSlotIntoView(slot) {
+        slot.scrollIntoView({
+            behavior: this.prefersReducedMotion() ? 'auto' : 'smooth',
+            inline: 'center',
+            block: 'nearest',
+        });
+    }
+
+    prefersReducedMotion() {
+        return Boolean(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+    }
+
+    // Clear, obvious "played" state for a card that's been submitted this
+    // round. The server doesn't echo the submitted card's text back, so we
+    // show the copy we captured locally at submit time when we have it.
+    renderPlayedState() {
+        const container = document.createElement('div');
+        container.className = 'hand-played';
+        container.appendChild(this.note('✅ Card submitted — waiting for the others...'));
+
+        if (this.lastPlayedCardText != null) {
+            const cardWrap = document.createElement('div');
+            cardWrap.className = 'hand-played__card-wrap';
+            cardWrap.appendChild(window.CardRender.renderCard(
+                { kind: 'answer', text: this.lastPlayedCardText },
+                { variant: 'hand', className: 'card--played' },
+            ));
+            const badge = document.createElement('span');
+            badge.className = 'hand-played__badge';
+            badge.textContent = '✓ Played';
+            cardWrap.appendChild(badge);
+            container.appendChild(cardWrap);
+        }
+
+        return container;
     }
 
     renderActionButtons(availableActions) {

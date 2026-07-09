@@ -1,3 +1,8 @@
+## <small>1.10.2 (2026-07-09)</small>
+
+* docs(kanban): reconcile board — stack merged to main via #25 ([4affcc6](https://github.com/jrrall/ace-cast/commit/4affcc6)), closes [#25](https://github.com/jrrall/ace-cast/issues/25) [#19](https://github.com/jrrall/ace-cast/issues/19) [#20](https://github.com/jrrall/ace-cast/issues/20) [#21](https://github.com/jrrall/ace-cast/issues/21) [#24](https://github.com/jrrall/ace-cast/issues/24) [#25](https://github.com/jrrall/ace-cast/issues/25) [#19](https://github.com/jrrall/ace-cast/issues/19)
+* Content/topical cards (#25) ([445d4ee](https://github.com/jrrall/ace-cast/commit/445d4ee)), closes [#25](https://github.com/jrrall/ace-cast/issues/25)
+
 ## <small>1.10.1 (2026-07-08)</small>
 
 * fix: remove stray red line on cards; add game-over countdown + session release (#24) ([a0e89a9](https://github.com/jrrall/ace-cast/commit/a0e89a9)), closes [#24](https://github.com/jrrall/ace-cast/issues/24)

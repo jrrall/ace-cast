@@ -10,6 +10,11 @@ const toInt = (value, fallback) => {
   return Number.isFinite(n) ? n : fallback;
 };
 
+const toFloat = (value, fallback) => {
+  const n = Number.parseFloat(value);
+  return Number.isFinite(n) ? n : fallback;
+};
+
 const config = {
   server: {
     port: toInt(process.env.PORT, 3000),
@@ -53,6 +58,19 @@ const config = {
     flagMaxPerWindow: toInt(process.env.FLAG_MAX_PER_WINDOW, 30),
   },
 
+  // Persistent, resumable room sessions (S1).
+  session: {
+    // Write-through snapshots + lazy rehydrate. Defaults OFF under test so the
+    // existing in-memory suites stay green, ON in dev/prod. Force either way
+    // with SESSIONS_PERSIST=true|false.
+    persist: process.env.SESSIONS_PERSIST != null
+      ? process.env.SESSIONS_PERSIST !== 'false'
+      : process.env.NODE_ENV !== 'test',
+    // How long a paused session stays resumable before the sweep abandons it.
+    // Open Q "how long resumable" resolved to ~30 min by default.
+    resumableTtlMs: toInt(process.env.SESSION_RESUMABLE_TTL_MS, 30 * 60 * 1000),
+  },
+
   // Device identity (S0): a signed cookie that outlives socket.id, used to
   // attribute card flags now and to link accounts later.
   identity: {
@@ -64,6 +82,22 @@ const config = {
   validation: {
     roomCode: /^[A-Z]{4}$/,
     maxPlayerNameLength: 32,
+  },
+
+  // F3 — admin dashboard gate. No accounts yet (E4), so admin routes are gated
+  // behind a single shared-secret token instead. Unset (the default) turns the
+  // whole feature off: admin routes 404 rather than exposing an always-open door.
+  admin: {
+    token: process.env.ADMIN_TOKEN || null,
+  },
+
+  // F4 — performance model / retirement thresholds. Conservative defaults;
+  // tune with real playtest data. `minPlays` is also the F3 "insufficient
+  // data" floor for ranking a card's win-rate.
+  feedback: {
+    minPlays: toInt(process.env.FEEDBACK_MIN_PLAYS, 10),
+    lowWinRateThreshold: toFloat(process.env.FEEDBACK_LOW_WIN_RATE, 0.15),
+    highFlagRateThreshold: toFloat(process.env.FEEDBACK_HIGH_FLAG_RATE, 0.2),
   },
 
   // Persistence. SQLite locally, Postgres in production — selected from the
