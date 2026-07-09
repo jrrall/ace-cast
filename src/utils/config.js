@@ -58,6 +58,19 @@ const config = {
     flagMaxPerWindow: toInt(process.env.FLAG_MAX_PER_WINDOW, 30),
   },
 
+  // Persistent, resumable room sessions (S1).
+  session: {
+    // Write-through snapshots + lazy rehydrate. Defaults OFF under test so the
+    // existing in-memory suites stay green, ON in dev/prod. Force either way
+    // with SESSIONS_PERSIST=true|false.
+    persist: process.env.SESSIONS_PERSIST != null
+      ? process.env.SESSIONS_PERSIST !== 'false'
+      : process.env.NODE_ENV !== 'test',
+    // How long a paused session stays resumable before the sweep abandons it.
+    // Open Q "how long resumable" resolved to ~30 min by default.
+    resumableTtlMs: toInt(process.env.SESSION_RESUMABLE_TTL_MS, 30 * 60 * 1000),
+  },
+
   // Device identity (S0): a signed cookie that outlives socket.id, used to
   // attribute card flags now and to link accounts later.
   identity: {
