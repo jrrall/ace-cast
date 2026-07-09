@@ -359,3 +359,6 @@ CHANGELOG.md
 
 # oh-my-claudecode local state
 .omc/
+
+# Claude Code local state / agent worktrees
+.claude/

@@ -109,9 +109,88 @@ header h1 {
 @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.5; } }
 
 /* ---- MadLad hand / board ------------------------------------------------ */
+/* Judge's "pick the winner" submission grid (anonymous cards, not a hand). */
 .madlad-hand { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 12px; }
 .madlad-banner { background: rgba(139, 30, 45, 0.18); color: var(--bone); border: 1px solid rgba(224,75,47,0.3); border-radius: 10px; padding: 14px; font-weight: 700; text-align: center; margin: 10px 0; font-size: 1.1em; }
 .madlad-note { text-align: center; color: var(--text-dim); margin: 10px 0; font-size: 1em; }
+
+/* ---- Hand fan (J2): the answerer's own hand ------------------------------
+   A fanned, overlapping row of cards you swipe/scroll through with native
+   momentum, plus a tap-to-lift + confirm-to-play interaction. CSS-transform
+   based so it stays cheap on mid phones. */
+.hand-fan-wrap { margin-top: 4px; }
+
+.hand-fan {
+    overflow-x: auto;
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
+    scroll-snap-type: x proximity;
+    scroll-behavior: smooth;
+    padding: 34px 30vw 18px 10vw;
+    margin: 0 -18px;
+}
+.hand-fan::-webkit-scrollbar { display: none; }
+
+.hand-fan__track {
+    display: flex;
+    align-items: flex-end;
+    width: max-content;
+}
+
+.hand-fan__slot {
+    flex: 0 0 auto;
+    width: clamp(96px, 28vw, 128px);
+    scroll-snap-align: center;
+    z-index: var(--order, 0);
+    transform: rotate(var(--rot, 0deg)) translateY(var(--rise, 0px));
+    transform-origin: 50% 120%;
+    transition: transform 0.22s cubic-bezier(0.22, 0.8, 0.32, 1), z-index 0s;
+}
+.hand-fan__slot:not(:first-child) { margin-left: -46px; }
+.hand-fan__slot .card--answer { cursor: pointer; width: 100%; }
+
+.hand-fan__slot.is-lifted {
+    transform: translateY(-30px) rotate(0deg) scale(1.08);
+    z-index: 999;
+}
+
+.hand-fan__confirm {
+    display: flex;
+    justify-content: center;
+    margin: 8px 0 4px;
+    transition: opacity 0.18s ease, transform 0.18s ease;
+}
+.hand-fan__confirm[hidden] { display: none; }
+.hand-fan__play-btn {
+    background: linear-gradient(180deg, var(--gold), var(--gold-dim));
+    color: #1a130a;
+    border: none;
+    border-radius: 999px;
+    padding: 13px 28px;
+    font-weight: 800;
+    font-size: 1em;
+    letter-spacing: 0.01em;
+    cursor: pointer;
+    box-shadow: var(--glow-gold), 0 8px 20px rgba(0, 0, 0, 0.4);
+    transition: transform 0.14s ease;
+}
+.hand-fan__play-btn:active { transform: translateY(1px) scale(0.98); }
+
+/* ---- Played state: obvious, can't be confused with "still choosing" ---- */
+.hand-played__card-wrap { position: relative; max-width: 160px; margin: 14px auto 0; }
+.card--played { opacity: 0.55; filter: grayscale(0.2); }
+.hand-played__badge {
+    position: absolute; top: -10px; right: -10px;
+    background: var(--gold); color: #1a130a; font-weight: 800; font-size: 0.75em;
+    padding: 4px 9px; border-radius: 999px; box-shadow: var(--shadow-card);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .hand-fan { scroll-behavior: auto; }
+    .hand-fan__slot { transition: none; }
+    .hand-fan__confirm { transition: none; }
+    .hand-fan__play-btn { transition: none; }
+}
 
 @media (max-width: 480px) {
     body { padding: 6px; }
