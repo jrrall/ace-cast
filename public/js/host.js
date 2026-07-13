@@ -26,6 +26,7 @@ class HostController {
         // Display elements
         this.roomCodeDisplay = document.getElementById('room-code');
         this.joinUrlDisplay = document.getElementById('join-url');
+        this.joinPlayLink = document.getElementById('join-play-link');
         this.tvUrlLink = document.getElementById('tv-url');
         this.qrContainer = document.getElementById('qr-code-container');
         this.playersList = document.getElementById('players-list');
@@ -172,6 +173,8 @@ class HostController {
     displayRoomInfo(data) {
         this.roomCodeDisplay.textContent = data.roomCode;
         this.joinUrlDisplay.textContent = data.joinUrl;
+        this.joinUrlDisplay.href = data.joinUrl;
+        this.joinPlayLink.href = data.joinUrl;
         this.tvUrlLink.href = data.tvUrl;
         
         // Display QR code
