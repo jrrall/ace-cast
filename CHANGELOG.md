@@ -1,3 +1,7 @@
+## 1.17.0 (2026-07-13)
+
+* feat(host): add "Play on this phone" link on the start-game page (#46) ([0acdf1a](https://github.com/jrrall/ace-cast/commit/0acdf1a)), closes [#46](https://github.com/jrrall/ace-cast/issues/46)
+
 ## <small>1.16.1 (2026-07-09)</small>
 
 * fix(session): stop phones rejoining a dead game after game-over (#45) ([d85d9b7](https://github.com/jrrall/ace-cast/commit/d85d9b7)), closes [#45](https://github.com/jrrall/ace-cast/issues/45)
