@@ -44,12 +44,23 @@ exports.seed = async (knex) => {
   // Keep the column set identical across all rows: batchInsert unifies columns
   // from the batch, and a missing key inserts an explicit NULL (overriding the
   // column default), which would violate cards.blanks NOT NULL.
+  //
+  // status/source are REQUIRED here (F1, Card Forge): the `status` column now
+  // defaults to `pending` (fail-closed), so these curated cards must be inserted
+  // as `approved`/`manual` or a fresh seed would quarantine the whole core deck.
   const rows = [];
   const add = (kind) => (text) => {
     if (seen.has(text)) return;
     seen.add(text);
     rows.push({
-      game_id: 'madlad', kind, text, blanks: 1, maturity_rating: MATURITY, pack_id: pack.id,
+      game_id: 'madlad',
+      kind,
+      text,
+      blanks: 1,
+      maturity_rating: MATURITY,
+      pack_id: pack.id,
+      status: 'approved',
+      source: 'manual',
     });
   };
   BLACK_CARDS.forEach(add('prompt'));

@@ -110,6 +110,17 @@ const config = {
     token: process.env.ADMIN_TOKEN || null,
   },
 
+  // F2 (Card Forge) — content ingestion API for the standalone LLM agent. A
+  // dedicated system token (distinct from admin.token so the robot can't drive
+  // the human dashboard, and so it rotates independently). Unset (the default)
+  // turns the whole content API off: its routes 404 rather than exposing an
+  // always-open write surface. `maxBatch` caps how many cards one POST may
+  // submit, bounding per-request damage from a buggy or runaway agent.
+  contentApi: {
+    token: process.env.CONTENT_API_TOKEN || null,
+    maxBatch: toInt(process.env.CONTENT_MAX_BATCH, 50),
+  },
+
   // F4 — performance model / retirement thresholds. Conservative defaults;
   // tune with real playtest data. `minPlays` is also the F3 "insufficient
   // data" floor for ranking a card's win-rate.

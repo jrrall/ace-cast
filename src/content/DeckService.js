@@ -11,7 +11,10 @@ const CardRepository = require('./CardRepository');
 /**
  * Build a deck for a game.
  * @param {{ gameId: string, packIds?: number[], maturityMax?: number }} params
- *   Empty/omitted packIds falls back to the game's default pack.
+ *   Empty/omitted packIds falls back to the game's default pack, unioned with
+ *   the game's generated pack (`<gameId>-generated`) when it exists — so that
+ *   human-approved Card Forge content (F1) actually reaches the live deck. Only
+ *   `approved` cards flow through either pack (CardRepository.listForDeck).
  * @returns {Promise<{ prompts: Array<{id,text,blanks}>, answers: Array<{id,text}> }>}
  */
 async function buildDeck({ gameId, packIds = [], maturityMax = 3 }) {
@@ -23,6 +26,12 @@ async function buildDeck({ gameId, packIds = [], maturityMax = 3 }) {
       throw new Error(`No default pack configured for game "${gameId}"`);
     }
     ids = [fallback.id];
+    // Union the generated pack (if seeded) so approved AI cards publish. Its
+    // pending/denied cards are still filtered out at the query boundary.
+    const generated = await PackRepository.getBySlug(`${gameId}-generated`);
+    if (generated && generated.id !== fallback.id) {
+      ids.push(generated.id);
+    }
   }
 
   const cards = await CardRepository.listForDeck({ gameId, packIds: ids, maturityMax });

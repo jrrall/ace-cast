@@ -32,6 +32,8 @@ const CardEventsRepository = require('../content/CardEventsRepository');
 const bots = require('./bots');
 const CardFlagRepository = require('../content/CardFlagRepository');
 const CardRepository = require('../content/CardRepository');
+const ContentCardRepository = require('../content/ContentCardRepository');
+const PackRepository = require('../content/PackRepository');
 const FeedbackRepository = require('../content/FeedbackRepository');
 const IdentityRepository = require('../content/IdentityRepository');
 const SessionRepository = require('../content/SessionRepository');
@@ -275,6 +277,270 @@ app.post('/api/admin/cards/:id/unretire', requireAdmin, async (req, res) => {
   } catch (error) {
     console.error('Failed to unretire card:', error);
     return res.status(500).json({ error: 'Failed to unretire card' });
+  }
+});
+
+// F2 (Card Forge) — content ingestion API for the standalone LLM agent.
+//
+// Auth is deliberately split (S2, prevents auto-publish): the machine token
+// (CONTENT_API_TOKEN) may WRITE candidates (POST), read them (GET), and delete a
+// still-pending one (DELETE) — but the human approve/deny gate (PATCH) rides on
+// `requireAdmin`, so a compromised or buggy agent can never publish its own
+// cards. If CONTENT_API_TOKEN is unset the whole content API is off (404, like
+// requireAdmin's denyAdmin), so its existence isn't even observable.
+
+// Basic content-policy deny-list. A server-side backstop against a poisoned feed
+// or prompt-injection slipping a slur/hard-block term past the agent — the
+// authoritative guard, not the only one. Matched case-insensitively as a
+// substring. Intentionally minimal; expand as needed.
+const CONTENT_DENY_LIST = ['slur1', 'slur2', 'childporn', 'child porn'];
+
+// The blank marker in prompt cards (see madladCards.js). A prompt's `blanks`
+// must equal how many of these it contains.
+const BLANK_MARKER = /____/g;
+
+function suppliedContentToken(req) {
+  const authHeader = req.get('Authorization') || '';
+  const bearer = /^Bearer\s+(.+)$/i.exec(authHeader);
+  if (bearer) return bearer[1].trim();
+  const header = req.get('X-Api-Token');
+  return header ? header.trim() : null;
+}
+
+function requireContentToken(req, res, next) {
+  const { token } = config.contentApi;
+  // Feature off → hide the route entirely (mirror denyAdmin's 404).
+  if (!token) {
+    res.status(404).json({ error: 'Not found' });
+    return;
+  }
+  // Feature on but wrong/absent token → 401, a clear signal to the machine
+  // client (distinct from the 404 "route doesn't exist").
+  if (suppliedContentToken(req) !== token) {
+    res.status(401).json({ error: 'Unauthorized' });
+    return;
+  }
+  next();
+}
+
+function containsDenyListed(text) {
+  const lower = String(text).toLowerCase();
+  return CONTENT_DENY_LIST.some((term) => lower.includes(term));
+}
+
+// Validate a single submitted candidate against a resolved pack. Returns either
+// `{ ok: true, row }` (a normalized insert row) or `{ ok: false, reason }`.
+function validateCandidate(card, pack) {
+  if (!card || typeof card !== 'object') return { ok: false, reason: 'not an object' };
+  const { kind, text } = card;
+  if (kind !== 'prompt' && kind !== 'answer') return { ok: false, reason: 'invalid kind' };
+  if (typeof text !== 'string' || text.trim() === '') return { ok: false, reason: 'empty text' };
+  if (containsDenyListed(text)) return { ok: false, reason: 'content policy' };
+
+  const maturity = Number(card.maturity_rating);
+  if (!Number.isInteger(maturity) || maturity < 0 || maturity > 3) {
+    return { ok: false, reason: 'invalid maturity_rating' };
+  }
+  if (maturity > pack.maturity_max) {
+    return { ok: false, reason: 'maturity_rating exceeds pack ceiling' };
+  }
+
+  let blanks = Number(card.blanks);
+  if (kind === 'prompt') {
+    const markerCount = (text.match(BLANK_MARKER) || []).length;
+    if (markerCount === 0) return { ok: false, reason: 'prompt missing ____ blank' };
+    if (!Number.isInteger(blanks) || blanks !== markerCount) {
+      return { ok: false, reason: 'blanks does not match marker count' };
+    }
+  } else {
+    // Answer cards carry no blank; default to 0 when unspecified.
+    if (card.blanks == null) blanks = 0;
+    if (!Number.isInteger(blanks) || blanks < 0) return { ok: false, reason: 'invalid blanks' };
+  }
+
+  return {
+    ok: true,
+    row: {
+      game_id: pack.game_id,
+      kind,
+      text,
+      blanks,
+      maturity_rating: maturity,
+      pack_id: pack.id,
+    },
+  };
+}
+
+// POST — submit a batch of generated candidates. Each lands `pending` (a human
+// approves later). Per-item validation + dedupe: bad items are rejected, exact
+// (pack_id, text) duplicates (across ALL statuses incl. denied) are skipped, the
+// rest are inserted.
+app.post('/api/content/cards', requireContentToken, async (req, res) => {
+  const { cards } = req.body || {};
+  if (!Array.isArray(cards)) {
+    return res.status(400).json({ error: 'cards must be an array' });
+  }
+  if (cards.length > config.contentApi.maxBatch) {
+    return res.status(400).json({ error: `batch exceeds maxBatch (${config.contentApi.maxBatch})` });
+  }
+
+  try {
+    const packCache = new Map(); // slug -> pack row | null (miss)
+    const existingCache = new Map(); // pack_id -> Set(normalized text)
+    const rejected = [];
+    const survivors = [];
+    let skipped = 0;
+
+    // Resolve the pack for this item (slug → row), caching lookups.
+    const resolvePack = async (slug) => {
+      if (packCache.has(slug)) return packCache.get(slug);
+      const pack = slug ? await PackRepository.getBySlug(slug) : null;
+      packCache.set(slug, pack || null);
+      return pack || null;
+    };
+
+    for (let i = 0; i < cards.length; i += 1) {
+      const card = cards[i];
+      const slug = card && card.pack;
+      // eslint-disable-next-line no-await-in-loop
+      const pack = await resolvePack(slug);
+      if (!pack) {
+        rejected.push({ index: i, reason: 'unknown pack' });
+        // eslint-disable-next-line no-continue
+        continue;
+      }
+
+      const result = validateCandidate(card, pack);
+      if (!result.ok) {
+        rejected.push({ index: i, reason: result.reason });
+        // eslint-disable-next-line no-continue
+        continue;
+      }
+
+      // Dedupe on (pack_id, text) across every status (incl. denied) so denied
+      // content can't re-flood the queue.
+      if (!existingCache.has(pack.id)) {
+        // eslint-disable-next-line no-await-in-loop
+        existingCache.set(pack.id, await ContentCardRepository.existingTextsForPack(pack.id));
+      }
+      const existing = existingCache.get(pack.id);
+      const normalized = ContentCardRepository.normalizeText(result.row.text);
+      // Also dedupe within this same batch.
+      if (existing.has(normalized)) {
+        skipped += 1;
+        // eslint-disable-next-line no-continue
+        continue;
+      }
+      existing.add(normalized);
+      survivors.push(result.row);
+    }
+
+    const created = await ContentCardRepository.insertPending(survivors);
+    return res.status(201).json({ created, skipped, rejected });
+  } catch (error) {
+    console.error('Failed to ingest content cards:', error);
+    return res.status(500).json({ error: 'Failed to ingest content cards' });
+  }
+});
+
+// GET — the agent's dedupe corpus (and the review UI's data source). Machine
+// token; the server-rendered admin page reads the repository directly.
+app.get('/api/content/cards', requireContentToken, async (req, res) => {
+  try {
+    const status = typeof req.query.status === 'string' ? req.query.status : undefined;
+    const kind = typeof req.query.kind === 'string' ? req.query.kind : undefined;
+    const requested = Number.parseInt(req.query.limit, 10);
+    const limit = Number.isFinite(requested)
+      ? Math.min(Math.max(requested, 1), config.contentApi.maxBatch * 10)
+      : 100;
+    const list = await ContentCardRepository.list({ status, kind, limit });
+    return res.json({ cards: list });
+  } catch (error) {
+    console.error('Failed to list content cards:', error);
+    return res.status(500).json({ error: 'Failed to list content cards' });
+  }
+});
+
+// PATCH — approve/deny. HUMAN gate: rides on `requireAdmin`, NOT the content
+// token, so the agent can never publish its own submissions (S2).
+app.patch('/api/content/cards/:id', requireAdmin, async (req, res) => {
+  const id = Number(req.params.id);
+  if (!Number.isInteger(id) || id <= 0) {
+    return res.status(400).json({ error: 'Invalid card id' });
+  }
+  const { status, denied_reason: deniedReason } = req.body || {};
+  if (status !== 'approved' && status !== 'denied') {
+    return res.status(400).json({ error: 'status must be approved or denied' });
+  }
+  try {
+    const reviewedBy = suppliedAdminToken(req) ? 'admin' : null;
+    const updated = await ContentCardRepository.setStatus(id, {
+      status,
+      reviewed_by: reviewedBy,
+      denied_reason: deniedReason,
+    });
+    if (updated === 0) {
+      return res.status(404).json({ error: 'Card not found' });
+    }
+    return res.json({ id, status });
+  } catch (error) {
+    console.error('Failed to review content card:', error);
+    return res.status(500).json({ error: 'Failed to review content card' });
+  }
+});
+
+// DELETE — hard-delete, but only while still pending (approved/denied rows carry
+// history/dedupe weight). 409 otherwise.
+app.delete('/api/content/cards/:id', requireContentToken, async (req, res) => {
+  const id = Number(req.params.id);
+  if (!Number.isInteger(id) || id <= 0) {
+    return res.status(400).json({ error: 'Invalid card id' });
+  }
+  try {
+    const deleted = await ContentCardRepository.deletePending(id);
+    if (deleted === 0) {
+      return res.status(409).json({ error: 'Only pending cards can be deleted' });
+    }
+    return res.json({ id, deleted: true });
+  } catch (error) {
+    console.error('Failed to delete content card:', error);
+    return res.status(500).json({ error: 'Failed to delete content card' });
+  }
+});
+
+// F3 — content review dashboard: the pending queue plus today's approve/deny
+// counts. Server-rendered like /admin/feedback; the page carries the admin
+// token so its approve/deny buttons can PATCH the content API themselves.
+app.get('/admin/content', requireAdmin, async (req, res) => {
+  try {
+    const pending = await ContentCardRepository.list({ status: 'pending', limit: 100 });
+
+    // Resolve pack_id -> pack name for display (pending cards may span games).
+    const gameIds = [...new Set(pending.map((c) => c.game_id))];
+    const packLists = await Promise.all(
+      gameIds.map((gameId) => PackRepository.listByGame(gameId, { publishedOnly: false })),
+    );
+    const packNameById = new Map();
+    packLists.flat().forEach((pack) => packNameById.set(pack.id, pack.name));
+    const cards = pending.map((c) => ({ ...c, packName: packNameById.get(c.pack_id) || null }));
+
+    const startOfDay = new Date();
+    startOfDay.setHours(0, 0, 0, 0);
+    const [pendingCount, approvedToday, deniedToday] = await Promise.all([
+      ContentCardRepository.countByStatus('pending'),
+      ContentCardRepository.countByStatus('approved', { since: startOfDay }),
+      ContentCardRepository.countByStatus('denied', { since: startOfDay }),
+    ]);
+
+    res.render('admin/content', {
+      title: 'unholy.cards — Content Review',
+      adminToken: typeof req.query.token === 'string' ? req.query.token : '',
+      cards,
+      counts: { pending: pendingCount, approvedToday, deniedToday },
+    });
+  } catch (error) {
+    console.error('Failed to load content review dashboard:', error);
+    res.status(500).render('error', { message: 'Failed to load content review dashboard' });
   }
 });
 
