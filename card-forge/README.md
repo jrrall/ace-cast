@@ -92,8 +92,13 @@ full list. Key secrets:
 
 ## Feed sources, ToS, and safety
 
-Trendscout fetches **only** the URLs in `FEED_ALLOWLIST` (MVP default: one
-subreddit JSON feed + one news RSS). Arbitrary scraped URLs are never used.
+Trendscout fetches **only** the URLs in `FEED_ALLOWLIST` (default: Know Your
+Meme + BBC News RSS). Arbitrary scraped URLs are never used.
+
+Reddit is not in the default list and cannot easily be: it returns an HTML
+interstitial (403) to unauthenticated clients on both `.json` and `.rss`, no
+matter what User-Agent is sent — only a signed-in browser receives data. Use
+Reddit's OAuth API if you want it as a source.
 
 **You are responsible for the Terms of Service and legality of every feed source
 you configure.** Reddit and news outlets have their own API/usage terms; review

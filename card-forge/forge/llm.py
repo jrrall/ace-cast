@@ -9,11 +9,15 @@ that a test can mock with one line.
 from __future__ import annotations
 
 import json
+import time
 from typing import Any
 
 from openai import OpenAI
 
 from .config import Settings
+from .logging_setup import get_logger
+
+LOG = get_logger("forge.llm")
 
 
 class LLMError(RuntimeError):
@@ -60,6 +64,9 @@ class LLMClient:
             base_url=settings.llm_base_url.rstrip("/") + "/v1",
             api_key=settings.llm_api_key or "not-set",
             timeout=settings.llm_timeout,
+            # Explicit, because the SDK default of 2 is invisible: a stuck call
+            # costs (1 + max_retries) * llm_timeout before it ever raises.
+            max_retries=settings.llm_max_retries,
         )
 
     def complete_json(self, *, system: str, user: str, temperature: float = 0.8) -> Any:
@@ -68,6 +75,7 @@ class LLMClient:
         Raises ``LLMError`` on transport failure or unparseable output so the
         pipeline can fail closed.
         """
+        started = time.monotonic()
         try:
             resp = self._client.chat.completions.create(
                 model=self.model,
@@ -79,7 +87,26 @@ class LLMClient:
                 response_format={"type": "json_object"},
             )
         except Exception as exc:  # noqa: BLE001 - normalise all transport errors
+            # Log before raising: a persona that makes several calls would
+            # otherwise fail with no record of how long it waited or how far it
+            # got. `elapsed` covers every SDK-internal retry.
+            LOG.error(
+                "llm.call_failed",
+                extra={"extra_fields": {
+                    "model": self.model,
+                    "elapsed_s": round(time.monotonic() - started, 1),
+                    "max_retries": self.settings.llm_max_retries,
+                    "error": str(exc),
+                }},
+            )
             raise LLMError(f"LLM request failed: {exc}") from exc
+        LOG.info(
+            "llm.call",
+            extra={"extra_fields": {
+                "model": self.model,
+                "elapsed_s": round(time.monotonic() - started, 1),
+            }},
+        )
         try:
             content = resp.choices[0].message.content
         except (AttributeError, IndexError) as exc:

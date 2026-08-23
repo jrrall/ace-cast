@@ -24,9 +24,19 @@ class Settings(BaseSettings):
     llm_base_url: str = Field(default="https://llm.otix.ai", alias="LLM_BASE_URL")
     llm_api_key: str = Field(default="", alias="LLM_API_KEY")
     llm_model: str = Field(default="gpt-4o-mini", alias="LLM_MODEL")
-    # Reasoning models (e.g. abliterated Qwen) think before answering, so a
-    # per-call budget well above 60s is needed; cold model-loads need even more.
-    llm_timeout: float = Field(default=180.0, alias="LLM_TIMEOUT")
+    # Capped just under the gateway's Cloudflare edge, which returns 524 if the
+    # origin has not answered within 120s. A client timeout above that is dead
+    # time: the connection is already gone, and we would sit waiting for a
+    # response Cloudflare abandoned. Reasoning models still need well over the
+    # SDK's default, so this is the usable ceiling, not a comfortable budget --
+    # if calls routinely 524, the fix is a faster model or a longer edge
+    # timeout, not a bigger number here.
+    llm_timeout: float = Field(default=115.0, alias="LLM_TIMEOUT")
+    # The OpenAI SDK retries twice by DEFAULT, silently. Against a flaky gateway
+    # that turns one stuck call into 3 x llm_timeout with nothing in the log --
+    # a run can burn most of an hour looking like it is simply thinking. Pin it
+    # low and log every attempt instead.
+    llm_max_retries: int = Field(default=1, alias="LLM_MAX_RETRIES")
 
     # --- Content API (ace-cast) ------------------------------------------------
     content_api_url: str = Field(
@@ -49,9 +59,12 @@ class Settings(BaseSettings):
     # Comma-separated list of fully-qualified feed URLs. Only these are fetched;
     # arbitrary scraped URLs are never used. Feed content is treated as untrusted
     # DATA, never as instructions. Operator is responsible for each source's ToS.
+    # Reddit is deliberately NOT here: it serves an HTML interstitial (403) to
+    # unauthenticated clients on both .json and .rss, regardless of User-Agent.
+    # Only a logged-in browser gets data. Use their OAuth API if you want Reddit.
     feed_allowlist: str = Field(
         default=(
-            "https://www.reddit.com/r/memes/top.json?t=day&limit=25,"
+            "https://knowyourmeme.com/newsfeed.rss,"
             "https://feeds.bbci.co.uk/news/rss.xml"
         ),
         alias="FEED_ALLOWLIST",
