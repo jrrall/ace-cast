@@ -62,6 +62,7 @@ existing_env() { [ -f "$ENV_FILE" ] && sed -n "s/^$1=//p" "$ENV_FILE" | head -1 
 keep_or_gen() { local cur; cur="$(existing_env "$1")"; if [ -n "$cur" ]; then printf '%s' "$cur"; else openssl rand -hex 32; fi; }
 
 ADMIN_TOKEN_V="$(keep_or_gen ADMIN_TOKEN)"
+CONTENT_API_TOKEN_V="$(keep_or_gen CONTENT_API_TOKEN)"
 AUTH_SESSION_SECRET_V="$(keep_or_gen AUTH_SESSION_SECRET)"
 AUTHELIA_JWT_SECRET_V="$(keep_or_gen AUTHELIA_JWT_SECRET)"
 AUTHELIA_SESSION_SECRET_V="$(keep_or_gen AUTHELIA_SESSION_SECRET)"
@@ -70,8 +71,13 @@ AUTHELIA_STORAGE_ENCRYPTION_KEY_V="$(keep_or_gen AUTHELIA_STORAGE_ENCRYPTION_KEY
 cat > "$ENV_FILE" <<EOF
 SITE_ADDRESS=$DOMAIN
 PUBLIC_URL=https://$DOMAIN
-# F3 feedback dashboard admin gate (single shared token): /admin/feedback?token=...
+# F3 admin dashboard gate (single shared token): /admin/feedback?token=... and
+# /admin/content?token=... (the Card Forge review queue).
 ADMIN_TOKEN=$ADMIN_TOKEN_V
+# F2 Card Forge — system token the standalone agent uses to POST candidate cards
+# to /api/content/cards. Distinct from ADMIN_TOKEN so the robot cannot drive the
+# human dashboards, and so the two rotate independently.
+CONTENT_API_TOKEN=$CONTENT_API_TOKEN_V
 # E4 accounts — app session + Authelia secrets. Never commit this file.
 AUTH_SESSION_SECRET=$AUTH_SESSION_SECRET_V
 AUTHELIA_JWT_SECRET=$AUTHELIA_JWT_SECRET_V
@@ -138,6 +144,10 @@ Ace Cast bootstrapped.
   Logs   : cd $APP_DIR/deploy/linode && docker compose -f docker-compose.sqlite.yml logs -f
 
   Feedback dashboard : https://$DOMAIN/admin/feedback?token=$ADMIN_TOKEN_V
+  Card review queue  : https://$DOMAIN/admin/content?token=$ADMIN_TOKEN_V
+  Card Forge agent   : put these in card-forge/.env on whichever box runs the agent
+                         CONTENT_API_URL=https://$DOMAIN
+                         CONTENT_API_TOKEN=$CONTENT_API_TOKEN_V
 Caddy fetches the TLS cert on first request once DNS resolves; give it a minute.
 EOF
 
