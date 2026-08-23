@@ -29,6 +29,13 @@ services:
       # Authelia (safe only because TRUST_PROXY is true and /account* is proxied).
       AUTH_PROVIDER: "forward"
       AUTH_SESSION_SECRET: ${AUTH_SESSION_SECRET:?set AUTH_SESSION_SECRET in .env}
+      # F3 admin dashboards (/admin/feedback, /admin/content) — bootstrap.sh always
+      # mints this into .env. Required, because an unset token makes every admin
+      # route 404 with no other symptom.
+      ADMIN_TOKEN: ${ADMIN_TOKEN:?set ADMIN_TOKEN in .env}
+      # F2 Card Forge content API. Optional: leave unset to run without the agent,
+      # and /api/content/* stays 404 (fail-closed, no open write surface).
+      CONTENT_API_TOKEN: ${CONTENT_API_TOKEN:-}
     volumes:
       # The database lives here — this is what makes data durable across redeploys.
       - acecast_data:/app/data

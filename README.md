@@ -86,6 +86,9 @@ ace-cast/
 │   ├── game_manager.test.js
 │   ├── game_room.test.js
 │   └── test_game.test.js
+├── card-forge/            # Card Forge — standalone Python card-generation agent
+│   ├── forge/            # 5-persona chain + litellm client (its own venv, uv)
+│   └── tests/            # pytest suite (not run by `npm test`)
 ├── .eslintrc.js          # ESLint configuration (Airbnb style)
 ├── jest.config.js        # Jest testing configuration
 └── package.json          # Dependencies and scripts
@@ -276,6 +279,52 @@ describe('MyNewGame', () => {
   // ... more tests
 });
 ```
+
+## 🃏 Card Forge (generated cards)
+
+`card-forge/` is a standalone Python agent that drafts new Mad Lad cards and
+submits them for human review. It is a separate project with its own `uv` venv —
+`npm test` does not run it, and the game server does not import it. The agent
+talks to the game **only** over HTTP.
+
+The chain is five personas: Trendscout (fetches an allowlisted feed) → Writer →
+Editor → Moderator (assigns maturity) → Curator (dedupes against the live
+corpus), which POSTs a batch to `/api/content/cards`. Cards land as `status:
+pending` in the `madlad-generated` pack and reach gameplay only after a human
+approves them at `/admin/content` — `listForDeck` filters on `status = approved`.
+
+```bash
+cd card-forge
+cp .env.example .env         # set LLM_* and CONTENT_API_* secrets
+uv run pytest                # unit tests (mocked LLM)
+uv run python forge.py --dry-run   # run the chain, print the batch, submit nothing
+uv run python forge.py       # real run: submits pending cards
+```
+
+Runs are **manual for now** — invoked from a workstation against the live game,
+with every card still gated behind human approval. Feed text is treated as
+untrusted **data**, never instructions. Any stage failure exits non-zero and
+submits nothing (a single dead feed source is survivable — the run continues on
+whatever else responds).
+
+### Service tokens
+
+Machine callers authenticate with named, revocable **service tokens** rather than
+one shared secret, so each agent can be rotated, revoked, and attributed on its
+own:
+
+```bash
+npm run token:create -- --client card-forge-prod   # printed ONCE; only its sha256 is stored
+npm run token:list                                 # client, scopes, last_used_at
+npm run token:revoke -- --client card-forge-prod   # takes effect immediately
+```
+
+Scopes are `content:read` (the dedupe corpus) and `content:write` (submit and
+delete). A valid token missing the scope gets **403**; an unrecognised one gets
+**401**; and when no token is live and no legacy secret is set the routes return
+**404**, so the API never advertises its own existence. The human review UI at
+`/admin/content` is gated separately by `ADMIN_TOKEN` — a service token cannot
+approve cards, which is what stops the agent publishing its own output.
 
 ## 🚀 Deployment
 

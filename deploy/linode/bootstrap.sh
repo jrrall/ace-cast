@@ -62,6 +62,7 @@ existing_env() { [ -f "$ENV_FILE" ] && sed -n "s/^$1=//p" "$ENV_FILE" | head -1 
 keep_or_gen() { local cur; cur="$(existing_env "$1")"; if [ -n "$cur" ]; then printf '%s' "$cur"; else openssl rand -hex 32; fi; }
 
 ADMIN_TOKEN_V="$(keep_or_gen ADMIN_TOKEN)"
+CONTENT_API_TOKEN_V="$(keep_or_gen CONTENT_API_TOKEN)"
 AUTH_SESSION_SECRET_V="$(keep_or_gen AUTH_SESSION_SECRET)"
 AUTHELIA_JWT_SECRET_V="$(keep_or_gen AUTHELIA_JWT_SECRET)"
 AUTHELIA_SESSION_SECRET_V="$(keep_or_gen AUTHELIA_SESSION_SECRET)"
@@ -70,8 +71,13 @@ AUTHELIA_STORAGE_ENCRYPTION_KEY_V="$(keep_or_gen AUTHELIA_STORAGE_ENCRYPTION_KEY
 cat > "$ENV_FILE" <<EOF
 SITE_ADDRESS=$DOMAIN
 PUBLIC_URL=https://$DOMAIN
-# F3 feedback dashboard admin gate (single shared token): /admin/feedback?token=...
+# F3 admin dashboard gate (single shared token): /admin/feedback?token=... and
+# /admin/content?token=... (the Card Forge review queue).
 ADMIN_TOKEN=$ADMIN_TOKEN_V
+# F2 Card Forge — system token the standalone agent uses to POST candidate cards
+# to /api/content/cards. Distinct from ADMIN_TOKEN so the robot cannot drive the
+# human dashboards, and so the two rotate independently.
+CONTENT_API_TOKEN=$CONTENT_API_TOKEN_V
 # E4 accounts — app session + Authelia secrets. Never commit this file.
 AUTH_SESSION_SECRET=$AUTH_SESSION_SECRET_V
 AUTHELIA_JWT_SECRET=$AUTHELIA_JWT_SECRET_V
@@ -130,6 +136,30 @@ for _ in $(seq 1 30); do
   sleep 2
 done
 
+# F2 Card Forge — mint a named service token for the agent. Preferred over the
+# shared CONTENT_API_TOKEN above: it is scoped, revocable on its own, and
+# identifies the caller. Idempotent — a re-run leaves an existing one alone,
+# because the plaintext cannot be recovered and re-minting would silently
+# invalidate the agent's configured credential.
+# Names the CALLER, not this box — the agent runs on a workstation for now.
+FORGE_CLIENT="${FORGE_CLIENT:-card-forge}"
+FORGE_TOKEN=""
+FORGE_NOTE=""
+if docker compose -f docker-compose.sqlite.yml exec -T app \
+     npm run --silent token:list 2>/dev/null | grep -q "^${FORGE_CLIENT}[[:space:]]*active"; then
+  log "service token '$FORGE_CLIENT' already exists — left untouched"
+  FORGE_NOTE="already exists (re-mint with: token:revoke then token:create)"
+else
+  log "minting service token '$FORGE_CLIENT'"
+  FORGE_TOKEN="$(docker compose -f docker-compose.sqlite.yml exec -T app \
+    npm run --silent token:create -- --client "$FORGE_CLIENT" 2>/dev/null \
+    | sed -n 's/.*token *: *\(ct_live_[A-Za-z0-9_-]*\).*/\1/p' | head -1)"
+  if [ -z "$FORGE_TOKEN" ]; then
+    FORGE_NOTE="could not mint (app not ready?) — fall back to CONTENT_API_TOKEN above"
+    log "!! $FORGE_NOTE"
+  fi
+fi
+
 cat <<EOF
 
 Ace Cast bootstrapped.
@@ -138,6 +168,14 @@ Ace Cast bootstrapped.
   Logs   : cd $APP_DIR/deploy/linode && docker compose -f docker-compose.sqlite.yml logs -f
 
   Feedback dashboard : https://$DOMAIN/admin/feedback?token=$ADMIN_TOKEN_V
+  Card review queue  : https://$DOMAIN/admin/content?token=$ADMIN_TOKEN_V
+  Card Forge agent   : put these in card-forge/.env wherever you run the agent
+                       (a workstation, for now — runs are manual)
+                         CONTENT_API_URL=https://$DOMAIN
+                         CONTENT_API_TOKEN=${FORGE_TOKEN:-<$FORGE_NOTE>}
+                       Revoke it any time without touching other clients:
+                         docker compose -f docker-compose.sqlite.yml exec app \\
+                           npm run token:revoke -- --client $FORGE_CLIENT
 Caddy fetches the TLS cert on first request once DNS resolves; give it a minute.
 EOF
 

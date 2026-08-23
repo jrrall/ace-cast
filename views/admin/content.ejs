@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title><%= title %></title>
+    <link rel="stylesheet" href="/css/theme.css">
+    <link rel="stylesheet" href="/css/admin.css">
+</head>
+<body data-admin-token="<%= adminToken %>">
+    <div class="container">
+        <header>
+            <h1>🃏 unholy.cards</h1>
+            <p>Content review (F3) — Card Forge candidates awaiting approval, internal, admin-gated.</p>
+        </header>
+
+        <main>
+            <section class="panel">
+                <h2>Today</h2>
+                <ul class="thresholds">
+                    <li>Pending review: <strong><%= counts.pending %></strong></li>
+                    <li>Approved today: <strong><%= counts.approvedToday %></strong></li>
+                    <li>Denied today: <strong><%= counts.deniedToday %></strong></li>
+                </ul>
+            </section>
+
+            <section class="panel">
+                <h2>Pending (<%= cards.length %>)</h2>
+                <% if (cards.length === 0) { %>
+                    <p class="help-text">No candidates waiting for review.</p>
+                <% } else { %>
+                <div class="bulk-actions">
+                    <button type="button" class="secondary-btn" data-bulk-action="approve-all">Approve all</button>
+                    <button type="button" class="secondary-btn" data-bulk-action="deny-all">Deny all</button>
+                </div>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Kind</th><th>Text</th><th>Maturity</th><th>Source</th><th>Pack</th><th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <% cards.forEach(function (c) { %>
+                        <tr data-card-row="<%= c.id %>">
+                            <td><%= c.kind %></td>
+                            <td><%= c.text %></td>
+                            <td><%= c.maturity_rating %></td>
+                            <td><%= c.source %></td>
+                            <td><%= c.packName || '—' %></td>
+                            <td>
+                                <button type="button" class="secondary-btn approve-btn" data-action="approve" data-card-id="<%= c.id %>">Approve</button>
+                                <button type="button" class="secondary-btn deny-btn" data-action="deny" data-card-id="<%= c.id %>">Deny</button>
+                            </td>
+                        </tr>
+                        <% }); %>
+                    </tbody>
+                </table>
+                <% } %>
+            </section>
+        </main>
+    </div>
+
+    <script src="/js/admin-content.js"></script>
+</body>
+</html>

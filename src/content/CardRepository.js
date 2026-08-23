@@ -7,7 +7,9 @@ const { db } = require('../db');
 /**
  * Load cards for building a deck: a game's cards within the selected packs,
  * filtered to a maturity ceiling. Retired cards (F4) are excluded — retirement
- * is a soft flag, not a delete, so their history stays intact elsewhere.
+ * is a soft flag, not a delete, so their history stays intact elsewhere. Only
+ * `approved` cards reach a deck (F1, Card Forge): `pending`/`denied` generated
+ * content is quarantined here, at the single deck-eligibility boundary.
  * @param {{ gameId: string, packIds: number[], maturityMax?: number }} params
  * @returns {Promise<Array<{id:number, kind:string, text:string, blanks:number}>>}
  */
@@ -17,6 +19,7 @@ function listForDeck({ gameId, packIds = [], maturityMax = 3 }) {
     .whereIn('pack_id', packIds)
     .andWhere('maturity_rating', '<=', maturityMax)
     .whereNull('retired_at')
+    .andWhere('status', 'approved')
     .select('id', 'kind', 'text', 'blanks');
 }
 

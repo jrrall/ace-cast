@@ -110,6 +110,23 @@ const config = {
     token: process.env.ADMIN_TOKEN || null,
   },
 
+  // F2 (Card Forge) — content ingestion API for the standalone LLM agent.
+  //
+  // `token` is the LEGACY shared secret. Prefer per-client service tokens
+  // (`npm run token:create`, see ServiceTokenRepository): those are named,
+  // scoped, individually revocable, and attributable, where this one grants
+  // everything to everyone and identifies nobody. It is kept working so an
+  // existing deployment keeps submitting across the upgrade.
+  //
+  // The content API is OFF — routes 404 rather than exposing an always-open
+  // write surface — only when this is unset AND no active service token
+  // exists. `maxBatch` caps how many cards one POST may submit, bounding
+  // per-request damage from a buggy or runaway agent.
+  contentApi: {
+    token: process.env.CONTENT_API_TOKEN || null,
+    maxBatch: toInt(process.env.CONTENT_MAX_BATCH, 50),
+  },
+
   // F4 — performance model / retirement thresholds. Conservative defaults;
   // tune with real playtest data. `minPlays` is also the F3 "insufficient
   // data" floor for ranking a card's win-rate.
