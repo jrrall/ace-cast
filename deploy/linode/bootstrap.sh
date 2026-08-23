@@ -136,6 +136,29 @@ for _ in $(seq 1 30); do
   sleep 2
 done
 
+# F2 Card Forge — mint a named service token for the agent. Preferred over the
+# shared CONTENT_API_TOKEN above: it is scoped, revocable on its own, and
+# identifies the caller. Idempotent — a re-run leaves an existing one alone,
+# because the plaintext cannot be recovered and re-minting would silently
+# invalidate the agent's configured credential.
+FORGE_CLIENT="${FORGE_CLIENT:-card-forge-prod}"
+FORGE_TOKEN=""
+FORGE_NOTE=""
+if docker compose -f docker-compose.sqlite.yml exec -T app \
+     npm run --silent token:list 2>/dev/null | grep -q "^${FORGE_CLIENT}[[:space:]]*active"; then
+  log "service token '$FORGE_CLIENT' already exists — left untouched"
+  FORGE_NOTE="already exists (re-mint with: token:revoke then token:create)"
+else
+  log "minting service token '$FORGE_CLIENT'"
+  FORGE_TOKEN="$(docker compose -f docker-compose.sqlite.yml exec -T app \
+    npm run --silent token:create -- --client "$FORGE_CLIENT" 2>/dev/null \
+    | sed -n 's/.*token *: *\(ct_live_[A-Za-z0-9_-]*\).*/\1/p' | head -1)"
+  if [ -z "$FORGE_TOKEN" ]; then
+    FORGE_NOTE="could not mint (app not ready?) — fall back to CONTENT_API_TOKEN above"
+    log "!! $FORGE_NOTE"
+  fi
+fi
+
 cat <<EOF
 
 Ace Cast bootstrapped.
@@ -145,14 +168,12 @@ Ace Cast bootstrapped.
 
   Feedback dashboard : https://$DOMAIN/admin/feedback?token=$ADMIN_TOKEN_V
   Card review queue  : https://$DOMAIN/admin/content?token=$ADMIN_TOKEN_V
-  Card Forge agent   : mint a named, revocable token for each agent instead of
-                       sharing the secret below:
+  Card Forge agent   : put these in card-forge/.env on whichever box runs it
+                         CONTENT_API_URL=https://$DOMAIN
+                         CONTENT_API_TOKEN=${FORGE_TOKEN:-<$FORGE_NOTE>}
+                       Revoke it any time without touching other clients:
                          docker compose -f docker-compose.sqlite.yml exec app \\
-                           npm run token:create -- --client card-forge-prod
-                       then put it in card-forge/.env as CONTENT_API_TOKEN,
-                       alongside CONTENT_API_URL=https://$DOMAIN
-                       (the shared CONTENT_API_TOKEN below still works, but
-                        grants every scope and identifies no caller)
+                           npm run token:revoke -- --client $FORGE_CLIENT
 Caddy fetches the TLS cert on first request once DNS resolves; give it a minute.
 EOF
 

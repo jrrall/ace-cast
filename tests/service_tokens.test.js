@@ -174,10 +174,37 @@ describe('Service tokens (content API machine auth)', () => {
   });
 
   describe('client_id uniqueness', () => {
-    test('re-minting for a live client_id is rejected', async () => {
+    test('re-minting for a LIVE client_id is rejected', async () => {
       await ServiceTokenRepository.create({ clientId: 'unique-client' });
       await expect(ServiceTokenRepository.create({ clientId: 'unique-client' }))
         .rejects.toThrow();
+    });
+
+    test('rotation works: revoke then re-mint the SAME client_id', async () => {
+      // Retaining revoked rows for attribution must not block rotation --
+      // a plain UNIQUE(client_id) would, and rotation is the whole point of
+      // having revocable credentials.
+      const first = await ServiceTokenRepository.create({ clientId: 'rotating-client' });
+      await ServiceTokenRepository.revoke('rotating-client');
+
+      const second = await ServiceTokenRepository.create({ clientId: 'rotating-client' });
+      expect(second.token).not.toBe(first.token);
+
+      // The new credential works, the old one is dead, and both rows survive.
+      const live = await request(app)
+        .get('/api/content/cards')
+        .set('Authorization', `Bearer ${second.token}`);
+      expect(live.status).toBe(200);
+
+      const dead = await request(app)
+        .get('/api/content/cards')
+        .set('Authorization', `Bearer ${first.token}`);
+      expect(dead.status).toBe(401);
+
+      const rows = (await ServiceTokenRepository.list())
+        .filter((r) => r.client_id === 'rotating-client');
+      expect(rows).toHaveLength(2);
+      expect(rows.filter((r) => !r.revoked_at)).toHaveLength(1);
     });
   });
 });

@@ -13,14 +13,20 @@
  *
  * `revoked_at` is a soft delete on purpose: a revoked row keeps its client_id
  * so an audit of past submissions can still resolve who sent what.
+ *
+ * Because of that retention, `client_id` is unique only among LIVE rows — a
+ * plain unique constraint would make rotation impossible, since rotating means
+ * revoking `card-forge-prod` and immediately minting `card-forge-prod` again.
+ * A partial unique index gives both: one active credential per client, and an
+ * unlimited history of revoked ones. SQLite and Postgres both support it.
  */
 
 exports.up = async (knex) => {
   await knex.schema.createTable('service_tokens', (t) => {
     t.increments('id').primary();
     // Stable, human-meaningful identity for the caller, e.g. 'card-forge-prod'.
-    t.string('client_id').notNullable()
-      .unique();
+    // Uniqueness is enforced by the partial index below, NOT here.
+    t.string('client_id').notNullable();
     t.string('name').notNullable();
     // SHA-256 hex of the presented token. Unique so a lookup is a single
     // indexed probe rather than a scan-and-compare.
@@ -40,6 +46,14 @@ exports.up = async (knex) => {
     t.timestamp('revoked_at').nullable();
     t.index(['token_hash'], 'idx_service_tokens_hash');
   });
+
+  // One LIVE credential per client, unlimited revoked history. Knex's schema
+  // builder has no partial-index form, so this is raw — the syntax below is
+  // accepted by both SQLite and Postgres.
+  await knex.schema.raw(
+    'CREATE UNIQUE INDEX idx_service_tokens_client_active '
+    + 'ON service_tokens (client_id) WHERE revoked_at IS NULL',
+  );
 };
 
 exports.down = async (knex) => {
