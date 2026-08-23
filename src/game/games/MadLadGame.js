@@ -47,8 +47,12 @@ class MadLadGame extends BaseGame {
       targetScore: options.targetScore || DEFAULT_TARGET_SCORE,
       handSize: HAND_SIZE,
       blackCard: null,
+      // The Card Czar is tracked by STABLE PLAYER ID, never by position.
+      // `seatOrder` is the rotation ring and is append-only, so "who is next"
+      // is derived by walking it from the sitting judge's seat. An index into
+      // the *active* list would silently repoint whenever someone's phone
+      // locked and they dropped out of that list mid-game (#49).
       judgeId: null,
-      judgePointer: 0,
       players: {},
       submissions: [], // [{ id, text, playerId, card }]
       lastWinner: null, // { playerId, playerName, text }
@@ -138,13 +142,20 @@ class MadLadGame extends BaseGame {
     }
 
     if (!isFirst) {
-      this.state.judgePointer = (this.state.judgePointer + 1) % activeIds.length;
+      this.state.judgeId = this.nextJudgeId(this.state.judgeId);
       this.state.round += 1;
     } else {
-      this.state.judgePointer %= activeIds.length;
+      // A restarted round: keep the sitting judge if they can still serve,
+      // otherwise hand off to the next eligible seat. This is the path taken
+      // when the judge themselves departs mid-round.
+      this.state.judgeId = this.canJudge(this.state.judgeId)
+        ? this.state.judgeId
+        : this.nextJudgeId(this.state.judgeId);
     }
 
-    this.state.judgeId = this.chooseJudge(activeIds);
+    // Every remaining seat is a bot (the room is being torn down). Fall back to
+    // any active seat rather than crashing on a null judge.
+    if (!this.state.judgeId) this.state.judgeId = activeIds[0];
 
     // Deal / refill everyone up to a full hand.
     activeIds.forEach((id) => {
@@ -164,22 +175,35 @@ class MadLadGame extends BaseGame {
   }
 
   /**
-   * Pick the Card Czar for the round, skipping bots so a human always judges.
-   * Scans the active ring starting at the current judgePointer and lands on the
-   * first non-bot, updating the pointer to match. If the table is somehow all
-   * bots (every human has left — the room is being torn down), falls back to the
-   * pointer as-is so nothing crashes.
+   * Can this seat take the Card Czar chair right now? Bots answer but never
+   * judge, and a seat whose player is away (phone locked, wifi blip) is skipped
+   * for the round — their seat keeps its place in the ring and they resume
+   * their turn on return.
    */
-  chooseJudge(activeIds) {
-    const n = activeIds.length;
+  canJudge(playerId) {
+    const player = playerId ? this.state.players[playerId] : null;
+    return Boolean(player && player.isActive && !player.isBot);
+  }
+
+  /**
+   * The next eligible Card Czar strictly AFTER `afterId` in the seat ring.
+   *
+   * Walks `seatOrder` — which is append-only and therefore stable — rather than
+   * the active list, which is recomputed every round and shifts under any
+   * departure. Returns null when no seat can judge (an all-bot table).
+   */
+  nextJudgeId(afterId) {
+    const n = this.seatOrder.length;
+    if (n === 0) return null;
+    const seat = this.seatOrder.indexOf(afterId);
+    // No sitting judge yet (first round) or they have left the table entirely:
+    // start the scan at the top of the ring.
+    const start = seat === -1 ? 0 : seat + 1;
     for (let i = 0; i < n; i += 1) {
-      const idx = (this.state.judgePointer + i) % n;
-      if (!this.state.players[activeIds[idx]].isBot) {
-        this.state.judgePointer = idx;
-        return activeIds[idx];
-      }
+      const id = this.seatOrder[(start + i) % n];
+      if (this.canJudge(id)) return id;
     }
-    return activeIds[this.state.judgePointer % n];
+    return null;
   }
 
   maybeAdvanceToJudging() {
@@ -413,15 +437,15 @@ class MadLadGame extends BaseGame {
 
     if (this.state.phase === 'answering') {
       if (playerId === this.state.judgeId) {
-        // Judge bailed mid-round; restart the round with a new judge.
-        this.state.judgePointer %= activeIds.length;
+        // Judge bailed mid-round; restart the round with a new judge. The
+        // departed judge is no longer eligible, so startRound hands the chair
+        // to the next seat in the ring without disturbing anyone else's turn.
         this.startRound(true);
       } else {
         this.maybeAdvanceToJudging();
       }
     } else if (this.state.phase === 'judging' && playerId === this.state.judgeId) {
       // Judge left while judging; restart the round so a new judge decides.
-      this.state.judgePointer %= activeIds.length;
       this.startRound(true);
     }
   }

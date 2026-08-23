@@ -39,7 +39,12 @@ const config = {
     minPlayers: 1,
     // How long a disconnected player's seat (hand + score) is held open for a
     // reconnect before it's given up. Covers phone-lock / wifi-blip / reload.
-    reconnectGraceMs: toInt(process.env.RECONNECT_GRACE_MS, 90 * 1000),
+    //
+    // 5 minutes, not 90s: phones lock after ~30s idle, and a player waiting out
+    // someone else's judging turn has no reason to touch their screen. At 90s a
+    // player who simply set their phone down lost their seat mid-game (#48).
+    // The seat is only *held* — an away player is skipped, never waited on.
+    reconnectGraceMs: toInt(process.env.RECONNECT_GRACE_MS, 5 * 60 * 1000),
     // Fill the table with bots up to this many seats once >= 2 humans join
     // (bots answer; a human is always the Card Czar). Set BOT_TARGET=0 to disable.
     botTargetDefault: toInt(process.env.BOT_TARGET, 4),
