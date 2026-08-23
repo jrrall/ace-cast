@@ -14,6 +14,9 @@ from dataclasses import dataclass
 import httpx
 
 from .config import Settings
+from .logging_setup import get_logger
+
+LOG = get_logger("forge.feeds")
 
 
 class FeedError(RuntimeError):
@@ -70,23 +73,32 @@ def fetch_feed_items(settings: Settings, http: httpx.Client | None = None) -> li
         follow_redirects=True,
     )
     items: list[FeedItem] = []
+    failures: list[str] = []
     try:
         for url in settings.feed_urls:
+            # A single dead source must not sink the run: public feeds rate-limit
+            # (Reddit 403s datacentre IPs) and go down. Record the failure, keep
+            # going, and let the "nothing at all" check below stay fail-closed.
             try:
                 resp = client.get(url)
-            except httpx.HTTPError as exc:
-                raise FeedError(f"fetch failed for {url}: {exc}") from exc
-            if resp.status_code != 200:
-                raise FeedError(f"{url} -> HTTP {resp.status_code}")
-            ctype = resp.headers.get("content-type", "")
-            body_text = resp.text
-            if "json" in ctype or url.rstrip("/").endswith(".json") or ".json?" in url:
-                items.extend(_parse_reddit(resp.json(), source=url))
-            else:
-                items.extend(_parse_rss(body_text, source=url))
+                if resp.status_code != 200:
+                    raise FeedError(f"{url} -> HTTP {resp.status_code}")
+                ctype = resp.headers.get("content-type", "")
+                body_text = resp.text
+                if "json" in ctype or url.rstrip("/").endswith(".json") or ".json?" in url:
+                    items.extend(_parse_reddit(resp.json(), source=url))
+                else:
+                    items.extend(_parse_rss(body_text, source=url))
+            except (httpx.HTTPError, FeedError, ValueError) as exc:
+                LOG.warning(
+                    "feed.source_failed",
+                    extra={"extra_fields": {"url": url, "error": str(exc)}},
+                )
+                failures.append(f"{url}: {exc}")
     finally:
         if owns_client:
             client.close()
     if not items:
-        raise FeedError("no items fetched from any allow-listed source")
+        detail = "; ".join(failures) if failures else "all sources returned zero items"
+        raise FeedError(f"no items fetched from any allow-listed source ({detail})")
     return items
