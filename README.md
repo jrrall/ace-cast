@@ -86,6 +86,9 @@ ace-cast/
 │   ├── game_manager.test.js
 │   ├── game_room.test.js
 │   └── test_game.test.js
+├── card-forge/            # Card Forge — standalone Python card-generation agent
+│   ├── forge/            # 5-persona chain + litellm client (its own venv, uv)
+│   └── tests/            # pytest suite (not run by `npm test`)
 ├── .eslintrc.js          # ESLint configuration (Airbnb style)
 ├── jest.config.js        # Jest testing configuration
 └── package.json          # Dependencies and scripts
@@ -276,6 +279,31 @@ describe('MyNewGame', () => {
   // ... more tests
 });
 ```
+
+## 🃏 Card Forge (generated cards)
+
+`card-forge/` is a standalone Python agent that drafts new Mad Lad cards and
+submits them for human review. It is a separate project with its own `uv` venv —
+`npm test` does not run it, and the game server does not import it. The agent
+talks to the game **only** over HTTP.
+
+The chain is five personas: Trendscout (fetches an allowlisted feed) → Writer →
+Editor → Moderator (assigns maturity) → Curator (dedupes against the live
+corpus), which POSTs a batch to `/api/content/cards`. Cards land as `status:
+pending` in the `madlad-generated` pack and reach gameplay only after a human
+approves them at `/admin/content` — `listForDeck` filters on `status = approved`.
+
+```bash
+cd card-forge
+cp .env.example .env         # set LLM_* and CONTENT_API_* secrets
+uv run pytest                # unit tests (mocked LLM)
+uv run python forge.py --dry-run   # run the chain, print the batch, submit nothing
+uv run python forge.py       # real run: submits pending cards
+```
+
+Feed text is treated as untrusted **data**, never instructions. Any stage failure
+exits non-zero and submits nothing. `crontab.example` has the daily schedule;
+`bootstrap.sh` mints the matching `CONTENT_API_TOKEN` on the game side.
 
 ## 🚀 Deployment
 
