@@ -1,4 +1,4 @@
-"""Command-line entrypoint. Cron-friendly; non-zero exit on any stage failure."""
+"""Command-line entrypoint. Non-zero exit on any stage failure, nothing partial."""
 
 from __future__ import annotations
 

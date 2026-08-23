@@ -1,10 +1,15 @@
 # Card Forge
 
-A standalone, cron-driven, multi-persona LLM agent chain that fetches trends,
-writes MadLad-style cards, self-critiques / moderates / dedupes them, and POSTs
-the survivors as **`pending`** to the [ace-cast](../ace-cast) content API. A human
+A standalone, multi-persona LLM agent chain that fetches trends, writes
+MadLad-style cards, self-critiques / moderates / dedupes them, and POSTs the
+survivors as **`pending`** to the [ace-cast](../ace-cast) content API. A human
 approves ~10–20/day from the game's `/admin/content` review list; only approved
 cards ever reach gameplay.
+
+**Today it is run by hand, from a workstation, against the live game.** There is
+no scheduler: you run it when you want cards, and every card still waits for your
+approval before it can be dealt. Scheduling is a later decision, once the output
+is good enough to trust unattended.
 
 Card Forge is **fully decoupled** from the game. It talks to it over HTTP only —
 never the database, files, or internal modules. The content API is the sole
@@ -57,10 +62,18 @@ uv run python forge.py --dry-run   # run the full chain, print the batch, POST n
 uv run python forge.py             # run and submit pending cards to the content API
 ```
 
-The entrypoint is cron-friendly and **fails closed**: any stage exception →
-non-zero exit and nothing partial is submitted. See `crontab.example` for a daily
-schedule. The run prints a summary line: themes + generated / edited / moderated /
-deduped / assembled / submitted counts.
+Start with `--dry-run` — it exercises the whole chain and every real LLM call,
+but POSTs nothing, so you can judge card quality before anything reaches the
+review queue.
+
+`CONTENT_API_URL` points at the **live game**, so a real run puts real cards in
+the real `/admin/content` queue. They are inert until you approve them, and a
+bad batch is cleaned up by denying it (or `DELETE /api/content/cards/:id`, which
+only works while a card is still `pending`).
+
+The run **fails closed**: any stage exception → non-zero exit and nothing
+partial is submitted. It prints a summary line: themes + generated / edited /
+moderated / deduped / assembled / submitted counts.
 
 ## Configuration
 
@@ -68,9 +81,12 @@ All settings come from the environment (or `.env`). See `.env.example` for the
 full list. Key secrets:
 
 - `LLM_BASE_URL` / `LLM_API_KEY` / `LLM_MODEL` — the OpenAI-compatible gateway.
-- `CONTENT_API_URL` / `CONTENT_API_TOKEN` — the ace-cast content API. The token
-  must match the game's `CONTENT_API_TOKEN` (document it in the game's
-  `deploy/linode/` env alongside `ADMIN_TOKEN`).
+- `CONTENT_API_URL` / `CONTENT_API_TOKEN` — the ace-cast content API.
+  `CONTENT_API_URL` is the live game (e.g. `https://unholy.cards`).
+  `CONTENT_API_TOKEN` should be a **service token** minted on the game side
+  (`npm run token:create -- --client card-forge`), which starts with `ct_live_`
+  and can be revoked on its own without disturbing any other client. The game's
+  legacy shared `CONTENT_API_TOKEN` also still works.
 - `FEED_ALLOWLIST` — comma-separated feed URLs.
 - `PACK_SLUG` / `MATURITY_MAX` — target pack and its maturity ceiling.
 
@@ -100,8 +116,13 @@ and fail-closed behaviour. No test touches the network or the real gateway.
 
 ## Deferrals / follow-ups
 
-- Rate-limiting the POST endpoint is deferred to the server (`maxBatch` bounds
-  per-request size on a trusted machine token).
+- **Scheduling.** Runs are manual for now; `forge.py` already exits non-zero on
+  failure, so it can be scheduled unchanged once the output earns it.
+- Rate-limiting the POST endpoint is deferred (`maxBatch` bounds a single POST
+  to 50 cards, but not the number of POSTs). This matters more now that the
+  endpoint takes writes from the open internet: a leaked service token could
+  flood the review queue. Revoking that token is the mitigation until a limiter
+  exists — `npm run token:revoke -- --client <id>` on the game side.
 - Embedding-based near-dup detection (current dedupe is normalised-text exact
   match, layered under the server's authoritative `(pack_id, text)` dedupe).
 - Multi-source feed expansion beyond the MVP two.

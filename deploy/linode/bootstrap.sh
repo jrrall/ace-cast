@@ -141,7 +141,8 @@ done
 # identifies the caller. Idempotent — a re-run leaves an existing one alone,
 # because the plaintext cannot be recovered and re-minting would silently
 # invalidate the agent's configured credential.
-FORGE_CLIENT="${FORGE_CLIENT:-card-forge-prod}"
+# Names the CALLER, not this box — the agent runs on a workstation for now.
+FORGE_CLIENT="${FORGE_CLIENT:-card-forge}"
 FORGE_TOKEN=""
 FORGE_NOTE=""
 if docker compose -f docker-compose.sqlite.yml exec -T app \
@@ -168,7 +169,8 @@ Ace Cast bootstrapped.
 
   Feedback dashboard : https://$DOMAIN/admin/feedback?token=$ADMIN_TOKEN_V
   Card review queue  : https://$DOMAIN/admin/content?token=$ADMIN_TOKEN_V
-  Card Forge agent   : put these in card-forge/.env on whichever box runs it
+  Card Forge agent   : put these in card-forge/.env wherever you run the agent
+                       (a workstation, for now — runs are manual)
                          CONTENT_API_URL=https://$DOMAIN
                          CONTENT_API_TOKEN=${FORGE_TOKEN:-<$FORGE_NOTE>}
                        Revoke it any time without touching other clients:

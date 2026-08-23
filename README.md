@@ -301,10 +301,11 @@ uv run python forge.py --dry-run   # run the chain, print the batch, submit noth
 uv run python forge.py       # real run: submits pending cards
 ```
 
-Feed text is treated as untrusted **data**, never instructions. Any stage failure
-exits non-zero and submits nothing (a single dead feed source is survivable —
-the run continues on whatever else responds). `crontab.example` has the daily
-schedule.
+Runs are **manual for now** — invoked from a workstation against the live game,
+with every card still gated behind human approval. Feed text is treated as
+untrusted **data**, never instructions. Any stage failure exits non-zero and
+submits nothing (a single dead feed source is survivable — the run continues on
+whatever else responds).
 
 ### Service tokens
 
