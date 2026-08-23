@@ -37,6 +37,15 @@ class Settings(BaseSettings):
     # a run can burn most of an hour looking like it is simply thinking. Pin it
     # low and log every attempt instead.
     llm_max_retries: int = Field(default=1, alias="LLM_MAX_RETRIES")
+    # Reasoning models spend most of a call thinking before they answer -- on a
+    # card-writing prompt, ~4x more thinking than answer. That is the difference
+    # between a 40s call and a 2s one, and it is what pushes calls past the
+    # gateway's 120s edge timeout. It also measurably BLANDS the output: the
+    # deliberation converges on the safe joke instead of the mean one, which is
+    # the opposite of what this game wants. Set to "" to send nothing and use
+    # whatever the model does by default (needed for gateways that reject the
+    # parameter).
+    llm_reasoning_effort: str = Field(default="none", alias="LLM_REASONING_EFFORT")
 
     # --- Content API (ace-cast) ------------------------------------------------
     content_api_url: str = Field(

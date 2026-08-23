@@ -75,6 +75,9 @@ class LLMClient:
         Raises ``LLMError`` on transport failure or unparseable output so the
         pipeline can fail closed.
         """
+        kwargs: dict[str, Any] = {}
+        if self.settings.llm_reasoning_effort:
+            kwargs["reasoning_effort"] = self.settings.llm_reasoning_effort
         started = time.monotonic()
         try:
             resp = self._client.chat.completions.create(
@@ -85,6 +88,7 @@ class LLMClient:
                     {"role": "user", "content": user},
                 ],
                 response_format={"type": "json_object"},
+                **kwargs,
             )
         except Exception as exc:  # noqa: BLE001 - normalise all transport errors
             # Log before raising: a persona that makes several calls would
