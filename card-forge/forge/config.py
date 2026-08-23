@@ -17,13 +17,16 @@ class Settings(BaseSettings):
         env_file=".env",
         env_file_encoding="utf-8",
         extra="ignore",
+        populate_by_name=True,  # allow field-name kwargs (e.g. tests / smoke overrides), not just env aliases
     )
 
     # --- LLM (OpenAI-compatible litellm gateway) -------------------------------
     llm_base_url: str = Field(default="https://llm.otix.ai", alias="LLM_BASE_URL")
     llm_api_key: str = Field(default="", alias="LLM_API_KEY")
     llm_model: str = Field(default="gpt-4o-mini", alias="LLM_MODEL")
-    llm_timeout: float = Field(default=60.0, alias="LLM_TIMEOUT")
+    # Reasoning models (e.g. abliterated Qwen) think before answering, so a
+    # per-call budget well above 60s is needed; cold model-loads need even more.
+    llm_timeout: float = Field(default=180.0, alias="LLM_TIMEOUT")
 
     # --- Content API (ace-cast) ------------------------------------------------
     content_api_url: str = Field(
