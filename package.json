@@ -16,6 +16,9 @@
     "migrate:rollback": "knex --knexfile src/db/knexfile.js migrate:rollback",
     "seed:make": "knex --knexfile src/db/knexfile.js seed:make",
     "seed:run": "knex --knexfile src/db/knexfile.js seed:run",
+    "token:create": "node scripts/service-token.js create",
+    "token:list": "node scripts/service-token.js list",
+    "token:revoke": "node scripts/service-token.js revoke",
     "semantic-release": "semantic-release"
   },
   "keywords": [

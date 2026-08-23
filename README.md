@@ -302,8 +302,28 @@ uv run python forge.py       # real run: submits pending cards
 ```
 
 Feed text is treated as untrusted **data**, never instructions. Any stage failure
-exits non-zero and submits nothing. `crontab.example` has the daily schedule;
-`bootstrap.sh` mints the matching `CONTENT_API_TOKEN` on the game side.
+exits non-zero and submits nothing (a single dead feed source is survivable —
+the run continues on whatever else responds). `crontab.example` has the daily
+schedule.
+
+### Service tokens
+
+Machine callers authenticate with named, revocable **service tokens** rather than
+one shared secret, so each agent can be rotated, revoked, and attributed on its
+own:
+
+```bash
+npm run token:create -- --client card-forge-prod   # printed ONCE; only its sha256 is stored
+npm run token:list                                 # client, scopes, last_used_at
+npm run token:revoke -- --client card-forge-prod   # takes effect immediately
+```
+
+Scopes are `content:read` (the dedupe corpus) and `content:write` (submit and
+delete). A valid token missing the scope gets **403**; an unrecognised one gets
+**401**; and when no token is live and no legacy secret is set the routes return
+**404**, so the API never advertises its own existence. The human review UI at
+`/admin/content` is gated separately by `ADMIN_TOKEN` — a service token cannot
+approve cards, which is what stops the agent publishing its own output.
 
 ## 🚀 Deployment
 

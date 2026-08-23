@@ -10,10 +10,13 @@
  *      (`card_stats`, `card_flags`, `card_humor_tags`, `card_events`) retain
  *      their rows across the rebuild.
  *
- * We drive knex's migrator directly (`migrate.up`/`migrate.down`) to isolate the
- * single `cards_status` migration — `cards_status` is the newest migration, so
- * `migrate.down()` rolls back exactly it.
+ * We drive knex's migrator directly to isolate the single `cards_status`
+ * migration. The migration is addressed BY NAME rather than as "the newest one"
+ * — a bare `migrate.down()` targets whatever happens to be last, so the moment
+ * any later migration lands this file would silently start testing that one
+ * instead and the backfill assertion would fail for the wrong reason.
  */
+const CARDS_STATUS = '20260724120001_cards_status.js';
 const { useTestDb, cleanupTestDb } = require('./helpers/testDb');
 
 describe('cards status migration', () => {
@@ -35,7 +38,7 @@ describe('cards status migration', () => {
   // status columns rolled back first so the card is a genuine "pre-existing" row
   // (inserted with no status). Returns the child-row counts to compare later.
   async function seedPreMigrationData() {
-    await knex.migrate.down(); // roll back cards_status → columns gone
+    await knex.migrate.down({ name: CARDS_STATUS }); // columns gone
 
     const [packId] = await knex('packs')
       .insert({ slug: 'pre-pack', name: 'Pre Pack', game_id: 'madlad' });
@@ -64,7 +67,7 @@ describe('cards status migration', () => {
   test('up backfills pre-existing rows to status=approved, source=manual', async () => {
     const { cardId } = await seedPreMigrationData();
 
-    await knex.migrate.up(); // re-apply cards_status → adds columns + backfills
+    await knex.migrate.up({ name: CARDS_STATUS }); // re-add columns + backfill
 
     const card = await knex('cards').where({ id: cardId }).first();
     expect(card.status).toBe('approved');
@@ -82,11 +85,11 @@ describe('cards status migration', () => {
       card_stats: 1, card_flags: 1, card_humor_tags: 1, card_events: 1,
     });
 
-    await knex.migrate.down(); // drop the status columns (table rebuild)
+    await knex.migrate.down({ name: CARDS_STATUS }); // drop columns (table rebuild)
     const afterDown = await childCounts();
     expect(afterDown).toEqual(before);
 
-    await knex.migrate.up(); // re-add them (another rebuild + backfill)
+    await knex.migrate.up({ name: CARDS_STATUS }); // re-add (rebuild + backfill)
     const afterUp = await childCounts();
     expect(afterUp).toEqual(before);
   });

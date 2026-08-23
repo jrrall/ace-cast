@@ -33,6 +33,7 @@ const bots = require('./bots');
 const CardFlagRepository = require('../content/CardFlagRepository');
 const CardRepository = require('../content/CardRepository');
 const ContentCardRepository = require('../content/ContentCardRepository');
+const ServiceTokenRepository = require('../content/ServiceTokenRepository');
 const PackRepository = require('../content/PackRepository');
 const FeedbackRepository = require('../content/FeedbackRepository');
 const IdentityRepository = require('../content/IdentityRepository');
@@ -307,20 +308,58 @@ function suppliedContentToken(req) {
   return header ? header.trim() : null;
 }
 
-function requireContentToken(req, res, next) {
-  const { token } = config.contentApi;
-  // Feature off → hide the route entirely (mirror denyAdmin's 404).
-  if (!token) {
-    res.status(404).json({ error: 'Not found' });
-    return;
-  }
-  // Feature on but wrong/absent token → 401, a clear signal to the machine
-  // client (distinct from the 404 "route doesn't exist").
-  if (suppliedContentToken(req) !== token) {
-    res.status(401).json({ error: 'Unauthorized' });
-    return;
-  }
-  next();
+// Machine auth for the content API. Two credential sources, checked in order:
+//
+//   1. A `service_tokens` row (preferred) — named, scoped, revocable per client,
+//      and attributable: `req.serviceClient` identifies who made the call.
+//   2. The legacy shared `CONTENT_API_TOKEN` — kept working so an existing
+//      deployment keeps submitting across the upgrade, but it grants every
+//      scope and identifies nobody. Mint a service token and drop it.
+//
+// Status codes carry meaning: 404 = the content API is off entirely (no secret
+// AND no active token) so its existence isn't observable; 401 = it's on and you
+// presented nothing usable; 403 = your token is valid but lacks this scope.
+function requireContentScope(scope) {
+  return async (req, res, next) => {
+    try {
+      const presented = suppliedContentToken(req);
+      const legacy = config.contentApi.token;
+
+      if (presented) {
+        const row = await ServiceTokenRepository.verify(presented);
+        if (row) {
+          const scopes = ServiceTokenRepository.parseScopes(row.scopes);
+          if (!scopes.includes(scope)) {
+            res.status(403).json({ error: `token lacks required scope: ${scope}` });
+            return;
+          }
+          req.serviceClient = { clientId: row.client_id, name: row.name, scopes };
+          // Best-effort, deliberately not awaited: last-used tracking must not
+          // add latency to (or fail) the request it is observing.
+          ServiceTokenRepository.touch(row.id);
+          next();
+          return;
+        }
+        if (legacy && presented === legacy) {
+          req.serviceClient = { clientId: 'legacy-shared-secret', name: 'CONTENT_API_TOKEN', scopes: [scope] };
+          next();
+          return;
+        }
+      }
+
+      // Nothing usable was presented. Distinguish "feature off" from "wrong
+      // credential" — but only now, so the extra count query costs nothing on
+      // the success path.
+      const activeTokens = await ServiceTokenRepository.countActive();
+      if (!legacy && activeTokens === 0) {
+        res.status(404).json({ error: 'Not found' });
+        return;
+      }
+      res.status(401).json({ error: 'Unauthorized' });
+    } catch (error) {
+      next(error);
+    }
+  };
 }
 
 function containsDenyListed(text) {
@@ -375,7 +414,7 @@ function validateCandidate(card, pack) {
 // approves later). Per-item validation + dedupe: bad items are rejected, exact
 // (pack_id, text) duplicates (across ALL statuses incl. denied) are skipped, the
 // rest are inserted.
-app.post('/api/content/cards', requireContentToken, async (req, res) => {
+app.post('/api/content/cards', requireContentScope('content:write'), async (req, res) => {
   const { cards } = req.body || {};
   if (!Array.isArray(cards)) {
     return res.status(400).json({ error: 'cards must be an array' });
@@ -445,7 +484,7 @@ app.post('/api/content/cards', requireContentToken, async (req, res) => {
 
 // GET — the agent's dedupe corpus (and the review UI's data source). Machine
 // token; the server-rendered admin page reads the repository directly.
-app.get('/api/content/cards', requireContentToken, async (req, res) => {
+app.get('/api/content/cards', requireContentScope('content:read'), async (req, res) => {
   try {
     const status = typeof req.query.status === 'string' ? req.query.status : undefined;
     const kind = typeof req.query.kind === 'string' ? req.query.kind : undefined;
@@ -491,7 +530,7 @@ app.patch('/api/content/cards/:id', requireAdmin, async (req, res) => {
 
 // DELETE — hard-delete, but only while still pending (approved/denied rows carry
 // history/dedupe weight). 409 otherwise.
-app.delete('/api/content/cards/:id', requireContentToken, async (req, res) => {
+app.delete('/api/content/cards/:id', requireContentScope('content:write'), async (req, res) => {
   const id = Number(req.params.id);
   if (!Number.isInteger(id) || id <= 0) {
     return res.status(400).json({ error: 'Invalid card id' });

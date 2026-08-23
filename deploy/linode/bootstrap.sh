@@ -145,9 +145,14 @@ Ace Cast bootstrapped.
 
   Feedback dashboard : https://$DOMAIN/admin/feedback?token=$ADMIN_TOKEN_V
   Card review queue  : https://$DOMAIN/admin/content?token=$ADMIN_TOKEN_V
-  Card Forge agent   : put these in card-forge/.env on whichever box runs the agent
-                         CONTENT_API_URL=https://$DOMAIN
-                         CONTENT_API_TOKEN=$CONTENT_API_TOKEN_V
+  Card Forge agent   : mint a named, revocable token for each agent instead of
+                       sharing the secret below:
+                         docker compose -f docker-compose.sqlite.yml exec app \\
+                           npm run token:create -- --client card-forge-prod
+                       then put it in card-forge/.env as CONTENT_API_TOKEN,
+                       alongside CONTENT_API_URL=https://$DOMAIN
+                       (the shared CONTENT_API_TOKEN below still works, but
+                        grants every scope and identifies no caller)
 Caddy fetches the TLS cert on first request once DNS resolves; give it a minute.
 EOF
 
