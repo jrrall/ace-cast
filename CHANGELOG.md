@@ -1,3 +1,7 @@
+## <small>1.20.1 (2026-09-24)</small>
+
+* fix: ignore malformed cookies to prevent socket crash loops (#54) ([dc3cdab](https://github.com/jrrall/ace-cast/commit/dc3cdab)), closes [#54](https://github.com/jrrall/ace-cast/issues/54)
+
 ## 1.20.0 (2026-09-24)
 
 * feat: target maturity 3 comedy and remove API pack ceiling (#53) ([9fde30c](https://github.com/jrrall/ace-cast/commit/9fde30c)), closes [#53](https://github.com/jrrall/ace-cast/issues/53)
