@@ -1,3 +1,7 @@
+## 1.22.0 (2026-09-24)
+
+* feat(card-forge): add resumable runs and persona-driven research (#64) ([6877ef5](https://github.com/jrrall/ace-cast/commit/6877ef5)), closes [#64](https://github.com/jrrall/ace-cast/issues/64)
+
 ## <small>1.21.1 (2026-09-24)</small>
 
 * fix(card-forge): tune banned writer for crude forum shock humor (#57) ([011da84](https://github.com/jrrall/ace-cast/commit/011da84)), closes [#57](https://github.com/jrrall/ace-cast/issues/57)
