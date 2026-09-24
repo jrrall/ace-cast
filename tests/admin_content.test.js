@@ -46,6 +46,39 @@ describe('GET /admin/content (admin gate + pending review)', () => {
     await db.db()('cards').where({ pack_id: genPackId }).del();
   });
 
+  test('source finds retain URL and route through storage and admin review', async () => {
+    const sourceUrl = 'https://b3ta.com/questions/imagechallenge/post1';
+    const res = await request(app).post('/api/content/cards').set('X-Api-Token', CONTENT_TOKEN)
+      .send({ cards: [{ kind: 'answer', text: 'Found phrase fixture', maturity_rating: 2,
+        pack: 'madlad-generated', generation_route: 'source_find', source_url: sourceUrl }] });
+    expect(res.body.rejected).toEqual([]);
+    const listed = await request(app).get('/api/content/cards').set('X-Api-Token', CONTENT_TOKEN);
+    const card = listed.body.cards.find((c) => c.id === res.body.created[0]);
+    expect(card.generation_route).toBe('source_find');
+    expect(card.source_url).toBe(sourceUrl);
+    expect(card.writer).toBeNull();
+    for (const page of ['/admin/content', '/admin/cards']) {
+      const view = await request(app).get(page).query({ token: ADMIN_TOKEN });
+      expect(view.status).toBe(200);
+      expect(view.text).toContain('Found phrase');
+      expect(view.text).toContain(sourceUrl);
+    }
+  });
+
+  test.each([
+    { generation_route: 'made_up' },
+    { source_url: 'javascript:alert(1)' },
+    { source_url: 'https://user:pass@example.com/' },
+    { generation_route: 'source_find' },
+    { generation_route: 'source_find', source_url: 'https://b3ta.com/', writer: 'writer.deadpan' },
+  ])('invalid provenance is rejected: %j', async (metadata) => {
+    const res = await request(app).post('/api/content/cards').set('X-Api-Token', CONTENT_TOKEN)
+      .send({ cards: [{ kind: 'answer', text: 'Bad provenance fixture', maturity_rating: 2,
+        pack: 'madlad-generated', ...metadata }] });
+    expect(res.body.created).toEqual([]);
+    expect(res.body.rejected).toHaveLength(1);
+  });
+
   test('writer attribution survives review and drives library filters and outcomes', async () => {
     const response = await request(app).post('/api/content/cards')
       .set('Authorization', `Bearer ${CONTENT_TOKEN}`)

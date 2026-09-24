@@ -75,7 +75,7 @@ class ComedyRoom:
             drafts = {}
             # Everyone writes blind before any challenges or revisions occur.
             for writer in writers:
-                drafts[writer.name] = writer.run(theme)
+                drafts[writer.name] = [c.model_copy(update={"generation_route": "writer"}) for c in writer.run(theme)]
                 self.record({**common, 'stage': 'draft', 'writer': writer.name,
                              'cards': [c.model_dump() for c in drafts[writer.name]]})
             for writer in writers:
@@ -121,7 +121,10 @@ class ComedyRoom:
                     revised = (_suggestion(revisions[idx], original, writer.name)
                                if idx in revisions and idx in challenged else None)
                     chosen = revised or original
-                    final.append(chosen)
+                    final.append(original)
+                    if revised and revised.text != original.text:
+                        revised.generation_route = "paired_revision"
+                        final.append(revised)
                     self.record({**common, 'stage': 'revision', 'draft_id': f'{theme_number}:{writer.name}:{idx}',
                                  'writer': writer.name, 'challenger': challenger.name,
                                  'original': original.model_dump(),

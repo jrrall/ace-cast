@@ -54,6 +54,8 @@ async function insertPending(rows) {
         maturity_rating: row.maturity_rating,
         pack_id: row.pack_id,
         writer: row.writer || null,
+        generation_route: row.generation_route || null,
+        source_url: row.source_url || null,
         // Forced, not taken from `row`: fail-closed. Even if a caller passes
         // status/source, generated candidates always land pending + generated.
         status: 'pending',
@@ -88,6 +90,8 @@ function list({
       'status',
       'source',
       'writer',
+      'generation_route',
+      'source_url',
       'reviewed_at',
       'reviewed_by',
       'denied_reason',

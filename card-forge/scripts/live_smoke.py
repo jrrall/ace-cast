@@ -93,11 +93,16 @@ def main() -> int:
     summary = RunSummary(dry_run=True)
     try:
         if args.writers_only:
-            themes = [Theme(title=args.theme)] if args.theme else Trendscout(llm, settings, fetch_fn).run()
+            scout = Trendscout(llm, settings, fetch_fn)
+            themes = [Theme(title=args.theme)] if args.theme else scout.run()
+            from forge.source_finds import find_cards
+            finds = find_cards(llm, scout.fetched, settings.source_finds_max)
+            for card in finds:
+                print(json.dumps({"stage": "source_find", "card": card.model_dump()}, ensure_ascii=False), flush=True)
             if settings.comedy_loop:
                 from forge.comedy_room import ComedyRoom
                 cards = ComedyRoom(llm, settings, emit=lambda event: print(json.dumps(event, ensure_ascii=False), flush=True)).run(themes)
-                return 0 if cards else 1
+                return 0 if cards or finds else 1
             count = 0
             for writer in writing_team(llm, settings):
                 for theme in themes:
@@ -108,7 +113,7 @@ def main() -> int:
                         "source_url": theme.url, "research": theme.raw_excerpt,
                         "cards": [card.model_dump() for card in cards],
                     }, ensure_ascii=False), flush=True)
-            return 0 if count else 1
+            return 0 if count or finds else 1
         batch = pipeline.build_batch(summary)
     except Exception as exc:  # noqa: BLE001 - a smoke test should report, not traceback
         print(f"[live-smoke] chain failed: {type(exc).__name__}: {exc}", file=sys.stderr)

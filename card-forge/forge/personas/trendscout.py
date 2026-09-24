@@ -66,9 +66,11 @@ class Trendscout:
         self.llm = llm
         self.settings = settings
         self._fetch_fn = fetch_fn or fetch_feed_items
+        self.fetched = []
 
     def run(self) -> list[Theme]:
         fetched = self._fetch_fn(self.settings)
+        self.fetched = fetched
         tabloids = [item for item in fetched if item.source == TABLOID_SOURCE]
         slots = theme_slots(self.settings.themes_per_run, self.settings.tabloid_percent) if tabloids else 0
         regular_count = self.settings.themes_per_run - slots
