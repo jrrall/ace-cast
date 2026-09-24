@@ -1,3 +1,7 @@
+## 1.18.0 (2026-09-24)
+
+* feat: Card Forge — LLM card generation with human review gate (#47) ([bf9c21a](https://github.com/jrrall/ace-cast/commit/bf9c21a)), closes [#47](https://github.com/jrrall/ace-cast/issues/47)
+
 ## 1.17.0 (2026-07-13)
 
 * feat(host): add "Play on this phone" link on the start-game page (#46) ([0acdf1a](https://github.com/jrrall/ace-cast/commit/0acdf1a)), closes [#46](https://github.com/jrrall/ace-cast/issues/46)
