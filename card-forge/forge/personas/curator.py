@@ -23,6 +23,8 @@ from ..rubric import RUBRIC, Evaluation
 from ..logging_setup import get_logger
 
 SYSTEM = (
+    "Short puns, sound-alike names, and crude wordplay can be complete answer-card jokes. "
+    "Judge their audible payoff and cross-prompt usefulness; do not require a narrative reversal. "
     "You are the Curator for an adult party card game. From a numbered list of "
     "vetted cards, select the funniest, most varied set for human review. Prefer a "
     "mix of prompts and answers and avoid repetitive jokes.\n"
@@ -143,6 +145,8 @@ class Curator:
                     and budget[pool[idx].kind] > 0)
             get_logger().info("curator.score", extra={"extra_fields": {
                 "index": idx, "text": pool[idx].text, "score": score, "kept": keep,
+                "writer": pool[idx].writer, "generation_route": pool[idx].generation_route,
+                "source_url": pool[idx].source_url,
                 **evaluation.model_dump(exclude={"index"}, exclude_none=True),
             }})
             if keep:

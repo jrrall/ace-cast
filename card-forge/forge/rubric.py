@@ -15,6 +15,8 @@ STYLE_TARGETS = {
 }
 STYLE_NAMES = ('unhinged', 'lewd', 'dark', 'gross', 'blasphemous', 'deadpan', 'implication')
 RUBRIC = (
+    "Short puns, sound-alike names, and crude wordplay can be complete answer-card jokes. "
+    "Judge their audible payoff and cross-prompt usefulness; do not require a narrative reversal. "
     'Quality rubric, score each dimension 0-5: 0 broken/absent, 1 weak, 2 shaky, '
     '3 workable, 4 strong, 5 exceptional. Playability: a prompt accepts several '
     'unrelated noun phrases naturally; an answer fits several unrelated setups. '

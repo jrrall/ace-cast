@@ -34,7 +34,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from forge.config import load_settings  # noqa: E402
 from forge.feeds import FeedItem, fetch_feed_items  # noqa: E402
 from forge.llm import LLMClient  # noqa: E402
-from forge.models import RunSummary  # noqa: E402
+from forge.models import RunSummary, Theme  # noqa: E402
 from forge.pipeline import Pipeline  # noqa: E402
 from forge.personas import Trendscout, writing_team  # noqa: E402
 
@@ -67,11 +67,16 @@ def main() -> int:
                         help="Research once and print each writer's raw drafts as JSON lines; skip review.")
     parser.add_argument("--live-research", action="store_true",
                         help="Use configured public research feeds instead of fictional sample headlines.")
+    parser.add_argument("--comedy-loop", action="store_true", help="One paired challenge/revision round.")
+    parser.add_argument("--theme", help="Fixed theme; bypass research for a controlled comparison.")
     args = parser.parse_args()
+    if args.theme and not args.writers_only:
+        parser.error("--theme requires --writers-only")
     api_key = os.environ.get("LLM_API_KEY") or os.environ.get("LITELLM_API_KEY", "")
     # Small sizes keep this LIGHT: 1 theme, a few cards per theme.
     settings = load_settings(
         llm_api_key=api_key,
+        **({"comedy_loop": True} if args.comedy_loop else {}),
         themes_per_run=int(os.environ.get("THEMES_PER_RUN", "1")),
         cards_per_theme=int(os.environ.get("CARDS_PER_THEME", "6")),
     )
@@ -88,7 +93,16 @@ def main() -> int:
     summary = RunSummary(dry_run=True)
     try:
         if args.writers_only:
-            themes = Trendscout(llm, settings, fetch_fn).run()
+            scout = Trendscout(llm, settings, fetch_fn)
+            themes = [Theme(title=args.theme)] if args.theme else scout.run()
+            from forge.source_finds import find_cards
+            finds = find_cards(llm, scout.fetched, settings.source_finds_max)
+            for card in finds:
+                print(json.dumps({"stage": "source_find", "card": card.model_dump()}, ensure_ascii=False), flush=True)
+            if settings.comedy_loop:
+                from forge.comedy_room import ComedyRoom
+                cards = ComedyRoom(llm, settings, emit=lambda event: print(json.dumps(event, ensure_ascii=False), flush=True)).run(themes)
+                return 0 if cards or finds else 1
             count = 0
             for writer in writing_team(llm, settings):
                 for theme in themes:
@@ -99,7 +113,7 @@ def main() -> int:
                         "source_url": theme.url, "research": theme.raw_excerpt,
                         "cards": [card.model_dump() for card in cards],
                     }, ensure_ascii=False), flush=True)
-            return 0 if count else 1
+            return 0 if count or finds else 1
         batch = pipeline.build_batch(summary)
     except Exception as exc:  # noqa: BLE001 - a smoke test should report, not traceback
         print(f"[live-smoke] chain failed: {type(exc).__name__}: {exc}", file=sys.stderr)

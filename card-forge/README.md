@@ -424,3 +424,108 @@ and objects; conspiracies scramble cause and effect. Cards retain the same
 prompt/answer formats and author tracking as the other writers. With six writers,
 `CARDS_PER_THEME` must be at least 6; use 12 to give each writer one prompt and
 one answer per theme. No franchise roleplay is included.
+
+### Archived conspiracy research
+
+The default feed list also includes
+`https://archive.org/wayback/available?url=infowars.com`. This is a research
+adapter, not a live news feed: it uses today’s month/day in a random year from
+2000–2009 and asks Internet Archive for an Infowars homepage snapshot. Only a
+capture on that exact date is accepted; nearest captures on other days are
+skipped. February 29 selects only leap years. From a matching homepage it
+samples up to two on-site article links. BeautifulSoup extracts bounded paragraph
+excerpts. Every item carries its snapshot URL/date and a label identifying it as
+unverified conspiracy claims. All writers can use the resulting themes.
+
+Trendscout extracts paranoid certainty, false causality, and invented connections
+as mechanisms for fictional comedy rather than treating the claims as facts.
+Linked articles may resolve to nearby captures within the same era.
+Unavailable articles fall back to the archived headline, explicitly labeled
+headline-only. An unavailable homepage logs a source failure and other feeds
+continue. No transcripts, video downloads, or live Infowars requests are used.
+Redirects remain limited to approved Infowars snapshots on web.archive.org.
+A run makes one availability request, one homepage request, and at most two
+article requests; each snapshot fetch allows at most two redirects. No cache is
+currently used.
+
+Existing `FEED_ALLOWLIST` values override defaults; append the URL above to add
+this source to your configured mix. To inspect raw drafts using only this source,
+use the b3ta live-research command above with:
+
+```bash
+-e 'FEED_ALLOWLIST=https://archive.org/wayback/available?url=infowars.com'
+```
+
+Keep `--writers-only --live-research`, `INSPIRATION_PER_LANE=0`, and
+`TABLOID_PERCENT=0` for that focused test. Normal runs mix it with the other
+configured research sources; inclusion in the input pool does not guarantee
+Trendscout will select a theme from it on every run.
+
+### Paired comedy loop (experimental)
+
+Set `COMEDY_LOOP=true` to add one bounded exchange before the normal editor,
+moderator, and curator. Pairs are Deadpan ↔ Unhinged, PR Spin Doctor ↔ Banned
+From the Thread, and Petty Villain ↔ Hatemonger. All six writers draft independently
+first. Each partner challenges the originals, and the original writer gets one
+revision, which can retain the original. No model declares a winner. Invalid or
+kind-changing revisions retain the original; malformed response envelopes fail
+the run before submission. The judging pool keeps originals and distinct revisions; final submission budgets stay unchanged.
+
+This adds up to twelve LLM calls per theme (six challenges and six revisions)
+to the six drafting calls. Calls remain sequential for local Ollama. It is off
+by default while human comparison establishes whether it improves the jokes.
+Original writer attribution reaches the API; challenger and revision history
+are in the local trace, not new admin fields.
+
+From `card-forge/`, compare original and revised cards on a fixed theme:
+
+```bash
+docker build -t card-forge:dev .
+docker run --rm --env-file .env -e MATURITY_MAX=3 -e CARDS_PER_THEME=12 \
+  --entrypoint python card-forge:dev /app/scripts/live_smoke.py \
+  --writers-only --comedy-loop \
+  --theme 'A family reunion introduces a rule nobody wants to explain.' \
+  | tee comedy-comparison.jsonl
+```
+
+No research, editor, moderator, curator, or game API is called in that test.
+Draft/challenge/revision records print immediately, with original text, proposed
+changes, author, challenger, source, and a run ID. Use `--live-research` instead
+of `--theme` to use configured research sources. `--writers-only` without the
+loop remains the existing baseline (set `COMEDY_LOOP=false` if enabled in .env).
+
+For normal runs, exchanges are structured stderr logs. To persist them separately,
+set `COMEDY_TRACE_PATH=/output/comedy.jsonl` and mount a writable directory with
+`-v "$PWD/runs:/output"` (create `runs` first). The JSONL file is appended after
+every completed call, preserving earlier drafts if a later call fails. It stores
+card/research text and lineage, not credentials. This loop revises card drafts;
+it does not yet introduce a separate free-form premise generation stage.
+
+
+### Multiple routes into judgment and length review
+
+Independent writer drafts, paired revisions (when `COMEDY_LOOP=true`), and short
+b3ta source finds all compete in the final pool. The loop retains originals as
+well as distinct revisions instead of replacing them automatically. The final
+batch size and prompt/answer budgets remain unchanged.
+
+`SOURCE_FINDS_MAX=6` enables up to six finds per run; set it to 0 to disable.
+The scout selects indexes of actual short source lines, never model-invented
+quotes. Finds are at most eight words/100 characters, with at most two per post.
+They bypass the rewriting editor, then undergo length checks, moderation,
+deduplication, and final judging. Puns and name mashups can stand on their own.
+The source URL and `source_find` route are saved in the API/database and shown
+in admin review/library; no writer persona is falsely credited. Writers-only
+live tests print source finds alongside writer output, even when Trendscout
+selects a theme from another source.
+
+Before moderation, review flags prompts exceeding 24 words or 160 characters
+and answers exceeding 12 words or 90 characters. One batched shortening call
+preserves the comic payoff, kind, voice, and provenance. Failed or still-long
+rewrites are dropped. Verbatim finds that exceed the final limit are dropped
+rather than silently rewritten. `review.shorten` logs originals and revisions.
+The writers-only test bypasses this review pass and shows raw output.
+
+Deploy the game migration before using the updated Forge if source links and
+route labels need to persist; older APIs ignore these new fields. Historical
+cards retain unknown provenance. Challenger details remain in the loop trace.

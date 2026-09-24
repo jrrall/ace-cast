@@ -37,24 +37,35 @@ class Pipeline:
     def build_batch(self, summary: RunSummary) -> SubmitBatch:
         """Run Trendscout -> Curator and return the assembled batch."""
         # 1. Trendscout
-        themes = Trendscout(self.llm, self.settings, self.fetch_fn).run()
+        scout = Trendscout(self.llm, self.settings, self.fetch_fn)
+        themes = scout.run()
         summary.themes = len(themes)
         log_stage(self.log, Trendscout.name, themes=len(themes))
 
         # Each writer sees identical research, never the other writer's drafts.
         # Sequential calls avoid competing for memory on a local LLM server.
         generated: list[CardCandidate] = []
-        for writer in writing_team(self.llm, self.settings):
-            writer_cards: list[CardCandidate] = []
-            for theme in themes:
-                drafts = writer.run(theme)
-                generated.extend(drafts)
-                writer_cards.extend(drafts)
-            log_stage(self.log, writer.name, generated=len(writer_cards), **type_counts(writer_cards))
-        summary.generated = len(generated)
+        if self.settings.comedy_loop:
+            from .comedy_room import ComedyRoom
+            generated = ComedyRoom(self.llm, self.settings).run(themes)
+        else:
+            for writer in writing_team(self.llm, self.settings):
+                writer_cards: list[CardCandidate] = []
+                for theme in themes:
+                    drafts = [c.model_copy(update={"generation_route": "writer"}) for c in writer.run(theme)]
+                    generated.extend(drafts)
+                    writer_cards.extend(drafts)
+                log_stage(self.log, writer.name, generated=len(writer_cards), **type_counts(writer_cards))
+        from .source_finds import find_cards
+        finds = find_cards(self.llm, scout.fetched, self.settings.source_finds_max)
+        summary.generated = len(generated) + len(finds)
 
         # 3. Editor
         edited = Editor(self.llm, self.settings).run(generated)
+        # Found phrases already are cards: preserve their exact wording for judgment.
+        edited.extend(finds)
+        from .tighten import tighten_cards
+        edited = tighten_cards(self.llm, edited)
         summary.edited = len(edited)
         log_stage(self.log, Editor.name, edited=len(edited), **type_counts(edited))
 

@@ -38,6 +38,11 @@ SYSTEM = (
     "do not need a social commentary angle or an everyday-life translation. "
     "Describe the mechanism so writers invent new examples instead of copying "
     "the source jokes. Forum anecdotes are unverified, not factual reporting.\n"
+    + "Archived conspiracy material is a source of rhetoric and absurd premises, "
+    "not verified news. Extract false causality, invented connections, paranoid "
+    "certainty, and grand explanations for trivial events. Turn these into "
+    "fictional comic situations without laundering the original allegations "
+    "into facts. These themes are available to every writer, not just Hatemonger.\n"
     + INJECTION_NOTICE
     + "\nReturn ONLY JSON of the form "
     '{"themes": [{"title": "...", "angle": "...", "source_index": 0}]}. '
@@ -61,9 +66,11 @@ class Trendscout:
         self.llm = llm
         self.settings = settings
         self._fetch_fn = fetch_fn or fetch_feed_items
+        self.fetched = []
 
     def run(self) -> list[Theme]:
         fetched = self._fetch_fn(self.settings)
+        self.fetched = fetched
         tabloids = [item for item in fetched if item.source == TABLOID_SOURCE]
         slots = theme_slots(self.settings.themes_per_run, self.settings.tabloid_percent) if tabloids else 0
         regular_count = self.settings.themes_per_run - slots
