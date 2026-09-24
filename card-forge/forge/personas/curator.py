@@ -23,7 +23,8 @@ SYSTEM = (
     "vetted cards, select the funniest, most varied set to publish. Prefer a "
     "mix of prompts and answers and avoid repetitive jokes.\n"
     'Return ONLY JSON of the form {"selected": [0, 2, 5]} listing the indexes '
-    "to keep, best first."
+    "to keep, best first. Indexes are ZERO-BASED integers from the supplied "
+    "list, never one-based ranks. Select fewer or none if the cards are weak."
 )
 
 
@@ -67,7 +68,9 @@ class Curator:
         )
         user = (
             f"Vetted cards:\n{listing}\n\n"
-            f"Select up to {self.settings.batch_max} to publish."
+            f"Valid indexes are the integers 0 through {len(pool) - 1}, inclusive. "
+            f"Select up to {min(self.settings.batch_max, len(pool))} to publish. "
+            'Return {"selected": [...]} using only those indexes.'
         )
         data = self.llm.complete_json(system=SYSTEM, user=user, temperature=0.3)
         raw = data.get("selected", data) if isinstance(data, dict) else data
