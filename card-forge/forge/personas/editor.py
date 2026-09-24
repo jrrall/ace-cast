@@ -109,6 +109,9 @@ class Editor:
                     get_logger().warning("editor.unattributed_draft_dropped")
                     continue
             card.writer = source.writer if source is not None else None
+            if source is not None:
+                card.generation_route = source.generation_route
+                card.source_url = source.source_url
             key = (card.kind, card.text.lower())
             if key in seen:
                 continue

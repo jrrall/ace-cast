@@ -409,6 +409,25 @@ function validateCandidate(card, pack) {
     return { ok: false, reason: 'invalid maturity_rating' };
   }
 
+  const generationRoute = card.generation_route == null ? null : card.generation_route;
+  if (generationRoute !== null && !['writer', 'paired_revision', 'source_find'].includes(generationRoute)) {
+    return { ok: false, reason: 'invalid generation_route' };
+  }
+  const sourceUrl = card.source_url == null ? null : card.source_url;
+  if (sourceUrl !== null) {
+    try {
+      if (typeof sourceUrl !== 'string' || sourceUrl.length > 2048) throw new Error('invalid URL');
+      const parsed = new URL(sourceUrl);
+      if (!['https:', 'http:'].includes(parsed.protocol) || parsed.username || parsed.password) {
+        throw new Error('invalid URL');
+      }
+    } catch (_) {
+      return { ok: false, reason: 'invalid source_url' };
+    }
+  }
+  if (generationRoute === 'source_find' && (!sourceUrl || card.writer != null)) {
+    return { ok: false, reason: 'source_find requires source_url and no invented writer' };
+  }
   const writer = card.writer == null ? null : card.writer;
   if (writer !== null && (typeof writer !== 'string' || !/^writer\.[a-z][a-z0-9_]{0,55}$/.test(writer))) {
     return { ok: false, reason: 'invalid writer' };
@@ -438,6 +457,8 @@ function validateCandidate(card, pack) {
       blanks,
       maturity_rating: maturity,
       writer,
+      generation_route: generationRoute,
+      source_url: sourceUrl,
       pack_id: pack.id,
     },
   };

@@ -22,9 +22,11 @@ def test_one_exchange_blind_drafts_attribution_and_trace(settings, tmp_path):
     assert len(llm.calls) == 18
     assert all('Original idea' not in call['user'] for call in llm.calls[:6])
     assert [e['stage'] for e in events[:6]] == ['draft'] * 6
-    assert len(final) == 6
+    assert len(final) == 12
+    assert all(c.generation_route == "writer" for c in final[::2])
+    assert all(c.generation_route == "paired_revision" for c in final[1::2])
     revisions = [e for e in events if e['stage'] == 'revision']
-    for i, (event, card) in enumerate(zip(revisions, final)):
+    for i, (event, card) in enumerate(zip(revisions, final[1::2])):
         assert event['challenger'] == PARTNERS[card.writer]
         assert event['original']['text'] == f'Original idea {i}'
         assert event['revision']['text'] == f'Revised idea {i}'
@@ -64,13 +66,13 @@ def test_pipeline_loop_flows_through_review_without_submission(settings, monkeyp
     settings.cards_per_theme = 12
     settings.comedy_loop = True
     monkeypatch.setattr(Trendscout, 'run', lambda self: [Theme(title='Rule')])
-    cards = [{'source_index': i, 'kind': 'answer', 'text': f'Revised idea {i}'} for i in range(6)]
+    cards = [{'source_index': 2*i+1, 'kind': 'answer', 'text': f'Revised idea {i}'} for i in range(6)]
     llm = FakeLLM(responses() + [{'cards': cards},
         {'verdicts': [{'index': i, 'allowed': True, 'maturity_rating': 2} for i in range(6)]},
         rated_selection(list(range(6)))])
     content = FakeContentClient()
     summary, batch = Pipeline(settings, llm, content).run(dry_run=True)
-    assert summary.generated == 6
+    assert summary.generated == 12
     assert len(batch.cards) == 6
     assert len({c.writer for c in batch.cards}) == 6
     assert all(c.text.startswith('Revised idea') for c in batch.cards)

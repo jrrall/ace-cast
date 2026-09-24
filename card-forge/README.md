@@ -469,7 +469,7 @@ From the Thread, and Petty Villain ↔ Hatemonger. All six writers draft indepen
 first. Each partner challenges the originals, and the original writer gets one
 revision, which can retain the original. No model declares a winner. Invalid or
 kind-changing revisions retain the original; malformed response envelopes fail
-the run before submission. Budgets do not grow: one final candidate per draft.
+the run before submission. The judging pool keeps originals and distinct revisions; final submission budgets stay unchanged.
 
 This adds up to twelve LLM calls per theme (six challenges and six revisions)
 to the six drafting calls. Calls remain sequential for local Ollama. It is off
@@ -500,3 +500,32 @@ set `COMEDY_TRACE_PATH=/output/comedy.jsonl` and mount a writable directory with
 every completed call, preserving earlier drafts if a later call fails. It stores
 card/research text and lineage, not credentials. This loop revises card drafts;
 it does not yet introduce a separate free-form premise generation stage.
+
+
+### Multiple routes into judgment and length review
+
+Independent writer drafts, paired revisions (when `COMEDY_LOOP=true`), and short
+b3ta source finds all compete in the final pool. The loop retains originals as
+well as distinct revisions instead of replacing them automatically. The final
+batch size and prompt/answer budgets remain unchanged.
+
+`SOURCE_FINDS_MAX=6` enables up to six finds per run; set it to 0 to disable.
+The scout selects indexes of actual short source lines, never model-invented
+quotes. Finds are at most eight words/100 characters, with at most two per post.
+They bypass the rewriting editor, then undergo length checks, moderation,
+deduplication, and final judging. Puns and name mashups can stand on their own.
+The source URL and `source_find` route are saved in the API/database and shown
+in admin review/library; no writer persona is falsely credited. Writers-only
+live tests print source finds alongside writer output, even when Trendscout
+selects a theme from another source.
+
+Before moderation, review flags prompts exceeding 24 words or 160 characters
+and answers exceeding 12 words or 90 characters. One batched shortening call
+preserves the comic payoff, kind, voice, and provenance. Failed or still-long
+rewrites are dropped. Verbatim finds that exceed the final limit are dropped
+rather than silently rewritten. `review.shorten` logs originals and revisions.
+The writers-only test bypasses this review pass and shows raw output.
+
+Deploy the game migration before using the updated Forge if source links and
+route labels need to persist; older APIs ignore these new fields. Historical
+cards retain unknown provenance. Challenger details remain in the loop trace.

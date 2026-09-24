@@ -27,7 +27,7 @@
             <article class="library-card <%= card.kind === 'prompt' ? 'prompt-card' : 'answer-card' %>">
                 <div class="card-meta"><span><%= card.kind %> · #<%= card.id %></span><span class="badge"><%= card.status %><%= card.retired_at ? ' / retired' : '' %></span></div>
                 <p class="card-copy"><%= card.text %></p>
-                <footer><span><%= card.packName || 'No pack' %></span><span><%= card.writer || "Unknown writer" %> · <%= card.source %> · Maturity <%= card.maturity_rating %></span></footer>
+                <footer><span><%= card.packName || 'No pack' %></span><span><%= card.writer || (card.generation_route === "source_find" ? "Found phrase" : "Unknown writer") %> · <%= card.source %> · Maturity <%= card.maturity_rating %></span><% if (card.generation_route) { %><span><%= card.generation_route %></span><% } %><% if (card.source_url) { %><a href="<%= card.source_url %>" target="_blank" rel="noopener noreferrer">Original source</a><% } %></footer>
                 <% if (card.denied_reason) { %><details><summary>Rejection reason</summary><p><%= card.denied_reason %></p></details><% } %>
             </article>
             <% }); %>
