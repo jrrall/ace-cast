@@ -14,7 +14,7 @@ from forge.feeds import FeedItem
 from forge.pipeline import Pipeline
 from forge.prompts import FEED_CLOSE, FEED_OPEN
 
-from conftest import FakeContentClient, FakeLLM
+from conftest import rated_selection, FakeContentClient, FakeLLM
 
 
 def _injected_feed():
@@ -38,9 +38,12 @@ def test_injection_does_not_leak_policy_violating_card(settings):
             {
                 "cards": [
                     {"kind": "answer", "text": "A card with forbiddenword in it."},
-                    {"kind": "answer", "text": "A goose with a knife."},
                 ]
             },
+            {"cards": [{"kind": "answer", "text": "A goose with a knife."}]},  # unhinged writer
+            {"cards": []},  # PR Spin Doctor
+            {"cards": []},  # Petty Villain
+            {"cards": []},  # Banned From the Thread
             {
                 "cards": [
                     {"kind": "answer", "text": "A card with forbiddenword in it."},
@@ -54,7 +57,7 @@ def test_injection_does_not_leak_policy_violating_card(settings):
                     {"index": 1, "maturity_rating": 1, "allowed": True},
                 ]
             },
-            {"selected": [0]},  # only the allowed card reaches Curator
+            rated_selection([0]),  # only the allowed card reaches Curator
         ]
     )
     content = FakeContentClient(corpus=[])

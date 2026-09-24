@@ -102,3 +102,13 @@ def sample_moderated():
         ModeratedCard(kind="answer", text="A haunted Roomba.", maturity_rating=1),
         ModeratedCard(kind="answer", text="Crippling student debt.", maturity_rating=1),
     ]
+
+
+def rated_selection(indexes):
+    """Explicit valid scoring response for pipeline fixtures, not a humor verdict."""
+    from forge.rubric import QUALITY_WEIGHTS, STYLE_NAMES
+    return {'selected': indexes, 'evaluations': [
+        {'index': i, 'quality': {key: 4 for key in QUALITY_WEIGHTS},
+         'style': {key: 2 for key in STYLE_NAMES}, 'premise_group': f'fixture-{i}',
+         'reason': 'Fixture with strong playable structure.'} for i in indexes
+    ]}

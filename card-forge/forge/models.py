@@ -20,12 +20,21 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 from typing import Literal
+import re
 
 from pydantic import BaseModel, Field, field_validator, model_validator
 
 BLANK_MARKER = "____"
 
 Kind = Literal["prompt", "answer"]
+
+
+def _clean_card_text(value: str) -> str:
+    """Fallback for models that ignore the no-em-dash editorial instruction."""
+    value = re.sub(r"\s*\u2014\s*", ", ", value).strip(" ,\t\r\n")
+    if not value:
+        raise ValueError("card text must not be empty")
+    return value
 
 
 def _utcnow() -> datetime:
@@ -74,10 +83,7 @@ class CardCandidate(BaseModel):
     @field_validator("text")
     @classmethod
     def _strip_text(cls, v: str) -> str:
-        v = v.strip()
-        if not v:
-            raise ValueError("card text must not be empty")
-        return v
+        return _clean_card_text(v)
 
     @model_validator(mode="after")
     def _enforce_kind_shape(self) -> "CardCandidate":
@@ -116,10 +122,7 @@ class SubmitCard(BaseModel):
     @field_validator("text")
     @classmethod
     def _strip_text(cls, v: str) -> str:
-        v = v.strip()
-        if not v:
-            raise ValueError("card text must not be empty")
-        return v
+        return _clean_card_text(v)
 
     @model_validator(mode="after")
     def _enforce_shape(self) -> "SubmitCard":

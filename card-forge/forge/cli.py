@@ -16,7 +16,7 @@ from .pipeline import Pipeline
 def _parse_args(argv: list[str] | None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         prog="card-forge",
-        description="Generate MadLad cards via a 5-persona LLM chain and submit "
+        description="Generate MadLad cards via a multi-persona LLM chain and submit "
         "them as pending to the ace-cast content API.",
     )
     parser.add_argument(

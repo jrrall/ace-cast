@@ -57,4 +57,24 @@ def test_writer_caps_model_overproduction(settings, sample_theme):
     llm = FakeLLM([{'cards': [
         {'kind': 'answer', 'text': f'An original answer {i}'} for i in range(5)
     ]}])
-    assert len(Writer(llm, settings).run(sample_theme)) == 2
+    assert len(Writer(llm, settings).run(sample_theme)) == 1
+
+
+def test_prompt_first_overproduction_keeps_answer_slots(settings, sample_theme):
+    settings.cards_per_theme = 4
+    llm = FakeLLM([{"cards": [
+        *[{"kind": "prompt", "text": f"Setup {i}: ____."} for i in range(6)],
+        *[{"kind": "answer", "text": f"Answer {i}."} for i in range(6)],
+    ]}])
+    cards = Writer(llm, settings).run(sample_theme)
+    assert [c.kind for c in cards] == ["prompt", "prompt", "answer", "answer"]
+    assert "up to 2 prompt cards and 2 answer cards" in llm.calls[0]["user"]
+
+
+def test_single_slot_requests_answer(settings, sample_theme):
+    settings.cards_per_theme = 1
+    llm = FakeLLM([{"cards": [
+        {"kind": "prompt", "text": "Setup: ____."},
+        {"kind": "answer", "text": "An answer."},
+    ]}])
+    assert [c.kind for c in Writer(llm, settings).run(sample_theme)] == ["answer"]

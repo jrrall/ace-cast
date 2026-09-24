@@ -1,7 +1,7 @@
 """Pipeline orchestration.
 
-Runs the five personas in order, emits one structured log entry per persona
-("5 distinct calls observable"), and fails closed: any stage exception
+Runs research, five independent writers, and review stages. Logs each writer
+separately and fails closed: any stage exception
 propagates so the entrypoint exits non-zero and NOTHING is submitted. In
 ``dry_run`` the assembled batch is returned/printed but never POSTed.
 """
@@ -10,13 +10,14 @@ from __future__ import annotations
 
 from collections.abc import Callable
 
+from .balance import type_counts
 from .client import ContentClient
 from .config import Settings
 from .feeds import FeedItem
 from .llm import LLMClient
 from .logging_setup import get_logger, log_stage
 from .models import CardCandidate, RunSummary, SubmitBatch
-from .personas import Curator, Editor, Moderator, Trendscout, Writer
+from .personas import Curator, Editor, Moderator, Trendscout, writing_team
 
 
 class Pipeline:
@@ -40,22 +41,27 @@ class Pipeline:
         summary.themes = len(themes)
         log_stage(self.log, Trendscout.name, themes=len(themes))
 
-        # 2. Writer (one LLM call per theme)
+        # Each writer sees identical research, never the other writer's drafts.
+        # Sequential calls avoid competing for memory on a local LLM server.
         generated: list[CardCandidate] = []
-        for theme in themes:
-            generated.extend(Writer(self.llm, self.settings).run(theme))
+        for writer in writing_team(self.llm, self.settings):
+            writer_cards: list[CardCandidate] = []
+            for theme in themes:
+                drafts = writer.run(theme)
+                generated.extend(drafts)
+                writer_cards.extend(drafts)
+            log_stage(self.log, writer.name, generated=len(writer_cards), **type_counts(writer_cards))
         summary.generated = len(generated)
-        log_stage(self.log, Writer.name, generated=len(generated))
 
         # 3. Editor
         edited = Editor(self.llm, self.settings).run(generated)
         summary.edited = len(edited)
-        log_stage(self.log, Editor.name, edited=len(edited))
+        log_stage(self.log, Editor.name, edited=len(edited), **type_counts(edited))
 
         # 4. Moderator
         moderated = Moderator(self.llm, self.settings).run(edited)
         summary.moderated = len(moderated)
-        log_stage(self.log, Moderator.name, moderated=len(moderated))
+        log_stage(self.log, Moderator.name, moderated=len(moderated), **type_counts(moderated))
 
         # 5. Curator
         batch = Curator(self.llm, self.content, self.settings).run(moderated)
@@ -65,6 +71,7 @@ class Pipeline:
             self.log,
             Curator.name,
             assembled=len(batch.cards),
+            **type_counts(batch.cards),
             deduped=summary.deduped,
         )
         return batch

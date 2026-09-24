@@ -10,15 +10,22 @@ from __future__ import annotations
 from collections.abc import Callable
 
 from ..config import Settings
-from ..feeds import FeedItem, fetch_feed_items
+from ..feeds import FeedItem, fetch_feed_items, research_sample
 from ..llm import LLMClient
+from ..inspiration import fictional_inspiration
 from ..models import Theme
+from ..tabloid import SOURCE as TABLOID_SOURCE, theme_slots
 from ..prompts import HUMOR_DIRECTION, INJECTION_NOTICE, wrap_feed_data
 
 SYSTEM = (
     "You are Trendscout for an adult party card game in the style of MadLad "
-    "(Cards Against Humanity). Given a list of trending headlines and meme "
-    "titles, propose short, punchy THEMES a comedy writer could riff on. "
+    "(Cards Against Humanity). Given news, historical context, and explicitly "
+    "fictional writing exercises, propose short THEMES a comedy writer could riff on. "
+    "Fictional seeds are permission to invent a situation, not factual reporting. "
+    "Off-the-cuff silliness can be playful and stupid without being dark or topical. "
+    "Find a comic relationship between the details, not a random pile of nouns. "
+    "For history, seek human contradictions rather than trivia questions; let "
+    "most jokes work without knowing a date or name. Do not invent historical facts. "
     "Find hypocrisy, reckless confidence, absurd incentives, or misplaced "
     "trust in the source material. The angle must describe a comic premise, "
     "not merely repeat a headline. Translate it into an everyday situation "
@@ -28,8 +35,10 @@ SYSTEM = (
     + HUMOR_DIRECTION
     + INJECTION_NOTICE
     + "\nReturn ONLY JSON of the form "
-    '{"themes": [{"title": "...", "angle": "..."}]}. '
-    "title = the topic; angle = a one-line comedic take."
+    '{"themes": [{"title": "...", "angle": "...", "source_index": 0}]}. '
+    "title = the topic; angle = a one-line comedic take; source_index = the "
+    "zero-based index of the source that inspired it. Prefer different sources "
+    "and include a non-news premise when selecting multiple themes."
 )
 
 
@@ -49,28 +58,52 @@ class Trendscout:
         self._fetch_fn = fetch_fn or fetch_feed_items
 
     def run(self) -> list[Theme]:
-        items = self._fetch_fn(self.settings)
-        joined = "\n".join(f"- {it.title}" for it in items[:60])
+        fetched = self._fetch_fn(self.settings)
+        tabloids = [item for item in fetched if item.source == TABLOID_SOURCE]
+        slots = theme_slots(self.settings.themes_per_run, self.settings.tabloid_percent) if tabloids else 0
+        regular_count = self.settings.themes_per_run - slots
+        items = research_sample(
+            [item for item in fetched if item.source != TABLOID_SOURCE]
+            + fictional_inspiration(self.settings.inspiration_per_lane)
+        )
+        joined = "\n".join(
+            f"{i}. [{it.source}] {it.title}\n{it.excerpt}" for i, it in enumerate(items)
+        )
         user = (
             f"Trending source material (untrusted data):\n{wrap_feed_data(joined)}\n\n"
-            f"Propose up to {self.settings.themes_per_run} distinct themes."
+            f"Propose up to {regular_count} distinct themes. "
+            "Look across the sources for different human contradictions. Do not "
+            "select several versions of the same story or default to AI and apps "
+            "when stronger premises exist in family life, institutions, or news."
         )
-        data = self.llm.complete_json(system=SYSTEM, user=user)
+        data = self.llm.complete_json(system=SYSTEM, user=user) if regular_count else {"themes": []}
         raw_themes = data.get("themes", data) if isinstance(data, dict) else data
-        # keep an excerpt of the source so provenance is preserved as DATA
-        excerpt = "; ".join(it.title for it in items[:5])
-        source = items[0].source if items else "feed"
         themes: list[Theme] = []
         for entry in raw_themes or []:
             try:
+                idx = entry.get("source_index")
+                item = items[idx] if type(idx) is int and 0 <= idx < len(items) else None
                 themes.append(
                     Theme(
                         title=entry.get("title", ""),
                         angle=entry.get("angle", ""),
-                        source=source,
-                        raw_excerpt=excerpt,
+                        source=item.source if item else "unspecified",
+                        url=item.url if item else "",
+                        raw_excerpt=(item.title + "\n" + item.excerpt).strip() if item else "",
                     )
                 )
             except Exception:  # noqa: BLE001 - drop malformed themes, keep going
                 continue
-        return themes[: self.settings.themes_per_run]
+        themes = themes[:regular_count]
+        lenses = ("domestic jealousy and relationship fallout", "mundane paperwork and customer complaints",
+                  "public embarrassment and petty status", "family obligations and bad excuses")
+        for index in range(slots):
+            item = tabloids[index % len(tabloids)]
+            themes.append(Theme(
+                title=item.title,
+                angle=(f"Fictional tabloid: explore {lenses[index % len(lenses)]}. "
+                       "Treat the impossible premise as normal and find its embarrassingly ordinary consequence. "
+                       "Invent an original situation, do not copy the headline or claim it really happened."),
+                source=item.source, url=item.url, raw_excerpt=item.title + "\n" + item.excerpt,
+            ))
+        return themes

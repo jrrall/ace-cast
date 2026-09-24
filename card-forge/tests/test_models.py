@@ -8,6 +8,22 @@ from pydantic import ValidationError
 from forge.models import CardCandidate, ModeratedCard, SubmitCard
 
 
+@pytest.mark.parametrize("text", ["My alibi\u2014____.", "My alibi \u2014 ____."])
+def test_em_dash_removed_through_submission(text):
+    candidate = CardCandidate(kind="prompt", text=text)
+    assert candidate.text == "My alibi, ____."
+    moderated = ModeratedCard(**candidate.model_dump(), maturity_rating=2)
+    submitted = SubmitCard.from_moderated(moderated, "madlad-generated")
+    assert submitted.text == candidate.text
+    assert submitted.blanks == 1
+
+
+def test_direct_submission_also_cleans_em_dash():
+    card = SubmitCard(kind="answer", text="A court-ordered apology\u2014with ads.",
+                      blanks=0, maturity_rating=2, pack="madlad-generated")
+    assert card.text == "A court-ordered apology, with ads."
+
+
 def test_prompt_without_marker_rejected():
     with pytest.raises(ValidationError):
         CardCandidate(kind="prompt", text="no blank here")

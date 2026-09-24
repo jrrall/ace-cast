@@ -9,6 +9,29 @@ from forge.config import load_settings
 from forge.feeds import FeedError, _parse_reddit, _parse_rss, fetch_feed_items
 
 
+def test_research_sample_prevents_first_source_crowding_out_others():
+    from forge.feeds import FeedItem, research_sample
+
+    items = [FeedItem(title=f"First {i}", source="first") for i in range(80)]
+    items += [FeedItem(title=f"Second {i}", source="second") for i in range(10)]
+    items += [FeedItem(title="Third story", source="third")]
+    sample = research_sample(items)
+    assert len(sample) == 60
+    assert [item.source for item in sample[:3]] == ["first", "second", "third"]
+    assert sum(item.source == "second" for item in sample) == 10
+
+
+def test_research_sample_deduplicates_headlines_and_handles_empty_sources():
+    from forge.feeds import FeedItem, research_sample
+
+    items = [FeedItem(title="Same headline", source="first"),
+             FeedItem(title="  SAME   headline ", source="second"),
+             FeedItem(title="Different headline", source="second")]
+    assert [item.title for item in research_sample(items)] == ["Same headline", "Different headline"]
+    assert research_sample([]) == []
+    assert research_sample(items, limit=0) == []
+
+
 def test_parse_reddit_listing():
     body = {
         "data": {
@@ -134,3 +157,26 @@ def test_all_sources_dead_still_fails_closed():
     with pytest.raises(FeedError) as exc:
         fetch_feed_items(_settings_with([a, b]), http=client)
     assert "500" in str(exc.value) and "403" in str(exc.value)
+
+
+def test_history_collection_json_includes_bounded_plain_text_context():
+    from forge.feeds import _parse_history
+    rows = _parse_history({"results": [{
+        "title": "A historical anniversary", "id": "https://www.loc.gov/item/example/",
+        "item": {"articles": ["<p>A dispute &amp; a ceremony.</p>" + "x" * 2000]},
+    }]}, "history")
+    assert len(rows) == 1
+    assert rows[0].url == "https://www.loc.gov/item/example/"
+    assert rows[0].excerpt.startswith("A dispute & a ceremony.")
+    assert len(rows[0].excerpt) == 1200
+    assert "<p>" not in rows[0].excerpt
+
+
+def test_history_json_fetch_dispatch():
+    url = "https://www.loc.gov/collections/today-in-history/?fo=json"
+    client = httpx.Client(transport=httpx.MockTransport(lambda _: httpx.Response(
+        200, json={"results": [{"title": "History", "item": {"articles": ["<p>Context</p>"]}}]}
+    )))
+    items = fetch_feed_items(_settings_with([url]), http=client)
+    assert items[0].excerpt == "Context"
+    client.close()

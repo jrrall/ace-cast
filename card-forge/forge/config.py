@@ -6,7 +6,9 @@ never hard-coded. See ``.env.example`` for the full list.
 
 from __future__ import annotations
 
-from pydantic import Field
+from pydantic import Field, field_validator
+from .rubric import QUALITY_WEIGHTS
+import math
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -42,9 +44,21 @@ class Settings(BaseSettings):
 
     # --- Batch sizing ----------------------------------------------------------
     batch_min: int = Field(default=10, alias="BATCH_MIN")
-    batch_max: int = Field(default=20, alias="BATCH_MAX")
+    batch_max: int = Field(default=20, ge=1, alias="BATCH_MAX")
     themes_per_run: int = Field(default=4, alias="THEMES_PER_RUN")
-    cards_per_theme: int = Field(default=8, alias="CARDS_PER_THEME")
+    cards_per_theme: int = Field(default=8, ge=5, alias="CARDS_PER_THEME")
+
+    quality_min: float = Field(default=70, ge=0, le=100, alias="QUALITY_MIN")
+    quality_weights: dict[str, float] = Field(default_factory=lambda: dict(QUALITY_WEIGHTS), alias="QUALITY_WEIGHTS")
+
+    @field_validator("quality_weights")
+    @classmethod
+    def _valid_weights(cls, value):
+        if set(value) != set(QUALITY_WEIGHTS) or any(not math.isfinite(v) or v < 0 for v in value.values()):
+            raise ValueError("quality weights must specify all five dimensions with finite nonnegative values")
+        if not math.isclose(sum(value.values()), 1, abs_tol=1e-6):
+            raise ValueError("quality weights must sum to 1")
+        return value
 
     # --- Trendscout feed source ALLOWLIST -------------------------------------
     # Comma-separated list of fully-qualified feed URLs. Only these are fetched;
@@ -56,7 +70,14 @@ class Settings(BaseSettings):
     feed_allowlist: str = Field(
         default=(
             "https://knowyourmeme.com/newsfeed.rss,"
-            "https://feeds.bbci.co.uk/news/rss.xml"
+            "https://feeds.bbci.co.uk/news/rss.xml,"
+            "https://www.theguardian.com/world/rss,"
+            "https://feeds.npr.org/1001/rss.xml,"
+            "https://arstechnica.com/feed/,"
+            "https://www.404media.co/rss/,"
+            "https://www.theguardian.com/lifeandstyle/rss,"
+            "https://www.loc.gov/collections/today-in-history/?fo=json,"
+            "https://weeklyworldnews.com/archive/"
         ),
         alias="FEED_ALLOWLIST",
     )
@@ -64,6 +85,11 @@ class Settings(BaseSettings):
     feed_user_agent: str = Field(
         default="card-forge/0.1 (+https://unholy.cards)", alias="FEED_USER_AGENT"
     )
+
+    # Local fictional seeds per lane (everyday + off-the-cuff); 0 disables both.
+    inspiration_per_lane: int = Field(default=3, ge=0, le=8, alias="INSPIRATION_PER_LANE")
+
+    tabloid_percent: float = Field(default=25, ge=0, le=100, alias="TABLOID_PERCENT")
 
     # --- Content policy deny-list ---------------------------------------------
     # Comma-separated tokens that must never appear (case-insensitive substring)

@@ -52,3 +52,36 @@ tbody tr:hover { background: rgba(201, 162, 39, 0.06); }
     .container { padding: 12px; }
     .panel { padding: 16px; }
 }
+
+/* Shared admin shell and card library. */
+body { background: var(--ink); color: var(--text); font-family: var(--font-body, system-ui, sans-serif); }
+a { color: var(--gold); }
+.admin-header { text-align: left; border-bottom: 1px solid var(--ink-line); padding-bottom: 20px; }
+.brand { font-family: var(--font-display); font-size: 2rem; color: var(--gold); }
+.brand span { font-family: system-ui, sans-serif; font-size: .7rem; letter-spacing: .18em; color: var(--text-dim); }
+.admin-nav { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 18px; }
+.admin-nav a { padding: 10px 14px; border: 1px solid var(--ink-line); border-radius: 8px; text-decoration: none; }
+.admin-nav a[aria-current="page"] { color: var(--ink); background: var(--gold); }
+main > h1 { font-family: var(--font-display); margin-bottom: 22px; }
+.stat-grid, .view-grid { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(175px, 1fr)); }
+.view-grid { grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); }
+.stat { display: flex; flex-direction: column; gap: 12px; }
+.stat strong { font-size: 2.4rem; color: var(--gold); }
+.view-grid p { line-height: 1.6; margin-bottom: 24px; }
+a.secondary-btn { display: inline-block; text-decoration: none; }
+.filters { display: flex; flex-wrap: wrap; align-items: end; gap: 14px; }
+.filters label { display: flex; flex-direction: column; gap: 7px; font-size: .85rem; }
+.filters input, .filters select { background: var(--ink); color: var(--text); border: 1px solid var(--ink-line); border-radius: 6px; padding: 10px; min-height: 42px; max-width: 100%; }
+.search-field { flex: 1 1 250px; }
+.card-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 290px), 1fr)); gap: 18px; margin: 20px 0; }
+.library-card { border: 1px solid var(--ink-line); border-radius: 12px; padding: 22px; display: flex; flex-direction: column; min-height: 240px; overflow-wrap: anywhere; }
+.prompt-card { background: #211c25; color: #f2eadf; }
+.answer-card { background: #eee6d7; color: #231c26; }
+.card-meta, .library-card footer { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px; font-size: .75rem; }
+.badge { border: 1px solid currentColor; border-radius: 4px; padding: 2px 6px; }
+.card-copy { font-size: 1.2rem; font-weight: 650; line-height: 1.5; flex: 1; margin: 25px 0; }
+.library-card footer { border-top: 1px solid currentColor; padding-top: 12px; }
+.library-card details { margin-top: 12px; font-size: .85rem; }
+.library-card summary { cursor: pointer; }
+.pagination { display: flex; gap: 20px; align-items: center; justify-content: center; margin: 30px 0; }
+:focus-visible { outline: 3px solid var(--gold); outline-offset: 3px; }

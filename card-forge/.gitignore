@@ -4,3 +4,6 @@ __pycache__/
 *.pyc
 .pytest_cache/
 *.egg-info/
+
+# Local generated batch output
+batch.json

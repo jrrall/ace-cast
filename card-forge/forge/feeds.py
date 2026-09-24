@@ -10,10 +10,13 @@ from __future__ import annotations
 
 import xml.etree.ElementTree as ET
 from dataclasses import dataclass
+from itertools import zip_longest
+from html.parser import HTMLParser
 
 import httpx
 
 from .config import Settings
+from .tabloid import ARCHIVE_URL, SOURCE, archive_pick
 from .logging_setup import get_logger
 
 LOG = get_logger("forge.feeds")
@@ -28,6 +31,53 @@ class FeedItem:
     title: str
     source: str
     url: str = ""
+    excerpt: str = ""
+
+
+def research_sample(items: list[FeedItem], limit: int = 60) -> list[FeedItem]:
+    """Interleave sources so an early, prolific feed cannot monopolize research."""
+    if limit <= 0:
+        return []
+    sources: dict[str, list[FeedItem]] = {}
+    for item in items:
+        sources.setdefault(item.source, []).append(item)
+    selected: list[FeedItem] = []
+    seen: set[str] = set()
+    for row in zip_longest(*sources.values()):
+        for item in row:
+            if item is None:
+                continue
+            key = " ".join(item.title.casefold().split())
+            if key in seen:
+                continue
+            seen.add(key)
+            selected.append(item)
+            if len(selected) == limit:
+                return selected
+    return selected
+
+
+class _PlainText(HTMLParser):
+    def __init__(self) -> None:
+        super().__init__()
+        self.parts: list[str] = []
+
+    def handle_data(self, data: str) -> None:
+        self.parts.append(data)
+
+
+def _parse_history(body: dict, source: str) -> list[FeedItem]:
+    """Library of Congress collection JSON includes article context inline."""
+    items = []
+    for row in body.get("results", [])[:5]:
+        parser = _PlainText()
+        for article in row.get("item", {}).get("articles", []):
+            parser.feed(article)
+        title = row.get("title") or "; ".join(row.get("description", []))
+        if title:
+            items.append(FeedItem(title=title, source=source, url=row.get("id", ""),
+                                  excerpt=" ".join(" ".join(parser.parts).split())[:1200]))
+    return items
 
 
 def _parse_reddit(body: dict, source: str) -> list[FeedItem]:
@@ -76,6 +126,8 @@ def fetch_feed_items(settings: Settings, http: httpx.Client | None = None) -> li
     failures: list[str] = []
     try:
         for url in settings.feed_urls:
+            if url == ARCHIVE_URL and settings.tabloid_percent == 0:
+                continue
             # A single dead source must not sink the run: public feeds rate-limit
             # (Reddit 403s datacentre IPs) and go down. Record the failure, keep
             # going, and let the "nothing at all" check below stay fail-closed.
@@ -85,8 +137,21 @@ def fetch_feed_items(settings: Settings, http: httpx.Client | None = None) -> li
                     raise FeedError(f"{url} -> HTTP {resp.status_code}")
                 ctype = resp.headers.get("content-type", "")
                 body_text = resp.text
-                if "json" in ctype or url.rstrip("/").endswith(".json") or ".json?" in url:
-                    items.extend(_parse_reddit(resp.json(), source=url))
+                if url == ARCHIVE_URL:
+                    selected = archive_pick(body_text)
+                    if selected:
+                        published, title, link, match = selected
+                        items.append(FeedItem(title=title, source=SOURCE, url=link,
+                                              excerpt=f"Fictional tabloid inspiration. Published {published}; {match}. "
+                                              "Impossible events treated as ordinary domestic problems. Not factual news."))
+                    else:
+                        LOG.warning("feed.tabloid_no_date_match")
+                elif "json" in ctype or url.rstrip("/").endswith(".json") or ".json?" in url:
+                    body = resp.json()
+                    if isinstance(body, dict) and "results" in body:
+                        items.extend(_parse_history(body, source=url))
+                    else:
+                        items.extend(_parse_reddit(body, source=url))
                 else:
                     items.extend(_parse_rss(body_text, source=url))
             except (httpx.HTTPError, FeedError, ValueError) as exc:

@@ -1,0 +1,10 @@
+<header class="admin-header">
+    <div class="brand">unholy.cards <span> / ADMIN</span></div>
+    <p><%= description %></p>
+    <nav class="admin-nav" aria-label="Admin navigation">
+        <% [['overview', '/admin', 'Overview'], ['review', '/admin/content', 'Review queue'], ['cards', '/admin/cards', 'Card library'], ['feedback', '/admin/feedback', 'Gameplay feedback']].forEach(function (item) { %>
+        <a href="<%= item[1] + (adminToken ? '?token=' + encodeURIComponent(adminToken) : '') %>" <% if (active === item[0]) { %>aria-current="page"<% } %>><%= item[2] %></a>
+        <% }); %>
+        <a href="/">Open game ↗</a>
+    </nav>
+</header>
