@@ -43,6 +43,9 @@ class Settings(BaseSettings):
     pack_slug: str = Field(default="madlad-generated", alias="PACK_SLUG")
     maturity_max: int = Field(default=3, ge=0, le=3, alias="MATURITY_MAX")
 
+    comedy_loop: bool = Field(default=False, alias="COMEDY_LOOP")
+    comedy_trace_path: str = Field(default="", alias="COMEDY_TRACE_PATH")
+
     # --- Batch sizing ----------------------------------------------------------
     batch_min: int = Field(default=10, alias="BATCH_MIN")
     batch_max: int = Field(default=20, ge=1, alias="BATCH_MAX")

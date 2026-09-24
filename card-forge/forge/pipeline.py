@@ -44,13 +44,17 @@ class Pipeline:
         # Each writer sees identical research, never the other writer's drafts.
         # Sequential calls avoid competing for memory on a local LLM server.
         generated: list[CardCandidate] = []
-        for writer in writing_team(self.llm, self.settings):
-            writer_cards: list[CardCandidate] = []
-            for theme in themes:
-                drafts = writer.run(theme)
-                generated.extend(drafts)
-                writer_cards.extend(drafts)
-            log_stage(self.log, writer.name, generated=len(writer_cards), **type_counts(writer_cards))
+        if self.settings.comedy_loop:
+            from .comedy_room import ComedyRoom
+            generated = ComedyRoom(self.llm, self.settings).run(themes)
+        else:
+            for writer in writing_team(self.llm, self.settings):
+                writer_cards: list[CardCandidate] = []
+                for theme in themes:
+                    drafts = writer.run(theme)
+                    generated.extend(drafts)
+                    writer_cards.extend(drafts)
+                log_stage(self.log, writer.name, generated=len(writer_cards), **type_counts(writer_cards))
         summary.generated = len(generated)
 
         # 3. Editor

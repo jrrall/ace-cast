@@ -460,3 +460,43 @@ Keep `--writers-only --live-research`, `INSPIRATION_PER_LANE=0`, and
 `TABLOID_PERCENT=0` for that focused test. Normal runs mix it with the other
 configured research sources; inclusion in the input pool does not guarantee
 Trendscout will select a theme from it on every run.
+
+### Paired comedy loop (experimental)
+
+Set `COMEDY_LOOP=true` to add one bounded exchange before the normal editor,
+moderator, and curator. Pairs are Deadpan ↔ Unhinged, PR Spin Doctor ↔ Banned
+From the Thread, and Petty Villain ↔ Hatemonger. All six writers draft independently
+first. Each partner challenges the originals, and the original writer gets one
+revision, which can retain the original. No model declares a winner. Invalid or
+kind-changing revisions retain the original; malformed response envelopes fail
+the run before submission. Budgets do not grow: one final candidate per draft.
+
+This adds up to twelve LLM calls per theme (six challenges and six revisions)
+to the six drafting calls. Calls remain sequential for local Ollama. It is off
+by default while human comparison establishes whether it improves the jokes.
+Original writer attribution reaches the API; challenger and revision history
+are in the local trace, not new admin fields.
+
+From `card-forge/`, compare original and revised cards on a fixed theme:
+
+```bash
+docker build -t card-forge:dev .
+docker run --rm --env-file .env -e MATURITY_MAX=3 -e CARDS_PER_THEME=12 \
+  --entrypoint python card-forge:dev /app/scripts/live_smoke.py \
+  --writers-only --comedy-loop \
+  --theme 'A family reunion introduces a rule nobody wants to explain.' \
+  | tee comedy-comparison.jsonl
+```
+
+No research, editor, moderator, curator, or game API is called in that test.
+Draft/challenge/revision records print immediately, with original text, proposed
+changes, author, challenger, source, and a run ID. Use `--live-research` instead
+of `--theme` to use configured research sources. `--writers-only` without the
+loop remains the existing baseline (set `COMEDY_LOOP=false` if enabled in .env).
+
+For normal runs, exchanges are structured stderr logs. To persist them separately,
+set `COMEDY_TRACE_PATH=/output/comedy.jsonl` and mount a writable directory with
+`-v "$PWD/runs:/output"` (create `runs` first). The JSONL file is appended after
+every completed call, preserving earlier drafts if a later call fails. It stores
+card/research text and lineage, not credentials. This loop revises card drafts;
+it does not yet introduce a separate free-form premise generation stage.
