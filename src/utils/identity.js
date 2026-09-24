@@ -43,7 +43,13 @@ function parseCookies(header) {
   header.split(';').forEach((part) => {
     const i = part.indexOf('=');
     if (i > -1) {
-      out[part.slice(0, i).trim()] = decodeURIComponent(part.slice(i + 1).trim());
+      try {
+        out[part.slice(0, i).trim()] = decodeURIComponent(part.slice(i + 1).trim());
+      } catch (error) {
+        // Cookies are untrusted; ignore malformed escapes without breaking HTTP
+        // requests or throwing out of the Socket.IO connection handler.
+        if (!(error instanceof URIError)) throw error;
+      }
     }
   });
   return out;
