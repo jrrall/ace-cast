@@ -56,6 +56,7 @@ def test_api_error_on_submit_surfaces_and_nothing_persists(settings):
             {"cards": []},  # PR Spin Doctor
             {"cards": []},  # Petty Villain
             {"cards": []},  # Banned From the Thread
+            {"cards": []},  # Hatemonger
             {"cards": [{"kind": "answer", "text": "Tax fraud."}]},
             {"verdicts": [{"index": 0, "maturity_rating": 1, "allowed": True}]},
             rated_selection([0]),

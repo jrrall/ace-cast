@@ -1,6 +1,6 @@
 """Pipeline orchestration.
 
-Runs research, five independent writers, and review stages. Logs each writer
+Runs research, six independent writers, and review stages. Logs each writer
 separately and fails closed: any stage exception
 propagates so the entrypoint exits non-zero and NOTHING is submitted. In
 ``dry_run`` the assembled batch is returned/printed but never POSTed.
