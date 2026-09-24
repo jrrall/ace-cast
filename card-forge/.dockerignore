@@ -1,0 +1,11 @@
+*
+!Dockerfile
+!pyproject.toml
+!uv.lock
+!README.md
+!forge/
+!forge/**
+!scripts/
+!scripts/live_smoke.py
+**/__pycache__
+**/*.pyc

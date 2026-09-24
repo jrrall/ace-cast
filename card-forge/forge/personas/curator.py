@@ -1,0 +1,93 @@
+"""Persona 5 — Curator.
+
+Fetches the existing corpus (ALL statuses incl. denied) via the content API,
+drops near-duplicates against it and within the batch, then makes ONE LLM call
+to rank/select the strongest cards into a 10-20 item ``SubmitBatch``.
+
+Agent dedupe (fuzzy, normalised text) and server dedupe (exact ``(pack_id,text)``)
+are complementary: the agent trims obvious dups pre-flight; the server is the
+authoritative guard. Both include denied text so denied cards never re-flood
+the review queue.
+"""
+
+from __future__ import annotations
+
+from ..client import ContentClient
+from ..config import Settings
+from ..llm import LLMClient
+from ..models import ModeratedCard, SubmitBatch, SubmitCard
+from ..text import normalize_text
+from ..prompts import HUMOR_DIRECTION
+
+SYSTEM = (
+    "You are the Curator for an adult party card game. From a numbered list of "
+    "vetted cards, select the funniest, most varied set to publish. Prefer a "
+    "mix of prompts and answers and avoid repetitive jokes.\n"
+    + HUMOR_DIRECTION
+    + "Reward specific surprises and playable combinations. Reject generic "
+    "burnout filler and slang-only jokes; preserve the deadpan voice.\n"
+    'Return ONLY JSON of the form {"selected": [0, 2, 5]} listing the indexes '
+    "to keep, best first. Indexes are ZERO-BASED integers from the supplied "
+    "list, never one-based ranks. Select fewer or none if the cards are weak."
+)
+
+
+class Curator:
+    """[ModeratedCard] -> SubmitBatch"""
+
+    name = "curator"
+
+    def __init__(
+        self, llm: LLMClient, content: ContentClient, settings: Settings
+    ) -> None:
+        self.llm = llm
+        self.content = content
+        self.settings = settings
+
+    def _existing_norms(self) -> set[str]:
+        # ALL statuses (incl. denied) so denied text is treated as a duplicate
+        corpus = self.content.list_cards()
+        return {normalize_text(c.get("text", "")) for c in corpus if c.get("text")}
+
+    def run(self, moderated: list[ModeratedCard]) -> SubmitBatch:
+        pack = self.settings.pack_slug
+        if not moderated:
+            return SubmitBatch(cards=[], pack=pack)
+
+        existing = self._existing_norms()
+        seen: set[str] = set()
+        pool: list[ModeratedCard] = []
+        for card in moderated:
+            norm = normalize_text(card.text)
+            if norm in existing or norm in seen:
+                continue  # drop near-duplicate (incl. against denied corpus)
+            seen.add(norm)
+            pool.append(card)
+
+        if not pool:
+            return SubmitBatch(cards=[], pack=pack)
+
+        listing = "\n".join(
+            f'{i}. [{c.kind}] {c.text}' for i, c in enumerate(pool)
+        )
+        user = (
+            f"Vetted cards:\n{listing}\n\n"
+            f"Valid indexes are the integers 0 through {len(pool) - 1}, inclusive. "
+            f"Select up to {min(self.settings.batch_max, len(pool))} to publish. "
+            'Return {"selected": [...]} using only those indexes.'
+        )
+        data = self.llm.complete_json(system=SYSTEM, user=user, temperature=0.3)
+        raw = data.get("selected", data) if isinstance(data, dict) else data
+
+        if not isinstance(raw, list):
+            raise ValueError("curator selected must be a list of card indexes")
+        order: list[int] = []
+        for idx in raw:
+            if type(idx) is not int or not 0 <= idx < len(pool):
+                raise ValueError("curator returned an invalid card index")
+            if idx not in order:
+                order.append(idx)
+
+        chosen = [pool[i] for i in order][: self.settings.batch_max]
+        cards = [SubmitCard.from_moderated(c, pack) for c in chosen]
+        return SubmitBatch(cards=cards, pack=pack)

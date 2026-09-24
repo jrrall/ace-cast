@@ -60,6 +60,60 @@ describe('DeckService', () => {
     ).rejects.toThrow(/no default pack/i);
   });
 
+  // F1 (Card Forge, S4) — generated cards live in the `madlad-generated` pack,
+  // which the DEFAULT deck path unions in. Only `approved` cards may play: a
+  // pending/denied generated card must be absent from the default-path deck, and
+  // approving it must make it appear (this is the test that fails on the v1
+  // non-default-pack design where approved cards silently never play).
+  test('default path unions approved generated cards, excludes pending/denied', async () => {
+    // eslint-disable-next-line camelcase
+    const genPack = await PackRepository.getBySlug('madlad-generated');
+    expect(genPack).toBeDefined();
+    expect(genPack.is_default).toBeFalsy();
+
+    const baseline = await DeckService.buildDeck({ gameId: 'madlad' });
+
+    // eslint-disable-next-line camelcase
+    const [pendingId] = await db.db()('cards').insert({
+      game_id: 'madlad',
+      kind: 'answer',
+      text: 'A pending generated answer',
+      blanks: 1,
+      maturity_rating: 2,
+      pack_id: genPack.id,
+      status: 'pending',
+      source: 'generated',
+    });
+    await db.db()('cards').insert({
+      game_id: 'madlad',
+      kind: 'answer',
+      text: 'A denied generated answer',
+      blanks: 1,
+      maturity_rating: 2,
+      pack_id: genPack.id,
+      status: 'denied',
+      source: 'generated',
+    });
+
+    // Default path (empty packIds) — neither pending nor denied leaks in, and the
+    // full seeded core deck is intact.
+    const quarantined = await DeckService.buildDeck({ gameId: 'madlad' });
+    expect(quarantined.answers).toHaveLength(baseline.answers.length);
+    expect(quarantined.prompts).toHaveLength(BLACK_CARDS.length);
+    expect(quarantined.answers.some((c) => c.id === pendingId)).toBe(false);
+
+    // Approve the pending card → it publishes via the default path.
+    await db.db()('cards').where({ id: pendingId })
+      .update({ status: 'approved', reviewed_at: db.db().fn.now(), reviewed_by: 'admin' });
+
+    const published = await DeckService.buildDeck({ gameId: 'madlad' });
+    expect(published.answers).toHaveLength(baseline.answers.length + 1);
+    expect(published.answers.some((c) => c.id === pendingId)).toBe(true);
+
+    // Clean up so later tests see the untouched seeded deck.
+    await db.db()('cards').where({ pack_id: genPack.id }).del();
+  });
+
   // F4 — retired cards are excluded from the deck, and unretiring restores them.
   test('excludes retired cards from the deck', async () => {
     const before = await DeckService.buildDeck({ gameId: 'madlad' });

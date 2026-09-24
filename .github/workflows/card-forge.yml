@@ -1,0 +1,82 @@
+name: Card Forge
+
+on:
+  pull_request:
+    paths:
+      - 'card-forge/**'
+      - '.github/workflows/card-forge.yml'
+  push:
+    branches: [main, feat/card-forge]
+    paths:
+      - 'card-forge/**'
+      - '.github/workflows/card-forge.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          version: '0.8.22'
+      - run: uv run --frozen --extra dev pytest
+        working-directory: card-forge
+
+  image:
+    needs: test
+    strategy:
+      matrix:
+        include:
+          - runner: ubuntu-24.04
+            arch: amd64
+          - runner: ubuntu-24.04-arm
+            arch: arm64
+    runs-on: ${{ matrix.runner }}
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build and check image with Docker
+        run: |
+          docker build -t card-forge:test card-forge
+          docker run --rm card-forge:test --help
+      - name: Publish architecture image
+        if: github.event_name != 'pull_request'
+        env:
+          REGISTRY_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REGISTRY_USER: ${{ github.actor }}
+          REPOSITORY: ${{ github.repository }}
+          COMMIT: ${{ github.sha }}
+          ARCH: ${{ matrix.arch }}
+        run: |
+          image="ghcr.io/${REPOSITORY,,}/card-forge"
+          printf '%s' "$REGISTRY_TOKEN" | docker login ghcr.io -u "$REGISTRY_USER" --password-stdin
+          docker tag card-forge:test "$image:$COMMIT-$ARCH"
+          docker push "$image:$COMMIT-$ARCH"
+
+  publish:
+    if: github.event_name != 'pull_request'
+    needs: image
+    runs-on: ubuntu-24.04
+    permissions:
+      packages: write
+    steps:
+      - name: Publish multi-platform manifest with Docker
+        env:
+          REGISTRY_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REGISTRY_USER: ${{ github.actor }}
+          REPOSITORY: ${{ github.repository }}
+          COMMIT: ${{ github.sha }}
+          BRANCH: ${{ github.ref_name }}
+        run: |
+          image="ghcr.io/${REPOSITORY,,}/card-forge"
+          printf '%s' "$REGISTRY_TOKEN" | docker login ghcr.io -u "$REGISTRY_USER" --password-stdin
+          docker buildx imagetools create --tag "$image:$COMMIT" \
+            "$image:$COMMIT-amd64" "$image:$COMMIT-arm64"
+          if [ "$BRANCH" = main ]; then tag=latest; else tag=card-forge; fi
+          docker buildx imagetools create --tag "$image:$tag" "$image:$COMMIT"

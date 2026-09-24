@@ -12,3 +12,9 @@ tests
 .eslintignore
 .commitlintrc.json
 .releaserc.json
+
+# Never copy local agent credentials or environments into the game image.
+**/.env
+**/.env.*
+**/.venv
+.claude
