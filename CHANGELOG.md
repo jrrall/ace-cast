@@ -1,3 +1,7 @@
+## 1.20.0 (2026-09-24)
+
+* feat: target maturity 3 comedy and remove API pack ceiling (#53) ([9fde30c](https://github.com/jrrall/ace-cast/commit/9fde30c)), closes [#53](https://github.com/jrrall/ace-cast/issues/53)
+
 ## 1.19.0 (2026-09-24)
 
 * feat: expand card-forge writing and admin review with balanced card types (#52) ([d688e11](https://github.com/jrrall/ace-cast/commit/d688e11)), closes [#52](https://github.com/jrrall/ace-cast/issues/52)
