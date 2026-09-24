@@ -1,3 +1,7 @@
+## 1.19.0 (2026-09-24)
+
+* feat: expand card-forge writing and admin review with balanced card types (#52) ([d688e11](https://github.com/jrrall/ace-cast/commit/d688e11)), closes [#52](https://github.com/jrrall/ace-cast/issues/52)
+
 ## 1.18.0 (2026-09-24)
 
 * feat: Card Forge — LLM card generation with human review gate (#47) ([bf9c21a](https://github.com/jrrall/ace-cast/commit/bf9c21a)), closes [#47](https://github.com/jrrall/ace-cast/issues/47)
