@@ -424,3 +424,36 @@ and objects; conspiracies scramble cause and effect. Cards retain the same
 prompt/answer formats and author tracking as the other writers. With six writers,
 `CARDS_PER_THEME` must be at least 6; use 12 to give each writer one prompt and
 one answer per theme. No franchise roleplay is included.
+
+### Archived conspiracy research
+
+The default feed list also includes
+`https://archive.org/wayback/available?url=infowars.com`. This is a research
+adapter, not a live news feed: it picks a random date in 2000–2009, asks Internet
+Archive for the nearest available Infowars homepage snapshot in that era, and
+samples up to two on-site article links. BeautifulSoup extracts bounded paragraph
+excerpts. Every item carries its snapshot URL/date and a label identifying it as
+unverified conspiracy claims. All writers can use the resulting themes.
+
+Trendscout extracts paranoid certainty, false causality, and invented connections
+as mechanisms for fictional comedy rather than treating the claims as facts.
+Unavailable articles fall back to the archived headline, explicitly labeled
+headline-only. An unavailable homepage logs a source failure and other feeds
+continue. No transcripts, video downloads, or live Infowars requests are used.
+Redirects remain limited to approved Infowars snapshots on web.archive.org.
+A run makes one availability request, one homepage request, and at most two
+article requests; each snapshot fetch allows at most two redirects. No cache is
+currently used.
+
+Existing `FEED_ALLOWLIST` values override defaults; append the URL above to add
+this source to your configured mix. To inspect raw drafts using only this source,
+use the b3ta live-research command above with:
+
+```bash
+-e 'FEED_ALLOWLIST=https://archive.org/wayback/available?url=infowars.com'
+```
+
+Keep `--writers-only --live-research`, `INSPIRATION_PER_LANE=0`, and
+`TABLOID_PERCENT=0` for that focused test. Normal runs mix it with the other
+configured research sources; inclusion in the input pool does not guarantee
+Trendscout will select a theme from it on every run.

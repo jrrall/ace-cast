@@ -1,6 +1,6 @@
 """Fetching from the curated source ALLOWLIST.
 
-Configured b3ta topics additionally allow bounded topic-local archive/reply reads.
+Configured b3ta topics and the Wayback source allow bounded related-page reads.
 Other sources fetch only URLs present in ``Settings.feed_urls``. Two formats are
 understood out of the box: Reddit-style listing JSON and RSS/Atom XML. Every
 returned item's ``text`` is untrusted DATA — callers must delimit it, never
@@ -17,6 +17,7 @@ from html.parser import HTMLParser
 import httpx
 
 from .config import Settings
+from .wayback_research import FEED_URL as WAYBACK_URL, SOURCE as WAYBACK_SOURCE, collect as collect_wayback
 from .b3ta import topic_url, collect, SOURCE as B3TA_SOURCE
 from .tabloid import ARCHIVE_URL, SOURCE, archive_pick
 from .logging_setup import get_logger
@@ -134,6 +135,10 @@ def fetch_feed_items(settings: Settings, http: httpx.Client | None = None) -> li
             # (Reddit 403s datacentre IPs) and go down. Record the failure, keep
             # going, and let the "nothing at all" check below stay fail-closed.
             try:
+                if url == WAYBACK_URL:
+                    items.extend(FeedItem(title=p["title"], source=WAYBACK_SOURCE, url=p["url"],
+                                          excerpt=p["excerpt"]) for p in collect_wayback(client))
+                    continue
                 resp = client.get(url, follow_redirects=False) if topic_url(url) else client.get(url)
                 if resp.status_code != 200:
                     raise FeedError(f"{url} -> HTTP {resp.status_code}")

@@ -38,6 +38,11 @@ SYSTEM = (
     "do not need a social commentary angle or an everyday-life translation. "
     "Describe the mechanism so writers invent new examples instead of copying "
     "the source jokes. Forum anecdotes are unverified, not factual reporting.\n"
+    + "Archived conspiracy material is a source of rhetoric and absurd premises, "
+    "not verified news. Extract false causality, invented connections, paranoid "
+    "certainty, and grand explanations for trivial events. Turn these into "
+    "fictional comic situations without laundering the original allegations "
+    "into facts. These themes are available to every writer, not just Hatemonger.\n"
     + INJECTION_NOTICE
     + "\nReturn ONLY JSON of the form "
     '{"themes": [{"title": "...", "angle": "...", "source_index": 0}]}. '

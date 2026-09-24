@@ -79,7 +79,8 @@ class Settings(BaseSettings):
             "https://www.theguardian.com/lifeandstyle/rss,"
             "https://www.loc.gov/collections/today-in-history/?fo=json,"
             "https://weeklyworldnews.com/archive/,"
-            "https://b3ta.com/questions/imagechallenge/"
+            "https://b3ta.com/questions/imagechallenge/,"
+            "https://archive.org/wayback/available?url=infowars.com"
         ),
         alias="FEED_ALLOWLIST",
     )
