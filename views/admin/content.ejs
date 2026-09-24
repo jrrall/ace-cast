@@ -42,7 +42,7 @@
                             <td><%= c.kind %></td>
                             <td><%= c.text %></td>
                             <td><%= c.maturity_rating %></td>
-                            <td><%= c.writer || "Unknown" %></td>
+                            <td><%= c.writer || (c.generation_route === "source_find" ? "Found phrase" : "Unknown") %><% if (c.generation_route) { %><br><small><%= c.generation_route %></small><% } %><% if (c.source_url) { %><br><a href="<%= c.source_url %>" target="_blank" rel="noopener noreferrer">Original source</a><% } %></td>
                             <td><%= c.source %></td>
                             <td><%= c.packName || '—' %></td>
                             <td>

@@ -86,12 +86,18 @@ def collect(html: str, base: str, client: httpx.Client, *, rng=random) -> list[d
                 expandable.add(url)
     remaining = 3
     for post in sampled:
+        source_posts = [dict(post)]
         if remaining and post["url"] in expandable:
             remaining -= 1
             discussion = posts(fetch(post["url"]), base)
+            source_posts += [p for p in discussion if p["id"] != post["id"]]
             replies = [p["text"][:400] for p in discussion if p["id"] != post["id"]][:8]
             if replies:
                 post["text"] += "\nReplies (same discussion):\n" + "\n---\n".join(replies)
+        post["finds"] = [{"text": line.strip(), "url": p["url"]}
+                         for p in source_posts for line in p["text"].splitlines()
+                         if 2 <= len(line.strip()) <= 100 and 1 <= len(line.split()) <= 8
+                         and "____" not in line][:40]
         post["text"] = ("Unverified forum humor, not factual reporting. Extract the comic device "
                         "and invent fresh examples; do not copy punchlines.\n" + post["text"])[:5000]
     LOG.info("feed.b3ta_sample", extra={"extra_fields": {"url": base, "posts": len(sampled)}})

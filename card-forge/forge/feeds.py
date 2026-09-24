@@ -10,7 +10,7 @@ treat it as instructions.
 from __future__ import annotations
 
 import xml.etree.ElementTree as ET
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from itertools import zip_longest
 from html.parser import HTMLParser
 
@@ -35,6 +35,7 @@ class FeedItem:
     source: str
     url: str = ""
     excerpt: str = ""
+    finds: list[dict] = field(default_factory=list)
 
 
 def research_sample(items: list[FeedItem], limit: int = 60) -> list[FeedItem]:
@@ -146,7 +147,7 @@ def fetch_feed_items(settings: Settings, http: httpx.Client | None = None) -> li
                 body_text = resp.text
                 if topic_url(url):
                     items.extend(FeedItem(title=p["title"], source=B3TA_SOURCE, url=p["url"],
-                                          excerpt=p["text"]) for p in collect(body_text, url, client))
+                                          excerpt=p["text"], finds=p["finds"]) for p in collect(body_text, url, client))
                 elif url == ARCHIVE_URL:
                     selected = archive_pick(body_text)
                     if selected:
