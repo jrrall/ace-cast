@@ -70,6 +70,59 @@ describe('GET /admin/content (admin gate + pending review)', () => {
     expect(res.text).toContain('MadLad Generated'); // resolved pack name
   });
 
+  test('overview and library require admin auth, including against a content token', async () => {
+    for (const route of ['/admin', '/admin/cards']) {
+      expect((await request(app).get(route)).status).toBe(404);
+      expect((await request(app).get(route).set('X-Admin-Token', CONTENT_TOKEN)).status).toBe(404);
+      const authorized = await request(app).get(route).set('X-Admin-Token', ADMIN_TOKEN);
+      expect(authorized.status).toBe(200);
+      expect(authorized.text).toContain('Card library');
+    }
+  });
+
+  test('library covers review history, escapes text, and combines filters', async () => {
+    const result = await request(app).post('/api/content/cards')
+      .set('Authorization', `Bearer ${CONTENT_TOKEN}`)
+      .send({ cards: [
+        { kind: 'answer', text: 'Library <script> 100% keeper', blanks: 0, maturity_rating: 1, pack: 'madlad-generated' },
+        { kind: 'answer', text: 'Library reject', blanks: 0, maturity_rating: 1, pack: 'madlad-generated' },
+      ] });
+    const [pending, denied] = result.body.created;
+    await request(app).patch(`/api/content/cards/${denied}`).set('X-Admin-Token', ADMIN_TOKEN)
+      .send({ status: 'denied', denied_reason: 'Too repetitive' });
+    const all = await request(app).get('/admin/cards').query({ token: ADMIN_TOKEN, pack: 'madlad-generated' });
+    expect(all.status).toBe(200);
+    expect(all.text).toContain('Library &lt;script&gt; 100% keeper');
+    expect(all.text).toContain('Library reject');
+    expect(all.text).toContain('Too repetitive');
+    const filtered = await request(app).get('/admin/cards').query({ token: ADMIN_TOKEN, status: 'pending', q: '100%', source: 'generated' });
+    expect(filtered.status).toBe(200);
+    expect(filtered.text).toContain(`#${pending}`);
+    expect(filtered.text).not.toContain('Library reject');
+    const empty = await request(app).get('/admin/cards').query({ token: ADMIN_TOKEN, q: 'does-not-exist-uniquely' });
+    expect(empty.text).toContain('No cards match');
+  });
+
+  test('library paginates without dropping filters or duplicating cards', async () => {
+    for (let start = 0; start < 51; start += 20) {
+      const result = await request(app).post('/api/content/cards')
+        .set('Authorization', `Bearer ${CONTENT_TOKEN}`)
+        .send({ cards: Array.from({ length: Math.min(20, 51 - start) }, (_, i) => ({
+          kind: 'answer', text: `Pagination fixture ${start + i}`, blanks: 0, maturity_rating: 1, pack: 'madlad-generated',
+        })) });
+      expect(result.status).toBe(201);
+    }
+    const first = await request(app).get('/admin/cards').query({ token: ADMIN_TOKEN, q: 'Pagination fixture' });
+    expect(first.status).toBe(200);
+    expect(first.text).toContain('Page 1 of 2');
+    expect(first.text).toContain('q=Pagination+fixture');
+    const last = await request(app).get('/admin/cards').query({ token: ADMIN_TOKEN, q: 'Pagination fixture', page: 999 });
+    expect(last.status).toBe(200);
+    expect(last.text).toContain('Page 2 of 2');
+    expect(last.text).toContain('Pagination fixture 0');
+    expect(last.text).not.toContain('Pagination fixture 50');
+  });
+
   test('approve via PATCH removes the card from the next pending listing', async () => {
     const submit = await request(app)
       .post('/api/content/cards')

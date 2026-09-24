@@ -14,7 +14,7 @@ def test_trendscout_returns_typed_themes(settings, sample_feed_items):
         [
             {
                 "themes": [
-                    {"title": "Millennial burnout", "angle": "Work is a scam"},
+                    {"title": "Millennial burnout", "angle": "Work is a scam", "source_index": 0},
                     {"title": "AI overreach", "angle": "The bots took my job"},
                 ]
             }
@@ -44,3 +44,30 @@ def test_trendscout_caps_theme_count(settings, sample_feed_items):
     )
     themes = Trendscout(llm, settings, fetch_fn=lambda s: sample_feed_items).run()
     assert len(themes) == 1
+
+
+def test_theme_gets_only_selected_source_context(settings):
+    from forge.feeds import FeedItem
+    settings.inspiration_per_lane = 0
+    items = [FeedItem(title="Viking music", source="news"),
+             FeedItem(title="Court etiquette", source="history", url="https://example.com/history",
+                      excerpt="A dispute over seating precedence.")]
+    llm = FakeLLM([{"themes": [{"title": "Petty protocol", "source_index": 1},
+                              {"title": "Missing source", "source_index": 999}]}])
+    themes = Trendscout(llm, settings, fetch_fn=lambda _: items).run()
+    assert themes[0].source == "history"
+    assert themes[0].url == items[1].url
+    assert "seating precedence" in themes[0].raw_excerpt
+    assert "Viking" not in themes[0].raw_excerpt
+    assert themes[1].raw_excerpt == ""
+    assert themes[1].source == "unspecified"
+
+
+def test_fictional_seeds_are_labeled_and_can_be_disabled(settings):
+    llm = FakeLLM([{"themes": []}, {"themes": []}])
+    Trendscout(llm, settings, fetch_fn=lambda _: []).run()
+    assert "fictional:everyday" in llm.calls[0]["user"]
+    assert "fictional:off-the-cuff" in llm.calls[0]["user"]
+    settings.inspiration_per_lane = 0
+    Trendscout(llm, settings, fetch_fn=lambda _: []).run()
+    assert "fictional:" not in llm.calls[1]["user"]

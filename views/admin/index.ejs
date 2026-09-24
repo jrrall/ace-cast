@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title><%= title %></title><link rel="stylesheet" href="/css/theme.css"><link rel="stylesheet" href="/css/admin.css">
+</head>
+<body><div class="container">
+    <%- include('nav', { active: 'overview', description: 'From questionable ideas to the cards worth keeping.' }) %>
+    <% const suffix = adminToken ? '?token=' + encodeURIComponent(adminToken) : ''; %>
+    <main>
+        <h1>The deck, at a glance</h1>
+        <div class="stat-grid">
+            <% [['All cards', counts.total], ['Pending review', counts.pending], ['Approved', counts.approved], ['Denied', counts.denied], ['Retired', counts.retired]].forEach(function (stat) { %>
+            <div class="panel stat"><span><%= stat[0] %></span><strong><%= stat[1] %></strong></div>
+            <% }); %>
+        </div>
+        <div class="view-grid">
+            <section class="panel"><h2>Card Forge review</h2><p>Generated cards arrive here as pending. You decide what earns a place in the deck.</p><a class="secondary-btn" href="/admin/content<%= suffix %>">Review <%= counts.pending %> candidates</a></section>
+            <section class="panel"><h2>The complete library</h2><p>Search original and generated cards, including rejected and retired material.</p><a class="secondary-btn" href="/admin/cards<%= suffix %>">Browse all cards</a></section>
+            <section class="panel"><h2>What actually lands</h2><p>Explore gameplay wins and player flags. Retire weak cards or bring them back.</p><a class="secondary-btn" href="/admin/feedback<%= suffix %>">View gameplay feedback</a></section>
+        </div>
+        <p class="help-text">Approved cards may enter eligible decks. Retired cards remain in the library but are excluded from play. Generation runs separately; this page does not start a run.</p>
+    </main>
+</div></body></html>

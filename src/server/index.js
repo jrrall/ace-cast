@@ -36,6 +36,7 @@ const ContentCardRepository = require('../content/ContentCardRepository');
 const ServiceTokenRepository = require('../content/ServiceTokenRepository');
 const PackRepository = require('../content/PackRepository');
 const FeedbackRepository = require('../content/FeedbackRepository');
+const AdminCardRepository = require('../content/AdminCardRepository');
 const IdentityRepository = require('../content/IdentityRepository');
 const SessionRepository = require('../content/SessionRepository');
 const { isResumable } = require('../game/contract');
@@ -217,6 +218,33 @@ function requireAdmin(req, res, next) {
   }
   next();
 }
+
+// Shared admin overview and complete card library, using the existing admin gate.
+app.get('/admin', requireAdmin, async (req, res) => {
+  try {
+    res.render('admin/index', {
+      title: 'unholy.cards — Admin',
+      adminToken: typeof req.query.token === 'string' ? req.query.token : '',
+      counts: await AdminCardRepository.overview(),
+    });
+  } catch (error) {
+    console.error('Failed to load admin overview:', error);
+    res.status(500).render('error', { message: 'Failed to load admin overview' });
+  }
+});
+
+app.get('/admin/cards', requireAdmin, async (req, res) => {
+  try {
+    res.render('admin/cards', {
+      title: 'unholy.cards — Card Library',
+      adminToken: typeof req.query.token === 'string' ? req.query.token : '',
+      ...await AdminCardRepository.library(req.query),
+    });
+  } catch (error) {
+    console.error('Failed to load card library:', error);
+    res.status(500).render('error', { message: 'Failed to load card library' });
+  }
+});
 
 // F3 — feedback dashboard: per-card plays/wins/win-rate + flag counts, plus
 // rollups (top winners, dead weight, most-flagged) and F4 suggested

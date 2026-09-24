@@ -18,3 +18,6 @@ tests
 **/.env.*
 **/.venv
 .claude
+
+# The game image does not need the standalone agent or locally generated drafts.
+card-forge

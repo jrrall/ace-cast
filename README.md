@@ -287,9 +287,9 @@ submits them for human review. It is a separate project with its own `uv` venv �
 `npm test` does not run it, and the game server does not import it. The agent
 talks to the game **only** over HTTP.
 
-The chain is five personas: Trendscout (fetches an allowlisted feed) → Writer →
-Editor → Moderator (assigns maturity) → Curator (dedupes against the live
-corpus), which POSTs a batch to `/api/content/cards`. Cards land as `status:
+The chain is Trendscout (mixed research sources) → five independent writers →
+Editor → Moderator (assigns maturity) → Curator (deduplication and weighted
+quality scoring), which POSTs a batch to `/api/content/cards`. Cards land as `status:
 pending` in the `madlad-generated` pack and reach gameplay only after a human
 approves them at `/admin/content` — `listForDeck` filters on `status = approved`.
 
@@ -300,6 +300,10 @@ uv run pytest                # unit tests (mocked LLM)
 uv run python forge.py --dry-run   # run the chain, print the batch, submit nothing
 uv run python forge.py       # real run: submits pending cards
 ```
+
+The admin overview at `/admin` links to the complete searchable library at
+`/admin/cards`, the pending review queue, and gameplay feedback. For an isolated
+local app and API, see [local Docker testing](deploy/local/README.md).
 
 Runs are **manual for now** — invoked from a workstation against the live game,
 with every card still gated behind human approval. Feed text is treated as

@@ -10,7 +10,7 @@ from forge.feeds import FeedError
 from forge.llm import LLMError
 from forge.pipeline import Pipeline
 
-from conftest import FakeContentClient, FakeLLM
+from conftest import rated_selection, FakeContentClient, FakeLLM
 
 
 def _feed(_settings=None):
@@ -52,9 +52,13 @@ def test_api_error_on_submit_surfaces_and_nothing_persists(settings):
         [
             {"themes": [{"title": "T", "angle": "a"}]},
             {"cards": [{"kind": "answer", "text": "Tax fraud."}]},
+            {"cards": []},  # unhinged writer
+            {"cards": []},  # PR Spin Doctor
+            {"cards": []},  # Petty Villain
+            {"cards": []},  # Banned From the Thread
             {"cards": [{"kind": "answer", "text": "Tax fraud."}]},
             {"verdicts": [{"index": 0, "maturity_rating": 1, "allowed": True}]},
-            {"selected": [0]},
+            rated_selection([0]),
         ]
     )
     content = FakeContentClient(

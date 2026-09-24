@@ -1,6 +1,6 @@
 """End-to-end dry-run: assembled batch is all-valid and nothing is submitted.
 
-Also asserts observability: 5 distinct persona stage log entries and a POST
+Also asserts observability: 9 distinct persona stage log entries and a POST
 that never happens in dry-run.
 """
 
@@ -12,11 +12,11 @@ import logging
 from forge.models import BLANK_MARKER
 from forge.pipeline import Pipeline
 
-from conftest import FakeContentClient, FakeLLM
+from conftest import rated_selection, FakeContentClient, FakeLLM
 
 
 def _scripted_llm():
-    # exactly one theme -> Writer called once -> 5 LLM calls total
+    # exactly one theme -> all five writers called once -> 9 LLM calls total
     return FakeLLM(
         [
             {"themes": [{"title": "Burnout", "angle": "work is a scam"}]},
@@ -24,9 +24,12 @@ def _scripted_llm():
                 "cards": [
                     {"kind": "prompt", "text": "My new hustle is just ____."},
                     {"kind": "answer", "text": "A raccoon in a trench coat."},
-                    {"kind": "answer", "text": "Existential dread."},
                 ]
             },
+            {"cards": [{"kind": "answer", "text": "Existential dread."}]},  # unhinged writer
+            {"cards": []},  # PR Spin Doctor
+            {"cards": []},  # Petty Villain
+            {"cards": []},  # Banned From the Thread
             {
                 "cards": [
                     {"kind": "prompt", "text": "My new hustle is just ____."},
@@ -41,7 +44,7 @@ def _scripted_llm():
                     {"index": 2, "maturity_rating": 1, "allowed": True},
                 ]
             },
-            {"selected": [0, 1, 2]},
+            rated_selection([0, 1, 2]),
         ]
     )
 
@@ -69,7 +72,7 @@ def test_dry_run_batch_all_valid(settings):
     json.dumps(batch.payload())
 
 
-def test_dry_run_five_distinct_persona_calls(settings, caplog):
+def test_dry_run_nine_distinct_persona_calls(settings, caplog):
     llm = _scripted_llm()
     content = FakeContentClient(corpus=[])
     pipeline = Pipeline(settings, llm, content, fetch_fn=lambda s: _feed())
@@ -83,9 +86,9 @@ def test_dry_run_five_distinct_persona_calls(settings, caplog):
         if isinstance(getattr(r, "extra_fields", None), dict)
         and r.extra_fields.get("stage")
     ]
-    assert personas == ["trendscout", "writer", "editor", "moderator", "curator"]
-    # 5 distinct underlying LLM calls
-    assert len(llm.calls) == 5
+    assert personas == ["trendscout", "writer.deadpan", "writer.unhinged", "writer.pr_spin_doctor", "writer.petty_villain", "writer.banned_from_the_thread", "editor", "moderator", "curator"]
+    # 9 distinct underlying LLM calls
+    assert len(llm.calls) == 9
 
 
 def _feed():

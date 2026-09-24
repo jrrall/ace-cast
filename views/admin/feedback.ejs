@@ -9,10 +9,7 @@
 </head>
 <body data-admin-token="<%= adminToken %>">
     <div class="container">
-        <header>
-            <h1>🃏 unholy.cards</h1>
-            <p>Feedback dashboard (F3) &amp; retirement (F4) — internal, admin-gated.</p>
-        </header>
+        <%- include("nav", { active: "feedback", description: "See what lands in real games and retire cards that do not." }) %>
 
         <main>
             <section class="panel">
@@ -110,7 +107,7 @@
             </section>
 
             <section class="panel">
-                <h2>All cards (<%= cards.length %>)</h2>
+                <h2>Approved cards (<%= cards.length %>)</h2>
                 <label for="pack-filter" class="help-text">Filter by pack:</label>
                 <select id="pack-filter">
                     <option value="">All packs</option>

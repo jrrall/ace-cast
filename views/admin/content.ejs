@@ -9,10 +9,7 @@
 </head>
 <body data-admin-token="<%= adminToken %>">
     <div class="container">
-        <header>
-            <h1>🃏 unholy.cards</h1>
-            <p>Content review (F3) — Card Forge candidates awaiting approval, internal, admin-gated.</p>
-        </header>
+        <%- include("nav", { active: "review", description: "Review generated cards before they reach the deck." }) %>
 
         <main>
             <section class="panel">
@@ -25,13 +22,13 @@
             </section>
 
             <section class="panel">
-                <h2>Pending (<%= cards.length %>)</h2>
+                <h2>Pending (showing <%= cards.length %> of <%= counts.pending %>)</h2>
                 <% if (cards.length === 0) { %>
                     <p class="help-text">No candidates waiting for review.</p>
                 <% } else { %>
                 <div class="bulk-actions">
-                    <button type="button" class="secondary-btn" data-bulk-action="approve-all">Approve all</button>
-                    <button type="button" class="secondary-btn" data-bulk-action="deny-all">Deny all</button>
+                    <button type="button" class="secondary-btn" data-bulk-action="approve-all">Approve shown</button>
+                    <button type="button" class="secondary-btn" data-bulk-action="deny-all">Deny shown</button>
                 </div>
                 <table>
                     <thead>

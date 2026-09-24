@@ -15,20 +15,30 @@ Card Forge is **fully decoupled** from the game. It talks to it over HTTP only �
 never the database, files, or internal modules. The content API is the sole
 contract.
 
-## The five personas
+## The persona chain
 
 Each stage has typed card/theme models and is independently testable with a
-mocked LLM. Writer calls the model once per theme; the other stages make at
-most one call each and may skip empty inputs. A four-theme run normally makes
-eight LLM calls. Logs record stage counts and LLM call start/completion times.
+mocked LLM. Five writers each call the model once per theme, receiving identical
+research without seeing each other's drafts. The other stages make at most one
+call each and may skip empty inputs. A four-theme run normally makes twenty-four
+LLM calls. Writer calls run sequentially to avoid overloading a local model. Logs record stage counts and LLM call start/completion times.
 
 | # | Persona | In → Out | Job |
 |---|---------|----------|-----|
 | 1 | **Trendscout** | feeds → `[Theme]` | Fetch from a curated source allowlist; distil untrusted feed titles into themes. |
-| 2 | **Writer** | `Theme` → `[CardCandidate]` | Write prompts (with the `____` blank) and answers per theme. |
+| 2a | **Deadpan Writer** | `Theme` → `[CardCandidate]` | Calm understatement; absurd situations treated as routine. |
+| 2b | **Unhinged Writer** | `Theme` → `[CardCandidate]` | Vivid, excessive escalation grounded in the same premise. |
+| 2c | **PR Spin Doctor** | `Theme` → `[CardCandidate]` | Rebrands obvious failures as premium benefits. |
+| 2d | **Petty Villain** | `Theme` → `[CardCandidate]` | Turns small grievances into elaborate, absurd revenge. |
+| 2e | **Banned From the Thread** | `Theme` → `[CardCandidate]` | Adult shock-comedy: reassuring setups, filthy turns, and disastrous self-owns. |
 | 3 | **Editor** | `[CardCandidate]` → `[CardCandidate]` | Cull broken/unfunny/dupe cards; tighten wording. |
 | 4 | **Moderator** | `[CardCandidate]` → `[ModeratedCard]` | Assign maturity 0–3, cap at the pack ceiling, drop out-of-policy + deny-listed. |
 | 5 | **Curator** | `[ModeratedCard]` → `SubmitBatch` | Fetch the existing corpus (incl. denied), drop near-dups, rank/select 10–20. |
+
+`CARDS_PER_THEME` is the total budget shared by all five writers (minimum 5).
+Leftover cards are allocated in roster order: Deadpan, Unhinged, PR Spin Doctor,
+Petty Villain, then Banned From the Thread. The editor preserves their different voices;
+the curator chooses strong cards across the roster without forcing a quota.
 
 Then `client.py` POSTs the batch; the server re-validates, dedupes on
 `(pack_id, text)`, and stores everything as `pending`.
@@ -112,8 +122,27 @@ full list. Key secrets:
 
 ## Feed sources, ToS, and safety
 
-Trendscout fetches **only** the URLs in `FEED_ALLOWLIST` (default: Know Your
-Meme + BBC News RSS). Arbitrary scraped URLs are never used.
+Review-feedback retrieval, generation provenance, and taste evaluation are
+[deferred follow-up stories](../docs/card-forge-feedback-backlog.md), outside
+the current feature's scope.
+
+Trendscout fetches **only** its curated feed URLs. Defaults are Know Your Meme,
+BBC News, The Guardian World, NPR News, Ars Technica, 404 Media, and The Guardian
+Life and Style, plus Library of Congress Today in History. This covers memes, world and US news, technology, internet
+culture, relationships, and everyday life. Arbitrary scraped URLs are never used.
+
+Headlines are interleaved by source before the 60-headline research limit, with
+identical headlines removed. A long feed cannot crowd out all the later feeds.
+Unavailable feeds are logged and skipped; the run fails if none return items.
+History entries include a short article excerpt and source link. Each run also
+samples three fictional everyday situations and three off-the-cuff premises
+from local banks. Set `INSPIRATION_PER_LANE=0` to disable those, or 1–8 to
+adjust each bank. These are labeled fictional, not reported events. This is
+one research pass with no recursive browsing. Themes carry only their selected
+source context; unrelated headlines are not appended to every writer request.
+
+`FEED_ALLOWLIST` replaces these defaults, so remove an old two-source override
+from your local environment to use the expanded list.
 
 Reddit is not in the default list and cannot easily be: it returns an HTML
 interstitial (403) to unauthenticated clients on both `.json` and `.rss`, no
@@ -150,7 +179,6 @@ and fail-closed behaviour. No test touches the network or the real gateway.
   exists — `npm run token:revoke -- --client <id>` on the game side.
 - Embedding-based near-dup detection (current dedupe is normalised-text exact
   match, layered under the server's authoritative `(pack_id, text)` dedupe).
-- Multi-source feed expansion beyond the MVP two.
 
 ## Current limits
 
@@ -231,3 +259,89 @@ Replace the LLM URL/model for your server. Remove `--dry-run` to submit a batch.
 If the registry package is private, run `docker login ghcr.io` first using a
 GitHub credential with permission to read it. Publishing requires pushing this
 workflow to GitHub and a successful workflow run.
+
+### Compare the writers locally
+
+From `card-forge/`, build and test your working tree without pushing anything:
+
+```bash
+docker build -t card-forge:dev .
+docker run --rm --env-file .env.local \
+  --add-host=host.docker.internal:host-gateway \
+  -e LLM_BASE_URL=http://host.docker.internal:11434/v1 \
+  -e LLM_TIMEOUT=300 -e LLM_REASONING_EFFORT=none \
+  --entrypoint python card-forge:dev /app/scripts/live_smoke.py --writers-only
+```
+
+This uses fictional sample news and your configured LLM. It prints one JSON
+line per writer/theme, labeled `writer.deadpan`, `writer.unhinged`, `writer.pr_spin_doctor`,
+`writer.petty_villain`, or `writer.banned_from_the_thread`, immediately
+after that call finishes. These are raw drafts, before editing and moderation.
+It never contacts the game API or submits cards. Redirect stdout to a file to
+keep the drafts even if a later writer fails. Omit `--writers-only` to exercise
+the full chain. Use your LLM's LAN URL instead if it runs on another machine.
+
+
+### Fictional tabloid share
+
+`TABLOID_PERCENT=25` reserves approximately one quarter of writing themes for
+Weekly World News inspiration. Four-theme runs reserve one theme; one-theme
+runs choose the tabloid lane with 25% probability. Use `TABLOID_PERCENT=100`
+for a focused test or `0` to disable it. This controls writing themes, not the
+percentage of final approved cards: editing and curation can reject any draft.
+
+The allowlisted `https://weeklyworldnews.com/archive/` page is fetched once.
+Using the process's current date, Card Forge finds matching month/day entries,
+chooses uniformly among available prior years, then picks one story from that
+year. If no exact anniversary exists, it uses the same month and labels the
+fallback. No matching month or an unavailable archive means no reserved tabloid
+themes for that run. It does not crawl linked articles or Google Books scans.
+
+Source date and URL accompany the theme; the material is explicitly fictional
+inspiration. Multiple reserved themes use different situation angles on the
+selected story. A custom `FEED_ALLOWLIST` must include the archive URL to enable
+this source. The run's date follows the container timezone (usually UTC).
+
+
+### Quality rubric and writer styles
+
+Writers and the editor share a five-dimension quality rubric. The curator
+returns integer scores from 0 to 5 and a short reason for each selected card.
+Code calculates `20 * (0.30*playability + 0.25*comic_turn + 0.15*specificity +
+0.10*economy + 0.20*originality)`. `QUALITY_MIN` defaults to 70/100;
+`QUALITY_WEIGHTS` accepts a JSON object with all five nonnegative weights summing
+to one. Playability and comic turn must each reach 3/5 regardless of the total.
+Missing or invalid evaluations fail the run rather than bypassing the gate.
+
+Style scores are separate from quality. Writer targets in `forge/rubric.py`
+use the following starting profiles (0 absent to 5 dominant):
+
+| Writer | Unhinged | Lewd | Dark | Gross | Blasphemous | Deadpan | Implication |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| Deadpan | 1 | 1 | 3 | 1 | 2 | 5 | 4 |
+| Unhinged | 5 | 3 | 4 | 3 | 3 | 2 | 4 |
+| PR Spin Doctor | 2 | 1 | 3 | 1 | 4 | 4 | 3 |
+| Petty Villain | 3 | 2 | 2 | 1 | 2 | 3 | 5 |
+| Banned From the Thread | 4 | 4 | 4 | 3 | 4 | 4 | 5 |
+
+These profiles guide writing, not quotas or rewards for being explicit. The
+curator ranks eligible cards by computed quality and keeps at most one per
+model-assigned premise group. `curator.score` JSON logs include the card text,
+quality dimensions, style dimensions, reason, score, and whether it was kept.
+These judgments are model estimates, not validated human preference scores.
+The rubric uses mental combination checks; simulated gameplay and calibration
+against human outcomes remain follow-up work. Scores are logs, not new database
+fields or admin UI controls.
+
+### Card type balance
+
+The writing team divides each theme into equal prompt and answer budgets,
+then assigns those slots across the five writers. Writer and
+Curator enforce separate type budgets using `CARDS_PER_THEME` and `BATCH_MAX`,
+respectively; an odd slot goes to answers. They scan the full returned list so
+prompt-first ordering cannot crowd out later answers. Curator ranks all worthy
+cards, and only its selected cards can be published. Missing or rejected cards
+leave slots empty instead of being replaced by the other type, so small batches
+can still be uneven. This targets new generation, not the existing pack ratio.
+Writer, Editor, Moderator, and Curator stage logs include `prompts` and `answers`
+to show where either type is lost.
