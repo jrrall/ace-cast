@@ -317,7 +317,9 @@ Code calculates `20 * (0.30*playability + 0.25*comic_turn + 0.15*specificity +
 0.10*economy + 0.20*originality)`. `QUALITY_MIN` defaults to 70/100;
 `QUALITY_WEIGHTS` accepts a JSON object with all five nonnegative weights summing
 to one. Playability and comic turn must each reach 3/5 regardless of the total.
-Missing or invalid evaluations fail the run rather than bypassing the gate.
+Missing or invalid selection/quality evaluations fail the run rather than bypassing
+the gate. Style diagnostics do not participate in selection and are optional;
+malformed style scores are omitted with a warning rather than losing a batch.
 
 Style scores are separate from quality. Writer targets in `forge/rubric.py`
 use the following starting profiles (0 absent to 5 dominant):
@@ -333,7 +335,9 @@ use the following starting profiles (0 absent to 5 dominant):
 These profiles guide writing, not quotas or rewards for being explicit. The
 curator ranks eligible cards by computed quality and keeps at most one per
 model-assigned premise group. `curator.score` JSON logs include the card text,
-quality dimensions, style dimensions, reason, score, and whether it was kept.
+quality dimensions, reason, score, and whether it was kept. Valid optional
+style diagnostics are logged if supplied, but the Curator no longer requests
+them. Reasons are requested in at most 12 words to reduce response size.
 These judgments are model estimates, not validated human preference scores.
 The rubric uses mental combination checks; simulated gameplay and calibration
 against human outcomes remain follow-up work. Scores are logs, not new database

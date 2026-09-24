@@ -44,8 +44,8 @@ SYSTEM = (
     'Return ONLY JSON with "selected" (ranked zero-based indexes) and '
     '"evaluations" (one per selected index). Each evaluation contains index, '
     'quality: {playability, comic_turn, specificity, economy, originality}, '
-    'style: {unhinged, lewd, dark, gross, blasphemous, deadpan, implication}, '
-    'premise_group (a short label), and reason (a brief concrete assessment). '
+    'premise_group (a short label), and reason (at most 12 words). '
+    'Omit style scores and card text from the response. '
     'All dimension scores are integers 0-5. Assign the SAME premise_group to '
     'variations on the same situation and joke mechanism. Do not use unique '
     'labels to disguise repetition. Select fewer or none if weak. '
@@ -140,7 +140,7 @@ class Curator:
                     and budget[pool[idx].kind] > 0)
             get_logger().info("curator.score", extra={"extra_fields": {
                 "index": idx, "text": pool[idx].text, "score": score, "kept": keep,
-                **evaluation.model_dump(exclude={"index"}),
+                **evaluation.model_dump(exclude={"index"}, exclude_none=True),
             }})
             if keep:
                 budget[pool[idx].kind] -= 1
