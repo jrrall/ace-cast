@@ -33,6 +33,11 @@ SYSTEM = (
     "the resulting card should work without knowing the news story. Do not "
     "invent factual allegations about real people from a headline.\n"
     + HUMOR_DIRECTION
+    + "For forum humor, preserve wordplay, sound-alike substitutions, crude literal "
+    "interpretations, escalating lists, and mashups as comic mechanisms. These "
+    "do not need a social commentary angle or an everyday-life translation. "
+    "Describe the mechanism so writers invent new examples instead of copying "
+    "the source jokes. Forum anecdotes are unverified, not factual reporting.\n"
     + INJECTION_NOTICE
     + "\nReturn ONLY JSON of the form "
     '{"themes": [{"title": "...", "angle": "...", "source_index": 0}]}. '

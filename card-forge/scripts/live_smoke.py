@@ -32,7 +32,7 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from forge.config import load_settings  # noqa: E402
-from forge.feeds import FeedItem  # noqa: E402
+from forge.feeds import FeedItem, fetch_feed_items  # noqa: E402
 from forge.llm import LLMClient  # noqa: E402
 from forge.models import RunSummary  # noqa: E402
 from forge.pipeline import Pipeline  # noqa: E402
@@ -65,6 +65,8 @@ def main() -> int:
     parser = argparse.ArgumentParser(description="Test Card Forge without the game API.")
     parser.add_argument("--writers-only", action="store_true",
                         help="Research once and print each writer's raw drafts as JSON lines; skip review.")
+    parser.add_argument("--live-research", action="store_true",
+                        help="Use configured public research feeds instead of fictional sample headlines.")
     args = parser.parse_args()
     api_key = os.environ.get("LLM_API_KEY") or os.environ.get("LITELLM_API_KEY", "")
     # Small sizes keep this LIGHT: 1 theme, a few cards per theme.
@@ -80,12 +82,13 @@ def main() -> int:
     )
 
     llm = LLMClient(settings)
-    pipeline = Pipeline(settings, llm, _StubContentClient(), fetch_fn=_canned_fetch)
+    fetch_fn = fetch_feed_items if args.live_research else _canned_fetch
+    pipeline = Pipeline(settings, llm, _StubContentClient(), fetch_fn=fetch_fn)
 
     summary = RunSummary(dry_run=True)
     try:
         if args.writers_only:
-            themes = Trendscout(llm, settings, _canned_fetch).run()
+            themes = Trendscout(llm, settings, fetch_fn).run()
             count = 0
             for writer in writing_team(llm, settings):
                 for theme in themes:
@@ -93,6 +96,7 @@ def main() -> int:
                     count += len(cards)
                     print(json.dumps({
                         "persona": writer.name, "theme": theme.title,
+                        "source_url": theme.url, "research": theme.raw_excerpt,
                         "cards": [card.model_dump() for card in cards],
                     }, ensure_ascii=False), flush=True)
             return 0 if count else 1

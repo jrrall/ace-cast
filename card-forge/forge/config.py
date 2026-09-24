@@ -78,7 +78,8 @@ class Settings(BaseSettings):
             "https://www.404media.co/rss/,"
             "https://www.theguardian.com/lifeandstyle/rss,"
             "https://www.loc.gov/collections/today-in-history/?fo=json,"
-            "https://weeklyworldnews.com/archive/"
+            "https://weeklyworldnews.com/archive/,"
+            "https://b3ta.com/questions/imagechallenge/"
         ),
         alias="FEED_ALLOWLIST",
     )

@@ -384,3 +384,35 @@ approved, denied, and approval percentage per writer. Use these review outcomes
 to identify voices to tune; they are not measured laugh rates. Cards generated
 before attribution was recorded remain Unknown. Deploy the game before using
 the updated generator, otherwise older servers will ignore writer metadata.
+
+### b3ta discussions as research
+
+The default feed list includes `https://b3ta.com/questions/imagechallenge/`.
+BeautifulSoup extracts post titles and bodies, removes bylines/signatures, and
+keeps sampled replies with their original discussion. Per configured topic, each
+run reads the latest page, one randomly chosen linked archive page, and at most
+three reply threads. It returns up to eight discussions, with bounded excerpts.
+Only same-topic reading links are followed; profiles, posting links, external
+links, and redirects are excluded. Failed child pages leave the original posts
+usable. Forum material is labeled unverified and passed as untrusted data.
+Trendscout can preserve wordplay and crude riffs as mechanisms for original cards.
+
+An existing `FEED_ALLOWLIST` overrides defaults: append a canonical b3ta topic URL
+to that comma-separated list to include it. No cache or volume is required;
+pages are fetched again each run.
+
+From `card-forge/`, inspect raw drafts using only live b3ta research:
+
+```bash
+docker build -t card-forge:dev .
+docker run --rm --env-file .env -e MATURITY_MAX=3 \
+  -e FEED_ALLOWLIST=https://b3ta.com/questions/imagechallenge/ \
+  -e INSPIRATION_PER_LANE=0 -e TABLOID_PERCENT=0 \
+  --entrypoint python card-forge:dev /app/scripts/live_smoke.py \
+  --writers-only --live-research | tee b3ta-drafts.jsonl
+```
+
+This prints the theme, source URL, research excerpt, and each writer's raw cards.
+It never submits cards. Without `--live-research`, the smoke command still uses
+its fictional sample headlines. Normal Forge runs automatically use configured
+feeds, including b3ta, before the normal editing and review stages.
