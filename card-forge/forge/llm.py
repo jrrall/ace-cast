@@ -24,6 +24,10 @@ class LLMError(RuntimeError):
     """Raised when the LLM call fails or returns unparseable output."""
 
 
+class _JSONResponseError(LLMError):
+    """Only invalid or truncated JSON is eligible for a format retry."""
+
+
 def _extract_json(text: str) -> Any:
     """Best-effort extraction of a JSON value from a model response.
 
@@ -41,21 +45,25 @@ def _extract_json(text: str) -> Any:
         s = s.strip().rstrip("`").strip()
     try:
         return json.loads(s)
-    except json.JSONDecodeError:
-        # fall back to the outermost bracketed region
-        for open_ch, close_ch in (("[", "]"), ("{", "}")):
-            start = s.find(open_ch)
-            end = s.rfind(close_ch)
-            if start != -1 and end > start:
-                try:
-                    return json.loads(s[start : end + 1])
-                except json.JSONDecodeError:
-                    continue
-        raise LLMError(f"could not parse JSON from LLM response: {text[:200]!r}")
+    except json.JSONDecodeError as exc:
+        # Decode the first outer JSON value, never a nested array salvaged from
+        # an incomplete object (which could silently publish a partial batch).
+        starts = [pos for ch in ("{", "[") if (pos := s.find(ch)) >= 0]
+        if starts:
+            try:
+                value, _ = json.JSONDecoder().raw_decode(s[min(starts):])
+                return value
+            except json.JSONDecodeError:
+                pass
+        raise LLMError(
+            f"invalid JSON ({len(text)} response characters): "
+            f"{exc.msg} at line {exc.lineno}, column {exc.colno}"
+        ) from exc
+
 
 
 class LLMClient:
-    """Single-call boundary for all personas."""
+    """JSON completion boundary with one bounded format retry by default."""
 
     def __init__(self, settings: Settings, client: OpenAI | None = None) -> None:
         self.settings = settings
@@ -78,9 +86,33 @@ class LLMClient:
         Raises ``LLMError`` on transport failure or unparseable output so the
         pipeline can fail closed.
         """
+        for attempt in range(self.settings.llm_json_retries + 1):
+            try:
+                return self._complete_json_once(
+                    system=system, user=user, temperature=temperature if attempt == 0 else 0.0,
+                    format_retry=attempt > 0,
+                )
+            except _JSONResponseError as exc:
+                if attempt >= self.settings.llm_json_retries:
+                    raise LLMError(f"LLM JSON failed after {attempt + 1} attempts: {exc}") from exc
+                LOG.warning("llm.json_retry", extra={"extra_fields": {
+                    "model": self.model, "attempt": attempt + 1, "error": str(exc),
+                }})
+        raise AssertionError("unreachable")
+
+    def _complete_json_once(self, *, system: str, user: str, temperature: float,
+                            format_retry: bool) -> Any:
         kwargs: dict[str, Any] = {}
         if self.settings.llm_reasoning_effort:
             kwargs["reasoning_effort"] = self.settings.llm_reasoning_effort
+        if format_retry:
+            system += (
+                "\nThe previous response was not complete valid JSON. Generate the full "
+                "response again, more concisely. Return only one complete JSON object, "
+                "with double-quoted keys and strings and all brackets closed. "
+                "Use valid JSON escapes: an apostrophe needs no escaping. "
+                "Do not include markdown, commentary, or backslash line continuations."
+            )
         LOG.info("llm.call_started", extra={"extra_fields": {"model": self.model}})
         started = time.monotonic()
         try:
@@ -113,10 +145,19 @@ class LLMClient:
             extra={"extra_fields": {
                 "model": self.model,
                 "elapsed_s": round(time.monotonic() - started, 1),
+                "finish_reason": resp.choices[0].finish_reason if resp.choices else None,
             }},
         )
         try:
-            content = resp.choices[0].message.content
+            choice = resp.choices[0]
+            content = choice.message.content
         except (AttributeError, IndexError) as exc:
             raise LLMError(f"malformed LLM response: {exc}") from exc
-        return _extract_json(content)
+        if choice.finish_reason == "length":
+            raise _JSONResponseError("LLM output truncated (finish_reason=length)")
+        if choice.finish_reason != "stop":
+            raise LLMError(f"LLM completion did not finish normally: {choice.finish_reason}")
+        try:
+            return _extract_json(content)
+        except LLMError as exc:
+            raise _JSONResponseError(str(exc)) from exc

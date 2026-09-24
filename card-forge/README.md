@@ -351,3 +351,17 @@ leave slots empty instead of being replaced by the other type, so small batches
 can still be uneven. This targets new generation, not the existing pack ratio.
 Writer, Editor, Moderator, and Curator stage logs include `prompts` and `answers`
 to show where either type is lost.
+
+### Malformed model JSON
+
+Each successful stage uses one completion per call. Invalid or truncated model
+JSON gets one fresh, more concise retry at temperature 0 (`LLM_JSON_RETRIES=1`,
+configurable 0–2). This is separate from SDK transport retries. Exhausting that
+budget aborts generation before submission. Truncated responses are never
+accepted as partial card lists. Logs include the completion finish reason and
+JSON parse location without dumping model content. Format retries can add one
+LLM timeout per attempt; they never retry the submission POST.
+
+If you build `card-forge:dev`, run that same tag to use your local changes.
+Running `ghcr.io/jrrall/ace-cast/card-forge:latest` uses the separately pulled
+registry image instead.
