@@ -3,7 +3,7 @@
 One LLM call to assign a maturity rating (0-3) and a policy verdict per card.
 Then a deterministic, defence-in-depth pass:
   * drop cards the model flagged as out-of-policy,
-  * drop cards whose maturity exceeds the target pack's ``maturity_max`` (cap),
+  * drop cards whose maturity exceeds the generator's configured ``maturity_max`` (cap),
   * drop cards containing any configured deny-list term (independent of the LLM,
     so a prompt-injected model that emits banned content is still caught).
 """
@@ -18,7 +18,10 @@ SYSTEM = (
     "You are the Moderator for an adult party card game. For each numbered card "
     "assign a maturity_rating from 0 to 3:\n"
     "  0 = family-friendly, 1 = mild, 2 = raunchy/crude adult humor, "
-    "3 = extreme.\n"
+    "3 = extreme adult humor with strongly disturbing, filthy, grotesque, or "
+    "taboo comic implications. Rate what the card actually says or clearly "
+    "implies; do not inflate ratings to match a generation target, and do not "
+    "downgrade extreme content merely because it uses euphemism.\n"
     "Also decide 'allowed': false for content that targets protected groups "
     "with hate, sexualizes minors, or is otherwise disallowed. Rate crudeness "
     "with maturity, not by disallowing it.\n"
@@ -78,7 +81,7 @@ class Moderator:
             if rating < 0 or rating > 3:
                 continue
             if rating > self.settings.maturity_max:
-                continue  # cap at the target pack ceiling
+                continue  # cap at the configured generator ceiling
             try:
                 moderated.append(
                     ModeratedCard(

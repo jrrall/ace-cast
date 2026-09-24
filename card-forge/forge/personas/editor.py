@@ -11,7 +11,7 @@ from __future__ import annotations
 from ..config import Settings
 from ..llm import LLMClient
 from ..models import BLANK_MARKER, CardCandidate
-from ..prompts import HUMOR_DIRECTION
+from ..prompts import maturity_direction, HUMOR_DIRECTION
 from ..rubric import RUBRIC
 
 SYSTEM = (
@@ -74,7 +74,7 @@ class Editor:
             f"{listing}\n\n"
             "Return the polished, de-duplicated subset."
         )
-        data = self.llm.complete_json(system=SYSTEM, user=user, temperature=0.4)
+        data = self.llm.complete_json(system=SYSTEM + maturity_direction(self.settings.maturity_max), user=user, temperature=0.4)
         raw = data.get("cards", data) if isinstance(data, dict) else data
         seen: set[tuple[str, str]] = set()
         edited: list[CardCandidate] = []

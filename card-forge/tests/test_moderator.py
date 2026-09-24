@@ -87,3 +87,14 @@ def test_conflicting_duplicate_verdicts_are_dropped(settings, sample_candidates)
         {'index': 0, 'maturity_rating': 1, 'allowed': True},
     ]}])
     assert Moderator(llm, settings).run(sample_candidates) == []
+
+
+def test_extreme_rating_survives_when_enabled_without_inflating_other_ratings(settings, sample_candidates):
+    settings.maturity_max = 3
+    llm = FakeLLM([{"verdicts": [
+        {"index": 0, "maturity_rating": 3, "allowed": True},
+        {"index": 1, "maturity_rating": 1, "allowed": True},
+        {"index": 2, "maturity_rating": 3, "allowed": False},
+    ]}])
+    cards = Moderator(llm, settings).run(sample_candidates)
+    assert [c.maturity_rating for c in cards] == [3, 1]

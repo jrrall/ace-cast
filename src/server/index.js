@@ -408,9 +408,6 @@ function validateCandidate(card, pack) {
   if (!Number.isInteger(maturity) || maturity < 0 || maturity > 3) {
     return { ok: false, reason: 'invalid maturity_rating' };
   }
-  if (maturity > pack.maturity_max) {
-    return { ok: false, reason: 'maturity_rating exceeds pack ceiling' };
-  }
 
   let blanks = Number(card.blanks);
   if (kind === 'prompt') {

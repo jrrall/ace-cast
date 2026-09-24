@@ -12,7 +12,7 @@ from ..config import Settings
 from ..llm import LLMClient
 from ..rubric import RUBRIC, STYLE_NAMES, STYLE_TARGETS
 from ..models import BLANK_MARKER, CardCandidate, Theme
-from ..prompts import HUMOR_DIRECTION, INJECTION_NOTICE, wrap_feed_data
+from ..prompts import maturity_direction, HUMOR_DIRECTION, INJECTION_NOTICE, wrap_feed_data
 
 SYSTEM = (
     "You are the Writer for an adult party card game like MadLad / Cards "
@@ -75,7 +75,7 @@ class Writer:
             profile = "Style targets (0-5, guidance not quotas): " + ", ".join(
                 f"{name}={value}" for name, value in zip(STYLE_NAMES, targets)
             ) + ". Preserve natural variation; do not force every trait into each card."
-        data = self.llm.complete_json(system=SYSTEM + "\n" + self.voice + "\n" + RUBRIC + profile, user=user)
+        data = self.llm.complete_json(system=SYSTEM + maturity_direction(self.settings.maturity_max) + "\n" + self.voice + "\n" + RUBRIC + profile, user=user)
         raw = data.get("cards", data) if isinstance(data, dict) else data
         cards: list[CardCandidate] = []
         for entry in raw or []:

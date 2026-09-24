@@ -32,7 +32,7 @@ LLM calls. Writer calls run sequentially to avoid overloading a local model. Log
 | 2d | **Petty Villain** | `Theme` → `[CardCandidate]` | Turns small grievances into elaborate, absurd revenge. |
 | 2e | **Banned From the Thread** | `Theme` → `[CardCandidate]` | Adult shock-comedy: reassuring setups, filthy turns, and disastrous self-owns. |
 | 3 | **Editor** | `[CardCandidate]` → `[CardCandidate]` | Cull broken/unfunny/dupe cards; tighten wording. |
-| 4 | **Moderator** | `[CardCandidate]` → `[ModeratedCard]` | Assign maturity 0–3, cap at the pack ceiling, drop out-of-policy + deny-listed. |
+| 4 | **Moderator** | `[CardCandidate]` → `[ModeratedCard]` | Assign maturity 0–3, cap at the configured generator ceiling, drop out-of-policy + deny-listed. |
 | 5 | **Curator** | `[ModeratedCard]` → `SubmitBatch` | Fetch the existing corpus (incl. denied), drop near-dups, rank/select 10–20. |
 
 `CARDS_PER_THEME` is the total budget shared by all five writers (minimum 5).
@@ -118,7 +118,13 @@ full list. Key secrets:
   and can be revoked on its own without disturbing any other client. The game's
   legacy shared `CONTENT_API_TOKEN` also still works.
 - `FEED_ALLOWLIST` — comma-separated feed URLs.
-- `PACK_SLUG` / `MATURITY_MAX` — target pack and its maturity ceiling.
+- `PACK_SLUG` / `MATURITY_MAX` — target pack and generator maturity ceiling (default 3).
+  At 3, writing and review explicitly target extreme adult comedy while the
+  moderator independently rates each card. Lower ceilings remain configurable.
+  The content API accepts ratings 0–3 regardless of pack metadata; it does not
+  impose a pack maturity ceiling. Cards still require approval, and gameplay
+  continues to respect the room's maturity filter. Redeploy the game before
+  submitting rating-3 cards to a server that enforced the old pack ceiling.
 
 ## Feed sources, ToS, and safety
 
