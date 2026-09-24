@@ -44,6 +44,7 @@ def test_injection_does_not_leak_policy_violating_card(settings):
             {"cards": []},  # PR Spin Doctor
             {"cards": []},  # Petty Villain
             {"cards": []},  # Banned From the Thread
+            {"cards": []},  # Hatemonger
             {
                 "cards": [
                     {"kind": "answer", "text": "A card with forbiddenword in it."},

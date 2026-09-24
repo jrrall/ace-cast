@@ -6,6 +6,7 @@ from .logging_setup import get_logger
 QUALITY_WEIGHTS = {'playability': .30, 'comic_turn': .25, 'specificity': .15,
                    'economy': .10, 'originality': .20}
 STYLE_TARGETS = {
+    'writer.hatemonger': [4, 1, 3, 2, 3, 2, 5],
     'writer.deadpan': [1, 1, 3, 1, 2, 5, 4],
     'writer.unhinged': [5, 3, 4, 3, 3, 2, 4],
     'writer.pr_spin_doctor': [2, 1, 3, 1, 4, 4, 3],

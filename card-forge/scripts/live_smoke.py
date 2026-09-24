@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Light LIVE smoke test of the agent chain against the configured OpenAI-compatible server.
 
-Runs the full chain (Trendscout -> five writers -> Editor -> Moderator ->
+Runs the full chain (Trendscout -> six writers -> Editor -> Moderator ->
 Curator) making REAL calls to the configured LLM server, but WITHOUT needing the
 ace-cast game server:
   * the content corpus (Curator's dedupe source) is stubbed to empty, and
@@ -32,7 +32,7 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from forge.config import load_settings  # noqa: E402
-from forge.feeds import FeedItem  # noqa: E402
+from forge.feeds import FeedItem, fetch_feed_items  # noqa: E402
 from forge.llm import LLMClient  # noqa: E402
 from forge.models import RunSummary  # noqa: E402
 from forge.pipeline import Pipeline  # noqa: E402
@@ -65,13 +65,15 @@ def main() -> int:
     parser = argparse.ArgumentParser(description="Test Card Forge without the game API.")
     parser.add_argument("--writers-only", action="store_true",
                         help="Research once and print each writer's raw drafts as JSON lines; skip review.")
+    parser.add_argument("--live-research", action="store_true",
+                        help="Use configured public research feeds instead of fictional sample headlines.")
     args = parser.parse_args()
     api_key = os.environ.get("LLM_API_KEY") or os.environ.get("LITELLM_API_KEY", "")
     # Small sizes keep this LIGHT: 1 theme, a few cards per theme.
     settings = load_settings(
         llm_api_key=api_key,
         themes_per_run=int(os.environ.get("THEMES_PER_RUN", "1")),
-        cards_per_theme=int(os.environ.get("CARDS_PER_THEME", "5")),
+        cards_per_theme=int(os.environ.get("CARDS_PER_THEME", "6")),
     )
     print(
         f"[live-smoke] gateway={settings.llm_base_url}  model={settings.llm_model}  "
@@ -80,12 +82,13 @@ def main() -> int:
     )
 
     llm = LLMClient(settings)
-    pipeline = Pipeline(settings, llm, _StubContentClient(), fetch_fn=_canned_fetch)
+    fetch_fn = fetch_feed_items if args.live_research else _canned_fetch
+    pipeline = Pipeline(settings, llm, _StubContentClient(), fetch_fn=fetch_fn)
 
     summary = RunSummary(dry_run=True)
     try:
         if args.writers_only:
-            themes = Trendscout(llm, settings, _canned_fetch).run()
+            themes = Trendscout(llm, settings, fetch_fn).run()
             count = 0
             for writer in writing_team(llm, settings):
                 for theme in themes:
@@ -93,6 +96,7 @@ def main() -> int:
                     count += len(cards)
                     print(json.dumps({
                         "persona": writer.name, "theme": theme.title,
+                        "source_url": theme.url, "research": theme.raw_excerpt,
                         "cards": [card.model_dump() for card in cards],
                     }, ensure_ascii=False), flush=True)
             return 0 if count else 1
