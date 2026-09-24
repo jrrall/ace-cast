@@ -40,7 +40,7 @@ class Settings(BaseSettings):
 
     # --- Target pack -----------------------------------------------------------
     pack_slug: str = Field(default="madlad-generated", alias="PACK_SLUG")
-    maturity_max: int = Field(default=2, alias="MATURITY_MAX")
+    maturity_max: int = Field(default=3, ge=0, le=3, alias="MATURITY_MAX")
 
     # --- Batch sizing ----------------------------------------------------------
     batch_min: int = Field(default=10, alias="BATCH_MIN")

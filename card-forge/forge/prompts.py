@@ -71,3 +71,24 @@ def wrap_feed_data(text: str) -> str:
     """
     safe = text.replace(FEED_OPEN, "").replace(FEED_CLOSE, "")
     return f"{FEED_OPEN}\n{safe}\n{FEED_CLOSE}"
+
+
+def maturity_direction(ceiling: int) -> str:
+    """Creative intensity follows configuration; moderation still rates the text."""
+    if ceiling < 3:
+        return f"\nKeep creative intensity within the configured maturity ceiling {ceiling}/3.\n"
+    return (
+        "\nTarget extreme adult comedy (maturity 3), not merely mild innuendo or "
+        "polite absurdity. Actively develop dark, filthy, grotesque, and blasphemous "
+        "premises: consensual adult sexual embarrassment, bodily indignity, "
+        "gallows humor, and shocking abuses of social trust. Favor fictional "
+        "adult scenarios and self-indicting narrators. Push the consequence "
+        "far enough to make the table recoil and laugh. "
+        "Apply this to answer cards as well as prompts; concrete answers should "
+        "bring the disturbing comic payoff to unrelated setups. "
+        "Preserve strong extreme jokes through editing and selection rather "
+        "than softening them to maturity 1 or 2. Keep the playability and quality "
+        "floor: profanity, explicitness, or a higher rating alone earns no points. "
+        "Do not force every card into the same taboo. Maturity is assessed "
+        "independently from the actual text, never assigned to meet this target.\n"
+    )

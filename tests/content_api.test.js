@@ -137,6 +137,24 @@ describe('Content API (/api/content/cards)', () => {
       expect(row.source).toBe('generated');
     });
 
+    test('maturity-3 generated cards are accepted but remain pending', async () => {
+      const pack = await PackRepository.getBySlug('madlad-generated');
+      expect(pack.maturity_max).toBe(2);
+      const res = await postBatch([{ ...validAnswer('Extreme maturity fixture'), maturity_rating: 3 }]);
+      expect(res.status).toBe(201);
+      expect(res.body.rejected).toEqual([]);
+      expect(res.body.created).toHaveLength(1);
+      const row = await db.db()('cards').where({ id: res.body.created[0] }).first();
+      expect(row).toMatchObject({ maturity_rating: 3, status: 'pending' });
+    });
+
+    test.each([-1, 4, 1.5, 'unknown'])('rejects invalid maturity rating %s', async (rating) => {
+      const res = await postBatch([{ ...validAnswer('Invalid maturity fixture'), maturity_rating: rating }]);
+      expect(res.body.created).toEqual([]);
+      expect(res.body.rejected).toHaveLength(1);
+      expect(res.body.rejected[0].reason).toBe('invalid maturity_rating');
+    });
+
     test('answer cards reject blank markers and nonzero blank counts', async () => {
       const res = await postBatch([
         { ...validAnswer('bad ____ answer'), blanks: 0 },
@@ -185,7 +203,7 @@ describe('Content API (/api/content/cards)', () => {
       const res = await postBatch([
         { kind: 'prompt', text: 'no blank here', blanks: 1, maturity_rating: 2, pack: 'madlad-generated' },
         { kind: 'prompt', text: 'two blanks ____ ____', blanks: 1, maturity_rating: 2, pack: 'madlad-generated' },
-        { kind: 'answer', text: 'too spicy', blanks: 0, maturity_rating: 3, pack: 'madlad-generated' },
+        { kind: 'answer', text: 'invalid rating', blanks: 0, maturity_rating: 4, pack: 'madlad-generated' },
         { kind: 'answer', text: 'orphan', blanks: 0, maturity_rating: 2, pack: 'no-such-pack' },
         { kind: 'answer', text: 'contains slur1 term', blanks: 0, maturity_rating: 2, pack: 'madlad-generated' },
         { kind: 'sideways', text: 'bad kind', blanks: 0, maturity_rating: 2, pack: 'madlad-generated' },

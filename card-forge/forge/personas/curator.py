@@ -18,7 +18,7 @@ from ..config import Settings
 from ..llm import LLMClient
 from ..models import ModeratedCard, SubmitBatch, SubmitCard
 from ..text import normalize_text
-from ..prompts import HUMOR_DIRECTION
+from ..prompts import maturity_direction, HUMOR_DIRECTION
 from ..rubric import RUBRIC, Evaluation
 from ..logging_setup import get_logger
 
@@ -101,7 +101,7 @@ class Curator:
             f"Quality floor is {self.settings.quality_min}/100, using weights "
             f"{self.settings.quality_weights}. Return selected indexes plus evaluations as specified."
         )
-        data = self.llm.complete_json(system=SYSTEM, user=user, temperature=0.3)
+        data = self.llm.complete_json(system=SYSTEM + maturity_direction(self.settings.maturity_max), user=user, temperature=0.3)
         raw = data.get("selected", data) if isinstance(data, dict) else data
 
         if not isinstance(raw, list):
