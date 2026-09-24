@@ -30,6 +30,7 @@ def _injected_feed():
 
 
 def test_injection_does_not_leak_policy_violating_card(settings):
+    settings.deny_list = "forbiddenword"
     # Simulate a model that (partly) followed the injection: the Writer emits a
     # card containing the deny-listed token alongside a clean one.
     llm = FakeLLM(
@@ -43,7 +44,9 @@ def test_injection_does_not_leak_policy_violating_card(settings):
             {"cards": [{"kind": "answer", "text": "A goose with a knife."}]},  # unhinged writer
             {"cards": []},  # PR Spin Doctor
             {"cards": []},  # Petty Villain
-            {"cards": []},  # Banned From the Thread
+            {"cards": []},  # Banned From 4chan
+            {"cards": []},  # Hatemonger
+            {"cards": []},  # Toxic Positivity
             {
                 "cards": [
                     {"kind": "answer", "text": "A card with forbiddenword in it."},

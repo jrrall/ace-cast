@@ -1,7 +1,7 @@
 """Persona 3 — Editor.
 
-One LLM call to cull broken/unfunny cards and within-batch duplicates and to
-tighten wording. The Editor returns a (usually smaller) list of candidates.
+Bounded sequential LLM calls tighten wording and remove broken cards and
+duplicates, leaving subjective humor decisions to human review. The Editor returns a (usually smaller) list of candidates.
 Structural validity is re-enforced on construction, and any within-batch exact
 duplicates that survive are removed deterministically.
 """
@@ -13,13 +13,12 @@ from ..config import Settings
 from ..llm import LLMClient
 from ..models import BLANK_MARKER, CardCandidate
 from ..prompts import maturity_direction, HUMOR_DIRECTION
-from ..rubric import RUBRIC
 
 SYSTEM = (
     "You are the Editor for an adult party card game. You receive draft cards "
     "and return a tightened set.\n"
-    + HUMOR_DIRECTION + RUBRIC
-    + "Drafts come from Deadpan, Unhinged, PR Spin Doctor, Petty Villain, and Banned From the Thread writers. Preserve each joke's "
+    + HUMOR_DIRECTION
+    + "Drafts come from Deadpan, Unhinged, PR Spin Doctor, Petty Villain, Banned From 4chan, and Hatemonger writers. Preserve each joke's "
     "delivery: do not inflate understatement or flatten a coherent wild "
     "escalation into a polite observation. Preserve cheerful PR spin and "
     "self-justifying pettiness rather than rewriting everything as dry absurdity. "
@@ -28,20 +27,20 @@ SYSTEM = (
     "crude forum voice, abrupt filthy images, blasphemy, and ugly confessions. "
     "Keep purposeful vulgar wording; do not replace it with polite euphemisms "
     "or require a wholesome setup before a nasty payoff. Judge "
-    "whether the joke works, not whether it is polite. Cut rants and offensive "
-    "references that have no actual comic turn. "
+    "playability, not personal taste or politeness. "
+    "Preserve Hatemonger's furious uncle voice, absurd statistics, and defensive "
+    "self-exposure without converting his rant into the editor's moral lesson. "
     "Judge all voices by playability.\n"
     "Rules:\n"
-    "  * Drop cards that are unfunny, incoherent, or off-format.\n"
+    "  * Fix wording and format. Drop only irreparably incoherent, unplayable, or duplicate cards.\n"
     "  * Group drafts by situation and comic mechanism BEFORE polishing. Keep at "
-    "most the strongest card from each repeated setup, even when wording, blank "
-    "placement, or writer voice differs. Five headline paraphrases are one joke.\n"
-    "  * Reject headline summaries with blanks, random-object whimsy, and setups "
-    "whose answer merely labels a genre or object without creating a comic turn. "
-    "Prefer a laugh followed by an uncomfortable realization over harmless "
-    "quirkiness. Do not force shock into a joke that already works.\n"
-    "  * Return fewer cards or an empty list when necessary. Never fill a quota "
-    "or rescue weak drafts by rewriting them into the same safe premise.\n"
+    "most one version of the same setup AND payoff. A shared topic or source is "
+    "not a duplicate when the comic mechanism or implication differs.\n"
+    "  * Preserve weird, risky, abrasive, and uncertain jokes for human judgment. "
+    "Do not drop a playable card because you do not find it funny, because its "
+    "comic turn is subtle, or because you expect it to have a narrow audience.\n"
+    "  * There is no editorial count quota. Keep all distinct playable drafts. "
+    "Never rewrite an unusual joke into a safer, more conventional premise.\n"
     f"  * A kind='prompt' card MUST keep exactly one {BLANK_MARKER!r} blank; a "
     "kind='answer' card must have none.\n"
     "  * Test every prompt with unrelated noun phrases such as 'a sponsored apology' "
@@ -71,6 +70,26 @@ class Editor:
     def run(self, candidates: list[CardCandidate]) -> list[CardCandidate]:
         if not candidates:
             return []
+        edited: list[CardCandidate] = []
+        seen: set[tuple[str, str]] = set()
+        size = self.settings.editor_batch_size
+        for start in range(0, len(candidates), size):
+            chunk = candidates[start:start + size]
+            get_logger().info("editor.batch_started", extra={"extra_fields": {
+                "offset": start, "cards": len(chunk), "total": len(candidates),
+            }})
+            for card in self._edit_batch(chunk):
+                key = (card.kind, card.text.lower())
+                if key not in seen:
+                    seen.add(key)
+                    edited.append(card)
+            get_logger().info("editor.batch_completed", extra={"extra_fields": {
+                "offset": start, "edited_so_far": len(edited),
+            }})
+        return edited
+
+    def _edit_batch(self, candidates: list[CardCandidate]) -> list[CardCandidate]:
+        # source_index is local to this chunk; resolve provenance before merging.
         listing = "\n".join(
             f'{i}. [{c.kind}] {c.text}' for i, c in enumerate(candidates)
         )
@@ -107,6 +126,9 @@ class Editor:
                     get_logger().warning("editor.unattributed_draft_dropped")
                     continue
             card.writer = source.writer if source is not None else None
+            if source is not None:
+                card.generation_route = source.generation_route
+                card.source_url = source.source_url
             key = (card.kind, card.text.lower())
             if key in seen:
                 continue

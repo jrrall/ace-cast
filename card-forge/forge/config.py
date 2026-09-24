@@ -43,11 +43,22 @@ class Settings(BaseSettings):
     pack_slug: str = Field(default="madlad-generated", alias="PACK_SLUG")
     maturity_max: int = Field(default=3, ge=0, le=3, alias="MATURITY_MAX")
 
+    source_finds_max: int = Field(default=6, ge=0, le=12, alias="SOURCE_FINDS_MAX")
+    persona_scout: bool = Field(default=True, alias="PERSONA_SCOUT")
+    personas_dir: str = Field(default="", alias="PERSONAS_DIR")
+    writers_per_run: int = Field(default=0, ge=0, alias="WRITERS_PER_RUN")
+    comedy_loop: bool = Field(default=False, alias="COMEDY_LOOP")
+    comedy_trace_path: str = Field(default="", alias="COMEDY_TRACE_PATH")
+
+    moderator_batch_size: int = Field(default=12, ge=1, le=50, alias="MODERATOR_BATCH_SIZE")
+    curator_batch_size: int = Field(default=8, ge=1, le=50, alias="CURATOR_BATCH_SIZE")
+    editor_batch_size: int = Field(default=12, ge=1, le=50, alias="EDITOR_BATCH_SIZE")
+
     # --- Batch sizing ----------------------------------------------------------
-    batch_min: int = Field(default=10, alias="BATCH_MIN")
-    batch_max: int = Field(default=20, ge=1, alias="BATCH_MAX")
+    batch_min: int = Field(default=0, alias="BATCH_MIN")  # legacy; no minimum enforced
+    batch_max: int = Field(default=50, ge=1, le=50, alias="BATCH_MAX")
     themes_per_run: int = Field(default=4, alias="THEMES_PER_RUN")
-    cards_per_theme: int = Field(default=8, ge=5, alias="CARDS_PER_THEME")
+    cards_per_theme: int = Field(default=8, ge=6, alias="CARDS_PER_THEME")
 
     quality_min: float = Field(default=70, ge=0, le=100, alias="QUALITY_MIN")
     quality_weights: dict[str, float] = Field(default_factory=lambda: dict(QUALITY_WEIGHTS), alias="QUALITY_WEIGHTS")
@@ -78,7 +89,9 @@ class Settings(BaseSettings):
             "https://www.404media.co/rss/,"
             "https://www.theguardian.com/lifeandstyle/rss,"
             "https://www.loc.gov/collections/today-in-history/?fo=json,"
-            "https://weeklyworldnews.com/archive/"
+            "https://weeklyworldnews.com/archive/,"
+            "https://b3ta.com/questions/imagechallenge/,"
+            "https://archive.org/wayback/available?url=infowars.com"
         ),
         alias="FEED_ALLOWLIST",
     )
@@ -97,7 +110,7 @@ class Settings(BaseSettings):
     # in generated card text. This is a defence-in-depth pre-flight trim; the
     # server runs its own authoritative deny-list. Tune for your audience.
     deny_list: str = Field(
-        default="kys,kill yourself,slur",
+        default="",
         alias="DENY_LIST",
     )
 

@@ -48,6 +48,7 @@ def test_moderator_drops_disallowed(settings, sample_candidates):
 
 
 def test_moderator_deny_list_overrides_model(settings):
+    settings.deny_list = "forbiddenword"
     # even if the model says a deny-listed card is allowed + low maturity, drop it
     cards = [
         CardCandidate(kind="answer", text="A perfectly nice answer."),

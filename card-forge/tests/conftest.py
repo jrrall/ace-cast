@@ -58,9 +58,10 @@ class FakeContentClient:
 def settings():
     return Settings(
         _env_file=None,
+        PERSONA_SCOUT=False,
         LLM_API_KEY="test-key",
         CONTENT_API_TOKEN="test-token",
-        DENY_LIST="kys,forbiddenword,slur",
+        DENY_LIST="",
         MATURITY_MAX=2,
         THEMES_PER_RUN=4,
         CARDS_PER_THEME=8,

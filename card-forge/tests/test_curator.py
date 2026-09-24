@@ -59,6 +59,7 @@ def test_empty_selection_does_not_publish_entire_pool(settings, sample_moderated
 
 
 def test_invalid_ranking_fails_closed(settings, sample_moderated):
+    settings.llm_json_retries = 0
     import pytest
     for selected in [[True], [0.9], ["0"], [999], "invalid"]:
         with pytest.raises(ValueError):
@@ -85,6 +86,7 @@ def test_same_premise_keeps_strongest_even_when_ranked_later(settings, sample_mo
 
 
 def test_missing_or_invalid_scores_fail_closed(settings, sample_moderated):
+    settings.llm_json_retries = 0
     import pytest
     responses = [dict(selected=[0], evaluations=[])]
     for score in [True, 6, -1, '4', 2.5]:
@@ -103,7 +105,7 @@ def test_prompt_first_ranking_reserves_answer_slots(settings):
         *[ModeratedCard(kind="answer", text=f"Answer {i}.", maturity_rating=1)
           for i in range(4)],
     ]
-    llm = FakeLLM([rated_selection(list(range(9)))])
+    llm = FakeLLM([rated_selection(list(range(8))), rated_selection([8])])
     batch = Curator(llm, FakeContentClient(), settings).run(pool)
     assert [c.text for c in batch.cards] == [pool[i].text for i in [0, 1, 5, 6, 7]]
 
@@ -126,6 +128,7 @@ def test_misspelled_diagnostic_does_not_lose_valid_batch(settings, sample_modera
 
 
 def test_missing_quality_still_fails_with_bad_style(settings, sample_moderated):
+    settings.llm_json_retries = 0
     import pytest
     response = rated_selection([0])
     response["evaluations"][0]["style"] = {"dead,pan": 5}
@@ -140,3 +143,176 @@ def test_compact_response_preserves_selection(settings, sample_moderated):
         del evaluation["style"]
     batch = Curator(FakeLLM([response]), FakeContentClient(), settings).run(sample_moderated)
     assert [c.text for c in batch.cards] == [sample_moderated[i].text for i in [2, 0, 1]]
+
+
+def test_uncertain_joke_survives_unless_quality_cutoff_is_enabled(settings, sample_moderated):
+    response = rated_selection([0])
+    response["evaluations"][0]["quality"] = {
+        "playability": 3, "comic_turn": 1, "specificity": 2,
+        "economy": 3, "originality": 2,
+    }
+    settings.quality_min = 0
+    batch = Curator(FakeLLM([response]), FakeContentClient(), settings).run(sample_moderated)
+    assert [c.text for c in batch.cards] == [sample_moderated[0].text]
+    settings.quality_min = 70
+    batch = Curator(FakeLLM([response]), FakeContentClient(), settings).run(sample_moderated)
+    assert batch.cards == []
+
+
+def test_configured_review_cap_can_exceed_old_twenty_card_limit(settings):
+    pool = [ModeratedCard(
+        kind="prompt" if i % 2 == 0 else "answer",
+        text=f"Setup {i}: ____." if i % 2 == 0 else f"Answer {i}.",
+        maturity_rating=1,
+    ) for i in range(60)]
+    for cap in (1, 20, 35, 50):
+        settings.batch_max = cap
+        size = settings.curator_batch_size
+        responses = [rated_selection(list(range(i, min(i + size, len(pool)))))
+                     for i in range(0, len(pool), size)]
+        batch = Curator(FakeLLM(responses), FakeContentClient(), settings).run(pool)
+        assert len(batch.cards) == cap
+        assert sum(c.kind == "prompt" for c in batch.cards) == cap // 2
+
+
+def test_review_defaults_and_api_compatible_cap(monkeypatch):
+    import pytest
+    from pydantic import ValidationError
+    from forge.config import Settings
+
+    monkeypatch.delenv("BATCH_MAX", raising=False)
+    monkeypatch.delenv("QUALITY_MIN", raising=False)
+    defaults = Settings(_env_file=None)
+    assert defaults.batch_max == 50
+    assert defaults.quality_min == 70
+    monkeypatch.setenv("BATCH_MAX", "12")
+    assert Settings(_env_file=None).batch_max == 12
+    for value in (0, 51):
+        with pytest.raises(ValidationError):
+            Settings(_env_file=None, BATCH_MAX=value)
+
+
+def test_curator_ranks_and_dedupes_globally_across_chunks(settings, sample_moderated):
+    settings.curator_batch_size = 1
+    responses = [rated_selection([i]) for i in range(3)]
+    responses[0]['evaluations'][0]['premise_group'] = 'shared joke'
+    responses[2]['evaluations'][0]['premise_group'] = 'shared joke'
+    responses[2]['evaluations'][0]['quality'] = dict.fromkeys(
+        responses[2]['evaluations'][0]['quality'], 5)
+    llm = FakeLLM(responses)
+    batch = Curator(llm, FakeContentClient(), settings).run(sample_moderated)
+    assert [c.text for c in batch.cards] == [sample_moderated[i].text for i in (2, 1)]
+    assert 'shared joke' in llm.calls[2]['user']
+
+
+def test_curator_rejects_indexes_from_another_chunk(settings, sample_moderated):
+    settings.llm_json_retries = 0
+    import pytest
+    settings.curator_batch_size = 1
+    llm = FakeLLM([rated_selection([0]), rated_selection([0])])
+    with pytest.raises(ValueError, match='invalid card index'):
+        Curator(llm, FakeContentClient(), settings).run(sample_moderated)
+
+
+def test_positional_scores_without_reason_preserve_weighted_selection(settings, sample_moderated):
+    response = {"selected": [0, 1], "evaluations": [
+        {"index": 0, "quality": [5, 3, 4, 4, 4], "premise_group": "first"},
+        {"index": 1, "quality": [4, 4, 4, 4, 3], "premise_group": "second"},
+    ]}
+    from forge.rubric import Evaluation
+    evaluation = Evaluation.model_validate(response['evaluations'][0])
+    assert evaluation.quality.playability == 5
+    assert evaluation.quality.comic_turn == 3
+    assert evaluation.quality.total(settings.quality_weights) == 81
+    assert evaluation.reason is None
+    batch = Curator(FakeLLM([response]), FakeContentClient(), settings).run(sample_moderated)
+    assert [c.text for c in batch.cards] == [c.text for c in sample_moderated[:2]]
+
+
+def test_positional_scores_still_require_five_strict_valid_dimensions(settings, sample_moderated):
+    settings.llm_json_retries = 0
+    import pytest
+    for quality in ([4]*4, [4]*6, [True,4,4,4,4], ['4',4,4,4,4],
+                    [4.5,4,4,4,4], [-1,4,4,4,4], [6,4,4,4,4], None):
+        response = {'selected': [0], 'evaluations': [
+            {'index': 0, 'quality': quality, 'premise_group': 'test'},
+        ]}
+        with pytest.raises(ValueError):
+            Curator(FakeLLM([response]), FakeContentClient(), settings).run(sample_moderated)
+
+
+def test_scalar_quality_triggers_targeted_schema_retry(settings, sample_moderated):
+    bad = {'selected': [0], 'evaluations': [
+        {'index': 0, 'quality': 14.5, 'premise_group': 'test'},
+    ]}
+    llm = FakeLLM([bad, rated_selection([0])])
+    batch = Curator(llm, FakeContentClient(), settings).run(sample_moderated)
+    assert len(batch.cards) == 1
+    assert len(llm.calls) == 2
+    assert llm.calls[1]['temperature'] == 0
+    assert 'Do not infer' in llm.calls[1]['user']
+    assert '14.5' in llm.calls[1]['user']
+
+
+def test_invalid_schema_retry_is_bounded(settings, sample_moderated):
+    import pytest
+    bad = {'selected': [0], 'evaluations': []}
+    llm = FakeLLM([bad, bad])
+    with pytest.raises(ValueError, match='omitted'):
+        Curator(llm, FakeContentClient(), settings).run(sample_moderated)
+    assert len(llm.calls) == 2
+
+
+def test_missing_group_repair_preserves_scores(settings, sample_moderated):
+    settings.llm_json_retries = 0
+    bad = rated_selection([0, 1])
+    del bad['evaluations'][1]['premise_group']
+    llm = FakeLLM([bad, {'groups': [{'index': 1, 'premise_group': 'fixture-0'}]}])
+    batch = Curator(llm, FakeContentClient(), settings).run(sample_moderated)
+    assert len(llm.calls) == 2
+    assert len(batch.cards) == 1  # recovered shared label still drives dedupe
+    assert bad['evaluations'][1]['quality']['playability'] == 4
+    assert 'premise_group' not in bad['evaluations'][1]  # original response not mutated
+
+
+def test_missing_group_repair_cannot_invent_missing_scores(settings, sample_moderated):
+    import pytest
+    settings.llm_json_retries = 0
+    bad = rated_selection([0])
+    del bad['evaluations'][0]['quality']['playability']
+    del bad['evaluations'][0]['premise_group']
+    llm = FakeLLM([bad])
+    with pytest.raises(ValueError):
+        Curator(llm, FakeContentClient(), settings).run(sample_moderated)
+    assert len(llm.calls) == 1
+
+
+def test_complete_chunk_spillover_is_ignored_and_scored_in_own_chunk(settings, sample_moderated, caplog):
+    settings.curator_batch_size = 2
+    spillover = rated_selection([0, 1, 2])
+    spillover['evaluations'][2]['quality'] = dict.fromkeys(
+        spillover['evaluations'][2]['quality'], 0)
+    llm = FakeLLM([spillover, rated_selection([2])])
+    batch = Curator(llm, FakeContentClient(), settings).run(sample_moderated)
+    assert len(batch.cards) == 3
+    assert len(llm.calls) == 2
+    assert spillover['selected'] == [0, 1, 2]  # cached response stays intact
+    assert 'curator.out_of_chunk_ignored' in caplog.text
+
+
+def test_spillover_does_not_hide_invalid_requested_scores(settings, sample_moderated):
+    import pytest
+    settings.llm_json_retries = 0
+    settings.curator_batch_size = 2
+    response = rated_selection([0, 1, 2])
+    response['evaluations'][0]['quality']['playability'] = 99
+    with pytest.raises(ValueError):
+        Curator(FakeLLM([response]), FakeContentClient(), settings).run(sample_moderated)
+
+
+def test_partial_chunk_spillover_still_fails(settings, sample_moderated):
+    import pytest
+    settings.llm_json_retries = 0
+    settings.curator_batch_size = 2
+    with pytest.raises(ValueError, match='invalid card index'):
+        Curator(FakeLLM([rated_selection([0, 2])]), FakeContentClient(), settings).run(sample_moderated)
