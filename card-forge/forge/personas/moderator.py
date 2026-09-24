@@ -1,6 +1,6 @@
 """Persona 4 — Moderator.
 
-One LLM call to assign a maturity rating (0-3) and a policy verdict per card.
+Bounded sequential LLM calls assign a maturity rating (0-3) and a policy verdict per card.
 Then a deterministic, defence-in-depth pass:
   * drop cards the model flagged as out-of-policy,
   * drop cards whose maturity exceeds the generator's configured ``maturity_max`` (cap),
@@ -12,6 +12,7 @@ from __future__ import annotations
 
 from ..config import Settings
 from ..llm import LLMClient
+from ..logging_setup import get_logger
 from ..models import CardCandidate, ModeratedCard
 
 SYSTEM = (
@@ -26,7 +27,9 @@ SYSTEM = (
     "with hate, sexualizes minors, or is otherwise disallowed. Rate crudeness "
     "with maturity, not by disallowing it.\n"
     'Return ONLY JSON of the form {"verdicts": [{"index": 0, '
-    '"maturity_rating": 2, "allowed": true, "reason": "..."}]}.'
+    '"maturity_rating": 2, "allowed": true}]}. '
+    'Omit explanations for allowed cards. For rejected cards only, include a '
+    'reason of at most eight words.'
 )
 
 
@@ -46,6 +49,20 @@ class Moderator:
     def run(self, candidates: list[CardCandidate]) -> list[ModeratedCard]:
         if not candidates:
             return []
+        moderated: list[ModeratedCard] = []
+        size = self.settings.moderator_batch_size
+        for start in range(0, len(candidates), size):
+            chunk = candidates[start:start + size]
+            get_logger().info("moderator.batch_started", extra={"extra_fields": {
+                "offset": start, "cards": len(chunk), "total": len(candidates),
+            }})
+            moderated.extend(self._moderate_batch(chunk))
+            get_logger().info("moderator.batch_completed", extra={"extra_fields": {
+                "offset": start, "moderated_so_far": len(moderated),
+            }})
+        return moderated
+
+    def _moderate_batch(self, candidates: list[CardCandidate]) -> list[ModeratedCard]:
         listing = "\n".join(
             f'{i}. [{c.kind}] {c.text}' for i, c in enumerate(candidates)
         )

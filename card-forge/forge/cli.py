@@ -3,6 +3,9 @@
 from __future__ import annotations
 
 import argparse
+from contextlib import nullcontext
+
+from .checkpoint import Checkpoint
 import json
 import sys
 
@@ -24,7 +27,12 @@ def _parse_args(argv: list[str] | None) -> argparse.Namespace:
         action="store_true",
         help="Run the full chain and print the assembled batch WITHOUT POSTing.",
     )
-    return parser.parse_args(argv)
+    parser.add_argument("--run-dir", help="Persist resumable JSON checkpoints in this directory")
+    parser.add_argument("--resume", action="store_true", help="Resume an existing --run-dir")
+    args = parser.parse_args(argv)
+    if args.resume and not args.run_dir:
+        parser.error("--resume requires --run-dir")
+    return args
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -34,10 +42,12 @@ def main(argv: list[str] | None = None) -> int:
 
     llm = LLMClient(settings)
     content = ContentClient(settings)
-    pipeline = Pipeline(settings, llm, content)
 
     try:
-        summary, batch = pipeline.run(dry_run=args.dry_run)
+        context = Checkpoint(args.run_dir, settings, resume=args.resume) if args.run_dir else nullcontext()
+        with context as checkpoint:
+            pipeline = Pipeline(settings, llm, content, checkpoint=checkpoint)
+            summary, batch = pipeline.run(dry_run=args.dry_run)
     except Exception as exc:  # noqa: BLE001 - fail closed on ANY stage error
         log.error(
             "run failed; if submission was attempted, check the review queue before retrying",

@@ -8,12 +8,13 @@ from uuid import uuid4
 from .logging_setup import get_logger
 from .models import CardCandidate
 from .personas import writing_team
-from .prompts import INJECTION_NOTICE, maturity_direction, wrap_feed_data
+from .prompts import INJECTION_NOTICE, wrap_feed_data
 
 PAIRS = (("writer.deadpan", "writer.unhinged"),
-         ("writer.pr_spin_doctor", "writer.banned_from_the_thread"),
+         ("writer.pr_spin_doctor", "writer.banned_from_4chan"),
          ("writer.petty_villain", "writer.hatemonger"))
 PARTNERS = {a: b for pair in PAIRS for a, b in (pair, pair[::-1])}
+PARTNERS['writer.toxic_positivity'] = 'writer.banned_from_4chan'
 FORMAT = ('Prompts have exactly one ____ accepting an unrelated noun phrase. '
           'Answers are short standalone acts, objects, or situations with no blank. '
           'Preserve each source card kind. Return JSON only. ')
@@ -47,7 +48,10 @@ def _suggestion(row, original, author):
 
 
 class ComedyRoom:
-    def __init__(self, llm, settings, emit=None):
+    def __init__(self, llm, settings, emit=None, writer_names=None, definitions=None, writers=None):
+        self.writer_names = writer_names
+        self.definitions = definitions
+        self.writers = writers
         self.llm, self.settings = llm, settings
         self.emit = emit
         self.run_id = uuid4().hex
@@ -66,15 +70,22 @@ class ComedyRoom:
             get_logger().info('comedy.exchange', extra={'extra_fields': event})
 
     def run(self, themes):
-        writers = writing_team(self.llm, self.settings)
+        writers = self.writers or writing_team(self.llm, self.settings, names=self.writer_names, definitions=self.definitions)
         by_name = {writer.name: writer for writer in writers}
         final = []
-        for theme_number, theme in enumerate(themes):
-            common = {'theme_index': theme_number, 'theme': theme.title,
-                      'source_url': theme.url, 'research': theme.raw_excerpt}
-            drafts = {}
-            # Everyone writes blind before any challenges or revisions occur.
+        by_writer = themes if isinstance(themes, dict) else {w.name: themes for w in writers}
+        for theme_number in range(max((len(ts) for ts in by_writer.values()), default=0)):
+            drafts, contexts = {}, {}
+            # Everyone writes blind from their own research before challenges.
             for writer in writers:
+                choices = by_writer[writer.name]
+                if theme_number >= len(choices):
+                    drafts[writer.name] = []
+                    continue
+                theme = choices[theme_number]
+                common = {'theme_index': theme_number, 'theme': theme.title,
+                          'source_url': theme.url, 'research': theme.raw_excerpt}
+                contexts[writer.name] = (theme, common)
                 drafts[writer.name] = [c.model_copy(update={"generation_route": "writer"}) for c in writer.run(theme)]
                 self.record({**common, 'stage': 'draft', 'writer': writer.name,
                              'cards': [c.model_dump() for c in drafts[writer.name]]})
@@ -82,15 +93,17 @@ class ComedyRoom:
                 originals = drafts[writer.name]
                 if not originals:
                     continue
-                challenger = by_name[PARTNERS[writer.name]]
+                theme, common = contexts[writer.name]
+                if len(writers) < 2:
+                    final.extend(originals)
+                    continue
+                partner = PARTNERS.get(writer.name)
+                challenger = by_name.get(partner) or writers[(writers.index(writer) + 1) % len(writers)]
                 context = json.dumps({'theme': theme.title, 'angle': theme.angle,
                                       'cards': [c.model_dump() for c in originals]}, ensure_ascii=False)
                 data = self.llm.complete_json(
-                    system=(challenger.voice + '\n' + maturity_direction(self.settings.maturity_max)
-                            + 'You are challenging another comedy writer. For each draft, identify '
-                            'one predictable detail, then propose one concrete improvement in your '
-                            'own voice. Heighten the comic mechanism, not just the profanity. '
-                            'Do not score or declare winners. ' + FORMAT + INJECTION_NOTICE
+                    system=(challenger.phase_system('critique', format_rules=FORMAT)
+                            + ' For each draft return a critique and proposed card. ' + INJECTION_NOTICE
                             + ' Return {"challenges":[{"index":0,"critique":"short specific note",'
                             '"kind":"answer","text":"proposed card"}]}.'),
                     user=wrap_feed_data(context), temperature=0.8)
@@ -106,12 +119,8 @@ class ComedyRoom:
                 revisions = {}
                 if challenges:
                     data = self.llm.complete_json(
-                        system=(writer.voice + '\n' + maturity_direction(self.settings.maturity_max)
-                                + 'Revise your own drafts once after a partner challenge. Keep your '
-                                'distinct voice. You may reject the suggestion and retain the original. '
-                                'Return only improved cards; omit indexes you want unchanged. '
-                                'Keep the comic premise; tighten it into playable cards. '
-                                + FORMAT + INJECTION_NOTICE
+                        system=(writer.phase_system('revise', format_rules=FORMAT)
+                                + ' Return only improved cards; omit indexes you want unchanged. ' + INJECTION_NOTICE
                                 + ' Return {"revisions":[{"index":0,"kind":"answer","text":"revised card"}]}.'),
                         user=wrap_feed_data(json.dumps({'originals': json.loads(context), 'challenges': challenges}, ensure_ascii=False)),
                         temperature=0.8)

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Light LIVE smoke test of the agent chain against the configured OpenAI-compatible server.
 
-Runs the full chain (Trendscout -> six writers -> Editor -> Moderator ->
+Runs the full chain (Trendscout -> seven writers -> Editor -> Moderator ->
 Curator) making REAL calls to the configured LLM server, but WITHOUT needing the
 ace-cast game server:
   * the content corpus (Curator's dedupe source) is stubbed to empty, and
@@ -78,7 +78,7 @@ def main() -> int:
         llm_api_key=api_key,
         **({"comedy_loop": True} if args.comedy_loop else {}),
         themes_per_run=int(os.environ.get("THEMES_PER_RUN", "1")),
-        cards_per_theme=int(os.environ.get("CARDS_PER_THEME", "6")),
+        cards_per_theme=int(os.environ.get("CARDS_PER_THEME", "14")),
     )
     print(
         f"[live-smoke] gateway={settings.llm_base_url}  model={settings.llm_model}  "
@@ -94,18 +94,26 @@ def main() -> int:
     try:
         if args.writers_only:
             scout = Trendscout(llm, settings, fetch_fn)
-            themes = [Theme(title=args.theme)] if args.theme else scout.run()
+            writers = writing_team(llm, settings)
+            if args.theme:
+                by_writer = {w.name: [Theme(title=args.theme)] for w in writers}
+            elif settings.persona_scout:
+                items = scout.collect()
+                by_writer = {w.name: scout.for_writer(w, items) for w in writers}
+            else:
+                themes = scout.run()
+                by_writer = {w.name: themes for w in writers}
             from forge.source_finds import find_cards
             finds = find_cards(llm, scout.fetched, settings.source_finds_max)
             for card in finds:
                 print(json.dumps({"stage": "source_find", "card": card.model_dump()}, ensure_ascii=False), flush=True)
             if settings.comedy_loop:
                 from forge.comedy_room import ComedyRoom
-                cards = ComedyRoom(llm, settings, emit=lambda event: print(json.dumps(event, ensure_ascii=False), flush=True)).run(themes)
+                cards = ComedyRoom(llm, settings, writers=writers, emit=lambda event: print(json.dumps(event, ensure_ascii=False), flush=True)).run(by_writer)
                 return 0 if cards or finds else 1
             count = 0
-            for writer in writing_team(llm, settings):
-                for theme in themes:
+            for writer in writers:
+                for theme in by_writer[writer.name]:
                     cards = writer.run(theme)
                     count += len(cards)
                     print(json.dumps({

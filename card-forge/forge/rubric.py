@@ -3,6 +3,8 @@ from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_valida
 
 from .logging_setup import get_logger
 
+# Positional order matches the quality fields listed in the curator prompt.
+QUALITY_NAMES = ("playability", "comic_turn", "specificity", "economy", "originality")
 QUALITY_WEIGHTS = {'playability': .30, 'comic_turn': .25, 'specificity': .15,
                    'economy': .10, 'originality': .20}
 STYLE_TARGETS = {
@@ -11,7 +13,7 @@ STYLE_TARGETS = {
     'writer.unhinged': [5, 3, 4, 3, 3, 2, 4],
     'writer.pr_spin_doctor': [2, 1, 3, 1, 4, 4, 3],
     'writer.petty_villain': [3, 2, 2, 1, 2, 3, 5],
-    'writer.banned_from_the_thread': [4, 4, 4, 3, 4, 4, 5],
+    'writer.banned_from_4chan': [4, 4, 4, 3, 4, 4, 5],
 }
 STYLE_NAMES = ('unhinged', 'lewd', 'dark', 'gross', 'blasphemous', 'deadpan', 'implication')
 RUBRIC = (
@@ -64,7 +66,19 @@ class Evaluation(BaseModel):
     quality: QualityScores
     style: StyleScores | None = None
     premise_group: str = Field(min_length=1)
-    reason: str = Field(min_length=1)
+    # Diagnostic only; a missing explanation must not discard valid scores.
+    reason: str | None = Field(default=None, min_length=1)
+
+    @field_validator("quality", mode="before")
+    @classmethod
+    def _positional_quality(cls, value):
+        if isinstance(value, list):
+            if len(value) != len(QUALITY_NAMES):
+                raise ValueError("quality array must contain exactly five scores")
+            # Do not coerce values: QualityScores still enforces integer 0–5,
+            # rejecting booleans, strings, fractions, and out-of-range scores.
+            return dict(zip(QUALITY_NAMES, value, strict=True))
+        return value
 
 
     @field_validator("style", mode="before")

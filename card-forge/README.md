@@ -3,7 +3,7 @@
 A standalone, multi-persona LLM agent chain that fetches trends, writes
 MadLad-style cards, self-critiques / moderates / dedupes them, and POSTs the
 survivors as **`pending`** to the [ace-cast](../README.md) content API. A human
-approves ~10–20/day from the game's `/admin/content` review list; only approved
+reviews a configurable batch per run from the game's `/admin/content` review list; only approved
 cards ever reach gameplay.
 
 **Today it is run by hand, from a workstation, against the live game.** There is
@@ -18,9 +18,10 @@ contract.
 ## The persona chain
 
 Each stage has typed card/theme models and is independently testable with a
-mocked LLM. Six writers each call the model once per theme, receiving identical
-research without seeing each other's drafts. The other stages make at most one
-call each and may skip empty inputs. A four-theme run normally makes twenty-four
+mocked LLM. Seven writers each call the model once per theme, receiving identical
+research without seeing each other's drafts. The editor uses sequential chunks of up to `EDITOR_BATCH_SIZE` cards (default
+12), moderation uses `MODERATOR_BATCH_SIZE` (default 12), and curator scoring
+uses `CURATOR_BATCH_SIZE` (default 8). Empty stages skip model calls. A four-theme run normally makes twenty-four
 LLM calls. Writer calls run sequentially to avoid overloading a local model. Logs record stage counts and LLM call start/completion times.
 
 | # | Persona | In → Out | Job |
@@ -32,13 +33,14 @@ LLM calls. Writer calls run sequentially to avoid overloading a local model. Log
 | 2d | **Petty Villain** | `Theme` → `[CardCandidate]` | Turns small grievances into elaborate, absurd revenge. |
 | 2e | **Banned From the Thread** | `Theme` → `[CardCandidate]` | Mid-2000s forum shock humor: blunt filthy images, blasphemy, ugly confessions, and appalling priorities. |
 | 2f | **Hatemonger** | `Theme` → `[CardCandidate]` | Ranting uncle: petty grievances, scrambled conspiracies, absurd statistics, and defensive self-owns. |
-| 3 | **Editor** | `[CardCandidate]` → `[CardCandidate]` | Cull broken/unfunny/dupe cards; tighten wording. |
+| 2g | **Toxic Positivity** | `Theme` → `[CardCandidate]` | Self-congratulatory charity, privilege lectures, and demands for gratitude. |
+| 3 | **Editor** | `[CardCandidate]` → `[CardCandidate]` | Repair wording; drop broken/duplicate cards; preserve unusual jokes. |
 | 4 | **Moderator** | `[CardCandidate]` → `[ModeratedCard]` | Assign maturity 0–3, cap at the configured generator ceiling, drop out-of-policy + deny-listed. |
-| 5 | **Curator** | `[ModeratedCard]` → `SubmitBatch` | Fetch the existing corpus (incl. denied), drop near-dups, rank/select 10–20. |
+| 5 | **Curator** | `[ModeratedCard]` → `SubmitBatch` | Fetch the existing corpus (incl. denied), drop near-dups, rank/select up to `BATCH_MAX` (default 50). |
 
-`CARDS_PER_THEME` is the total budget shared by all six writers (minimum 6).
+`CARDS_PER_THEME` is the total budget shared by all seven writers (minimum 7 for new runs).
 Leftover cards are allocated in roster order: Deadpan, Unhinged, PR Spin Doctor,
-Petty Villain, Banned From the Thread, then Hatemonger. The editor preserves their different voices;
+Petty Villain, Banned From the Thread, Hatemonger, then Toxic Positivity. The editor preserves their different voices;
 the curator chooses strong cards across the roster without forcing a quota.
 
 Then `client.py` POSTs the batch; the server re-validates, dedupes on
@@ -107,6 +109,30 @@ review queue before retrying. It prints a summary line: themes + generated / edi
 moderated / deduped / assembled / submitted counts.
 
 ## Configuration
+
+`BATCH_MAX` caps pending cards per run (default **50**, range 1–50). Set it to
+20 for a smaller review queue; use multiple runs to accumulate roughly 100
+candidates a day. Each run still submits one API request. No scheduler is added.
+The cap is a ceiling, not a target: `THEMES_PER_RUN` and `CARDS_PER_THEME` control
+how many drafts are generated (defaults: 4 × 8), and review may remove cards.
+`EDITOR_BATCH_SIZE=12` bounds cards per editor request; lower it to 6 if editing
+still times out. This does not change the final batch cap. Exact duplicate edits
+are removed across chunks; the curator checks repeated premises across the full
+pool. `MODERATOR_BATCH_SIZE=12` and `CURATOR_BATCH_SIZE=8` also bound review
+responses. Moderation judges independent cards; curator calls retain full-pool
+context and prior premise labels, scoring only the requested range. Scores,
+quality cutoff, duplicate groups, and type budgets are applied globally. Editor chunk progress is logged. A failed chunk still aborts before submission.
+Prompt/answer slots remain split evenly, with an odd slot going to answers;
+unused slots of one kind are not filled with the other kind.
+
+The editor fixes wording and removes broken cards and genuine duplicates,
+preserving weird, risky, and uncertain jokes for human judgment. The curator
+ranks distinct playable cards instead of imposing its own short taste-based list.
+`QUALITY_MIN=70` keeps a weighted quality cutoff by default; adjust it to tune
+selectivity. Scores order the pool and playability checks remain. A low comic-turn score alone no longer discards a card.
+Moderation and human approval still apply. Legacy `BATCH_MIN` is accepted but
+has no effect. Existing explicit environment values override these defaults.
+
 
 All settings come from the environment (or `.env`). See `.env.example` for the
 full list. Key secrets:
@@ -312,12 +338,13 @@ this source. The run's date follows the container timezone (usually UTC).
 
 ### Quality rubric and writer styles
 
-Writers and the editor share a five-dimension quality rubric. The curator
+Writers and the curator share a five-dimension quality rubric. The curator
 returns integer scores from 0 to 5 and a short reason for each selected card.
 Code calculates `20 * (0.30*playability + 0.25*comic_turn + 0.15*specificity +
 0.10*economy + 0.20*originality)`. `QUALITY_MIN` defaults to 70/100;
 `QUALITY_WEIGHTS` accepts a JSON object with all five nonnegative weights summing
-to one. Playability and comic turn must each reach 3/5 regardless of the total.
+to one. Playability must reach 3/5 regardless of the total; comic turn contributes
+to the weighted score without a separate minimum.
 Missing or invalid selection/quality evaluations fail the run rather than bypassing
 the gate. Style diagnostics do not participate in selection and are optional;
 malformed style scores are omitted with a warning rather than losing a batch.
@@ -338,7 +365,15 @@ curator ranks eligible cards by computed quality and keeps at most one per
 model-assigned premise group. `curator.score` JSON logs include the card text,
 quality dimensions, reason, score, and whether it was kept. Valid optional
 style diagnostics are logged if supplied, but the Curator no longer requests
-them. Reasons are requested in at most 12 words to reduce response size.
+them. Reasons are requested in at most 12 words to reduce response size, but are
+optional diagnostics. Five-element quality arrays are accepted in the prompt
+order: playability, comic turn, specificity, economy, originality. Every score
+still requires an integer 0–5; wrong lengths or invalid values fail validation.
+Invalid curator schemas trigger a targeted re-evaluation of that chunk, bounded
+by `LLM_JSON_RETRIES` (default 1). No dimension scores are invented from scalar
+totals. Corrected responses are checkpointed separately, so an invalid cached
+response no longer permanently blocks resume. Exhausted retries still stop
+before submission.
 These judgments are model estimates, not validated human preference scores.
 The rubric uses mental combination checks; simulated gameplay and calibration
 against human outcomes remain follow-up work. Scores are logs, not new database
@@ -347,7 +382,7 @@ fields or admin UI controls.
 ### Card type balance
 
 The writing team divides each theme into equal prompt and answer budgets,
-then assigns those slots across the six writers. Writer and
+then assigns those slots across the seven writers. Writer and
 Curator enforce separate type budgets using `CARDS_PER_THEME` and `BATCH_MAX`,
 respectively; an odd slot goes to answers. They scan the full returned list so
 prompt-first ordering cannot crowd out later answers. Curator ranks all worthy
@@ -421,8 +456,8 @@ feeds, including b3ta, before the normal editing and review stages.
 Hatemonger (`writer.hatemonger`) writes as a paranoid uncle whose certainty
 exposes his own ridiculous reasoning. His invented stats concern absurd habits
 and objects; conspiracies scramble cause and effect. Cards retain the same
-prompt/answer formats and author tracking as the other writers. With six writers,
-`CARDS_PER_THEME` must be at least 6; use 12 to give each writer one prompt and
+prompt/answer formats and author tracking as the other writers. With seven writers,
+`CARDS_PER_THEME` must be at least 7 for new runs; use 14 to give each writer one prompt and
 one answer per theme. No franchise roleplay is included.
 
 ### Archived conspiracy research
@@ -465,14 +500,14 @@ Trendscout will select a theme from it on every run.
 
 Set `COMEDY_LOOP=true` to add one bounded exchange before the normal editor,
 moderator, and curator. Pairs are Deadpan ↔ Unhinged, PR Spin Doctor ↔ Banned
-From the Thread, and Petty Villain ↔ Hatemonger. All six writers draft independently
+From the Thread, and Petty Villain ↔ Hatemonger. All seven writers draft independently
 first. Each partner challenges the originals, and the original writer gets one
 revision, which can retain the original. No model declares a winner. Invalid or
 kind-changing revisions retain the original; malformed response envelopes fail
 the run before submission. The judging pool keeps originals and distinct revisions; final submission budgets stay unchanged.
 
-This adds up to twelve LLM calls per theme (six challenges and six revisions)
-to the six drafting calls. Calls remain sequential for local Ollama. It is off
+This adds up to fourteen LLM calls per theme (seven challenges and seven revisions)
+to the seven drafting calls. Calls remain sequential for local Ollama. It is off
 by default while human comparison establishes whether it improves the jokes.
 Original writer attribution reaches the API; challenger and revision history
 are in the local trace, not new admin fields.
@@ -529,3 +564,164 @@ The writers-only test bypasses this review pass and shows raw output.
 Deploy the game migration before using the updated Forge if source links and
 route labels need to persist; older APIs ignore these new fields. Historical
 cards retain unknown provenance. Challenger details remain in the loop trace.
+
+### Resumable runs and JSON working files
+
+Use `--run-dir` on a **host-mounted directory** to keep work after Docker exits
+or `--rm` deletes the container. From the `card-forge/` directory:
+
+```bash
+docker build -t card-forge:local .
+mkdir -p runs
+caffeinate -i docker run --rm --env-file .env \
+  -v "$PWD/runs:/output" \
+  -e LLM_MODEL=huihui_ai/gemma-4-abliterated:12b \
+  -e LLM_TIMEOUT=300 -e QUALITY_MIN=70 -e CARDS_PER_THEME=12 \
+  card-forge:local --dry-run --run-dir /output/gemma-01
+```
+
+On Linux, omit `caffeinate`; ensure the mounted directory is writable by the
+container's UID 10001 (or run with `--user "$(id -u):$(id -g)"`).
+The JSON files appear in `runs/gemma-01/`:
+
+- `research.json`: saved themes and source material, reused on resume.
+- `calls/*.json`: each completed model request and response, saved immediately.
+- `drafts.json`, `edited.json`, `moderated.json`: readable stage outputs.
+- `final.json`: final API payload, also produced during dry runs.
+- `submission.json`: submission intent and, on success, the API receipt.
+
+If the run fails, repeat the **same command** with `--resume` added. Completed
+calls are replayed locally and validated again; the unfinished request runs
+again. A stage file is written only when that stage finishes, but completed
+editor chunks and individual writer calls are already preserved in `calls/`.
+Even if the curator times out, generation, editing, and moderation need not run
+on the model again. Corpus dedupe still reads the API afresh before curation.
+Timeouts, retry counts, `MODERATOR_BATCH_SIZE`, and `CURATOR_BATCH_SIZE` may
+change on resume, including for checkpoints created before those two batch
+settings existed. Resizing batches invalidates affected call-cache entries.
+Model, generation, and other review
+settings must match the saved manifest; use a new directory for a new experiment.
+Changed prompts invalidate the affected cached calls. If research itself never
+finished, research is retried and may choose new source material.
+
+These files are application-managed JSON checkpoints, not an autonomous model
+filesystem session. Stage files are inspection snapshots: editing them does not
+change the pipeline's inputs. Do not edit cache files while a run is active.
+Files are replaced atomically; a lock prevents two runs using the same directory.
+Credentials are excluded from the manifest; requests and card/source text are
+saved locally. Do not commit run directories.
+
+Remove `--dry-run` when resuming to submit the reviewed result. A recorded
+successful submission is returned without a second POST. If a prior submission
+has an uncertain outcome, resume stops and asks you to reconcile the API queue;
+it never assumes that a timeout means the POST failed. There is no automatic
+submission retry. Old runs without checkpoints cannot be reconstructed from
+stage-count logs alone.
+
+
+### Toxic Positivity joins the normal writer roster
+
+Toxic Positivity (`writer.toxic_positivity`) writes independent setups and answers
+alongside the other six writers. Her comic engine is self-congratulatory charity,
+lectures about privilege, and the gap between her moral self-image and her
+entitled decisions. Normal deck mixing supplies the cross-persona combinations;
+there is no separate swap round or `OPPOSITES_ROUND` flag.
+
+Use `CARDS_PER_THEME=14` to give each of the seven writers one prompt and one
+answer per theme. The total is shared across writers; it is not a per-writer
+count. Fresh runs need at least 7. Existing checkpoints preserve their saved
+roster; checkpoints created before roster tracking retain the original six.
+Start a new run directory to include the seventh writer.
+
+The optional existing critique/revision loop still works. Toxic Positivity's
+drafts receive a challenge from Banned From the Thread; the original six
+challenge assignments are unchanged. All output goes through the same editor,
+moderator, curator, quality cutoff, and API batch limit.
+
+### Editable TOML personas
+
+Writer definitions live in `forge/persona_profiles/*.toml`. Add a file to add a
+writer; no Python class or registration is needed. Each file has a stable `id`,
+a display `name`, `enabled` (default true), optional integer `order` (default 100),
+and a multiline `voice`. Existing IDs retain their `writer.<id>` attribution.
+
+```toml
+id = "petty_villain"
+name = "Petty Villain"
+enabled = true
+voice = """
+A tiny slight deserves elaborate, unreasonable revenge.
+Your spite is completely justified in your own mind.
+"""
+
+[phases]
+scout = "Find a tiny personal slight that could justify unreasonable revenge."
+write = "Invent a fresh grievance and an unreasonable overreaction."
+answer = "Respond to the supplied setup with disproportionate petty revenge."
+critique = "Find the predictable retaliation; suggest one sharper direction."
+revise = "Keep the grievance. Make the retaliation more specific."
+```
+
+Phase instructions are optional. `_defaults.toml` supplies shared `scout`, `write`,
+`answer`, `critique`, and `revise` directions; persona overrides replace that
+phase's default. Format rules, voice, and the current phase form the system
+prompt. Themes, drafts, and feedback stay in the user input. Ordinary runs use
+`write`; `COMEDY_LOOP=true` also uses `critique` and `revise`. The `answer` phase
+is available through `Writer.answer(setup)`; it does not add an extra round to
+normal runs. Review personas remain independent.
+
+`PERSONAS_DIR` selects a replacement folder. Its optional `_defaults.toml`
+overrides bundled phase defaults. Invalid files, duplicate IDs, unknown phases,
+and empty enabled rosters fail with an error. `WRITERS_PER_RUN=0` uses all enabled
+writers; set it to `6` to randomly select six without replacement each new run.
+`CARDS_PER_THEME` is the total budget across the selected roster; use 12 for six
+writers to each get one prompt and one answer. Winners/fitness and automated
+persona rewriting are not implemented; selection is currently random.
+
+For editable files in Docker, add these flags to your usual run command:
+
+```bash
+-v "$PWD/forge/persona_profiles:/personas:ro" \
+-e PERSONAS_DIR=/personas \
+-e WRITERS_PER_RUN=6 \
+-e CARDS_PER_THEME=12
+```
+
+New checkpoints store the selected roster, full resolved persona definitions,
+and content hashes in `manifest.json`. Resume uses those snapshots even if TOML
+files change or disappear. Start a new run directory to use edited personas.
+Older checkpoints without snapshots freeze the current matching definitions on
+first resume and log a warning; they cannot recover definitions never saved.
+Shared Python format/protocol changes can still invalidate cached calls, so use
+the same image when resuming. No model automatically rewrites persona files.
+
+### Persona-specific scouting
+
+New runs default to `PERSONA_SCOUT=true`. Research collection fetches once, mixes
+in fictional seeds, deduplicates, and samples up to 60 items across sources.
+Each selected persona gets the same pool, then makes one scouting call using its
+voice and `[phases].scout` instructions. The model chooses source indexes and
+angles; code attaches the original source labels, URLs, and excerpts. Bad indexes
+or malformed choices trigger a bounded schema retry instead of fabricated provenance.
+Each writer receives only its own chosen themes. The optional comedy loop also
+preserves each author's research context when another persona challenges a card.
+
+Every bundled persona explicitly defines `scout`, `write`, `answer`, `critique`,
+and `revise`. Custom files can still omit phases to inherit `_defaults.toml`.
+`THEMES_PER_RUN` now limits themes **per selected persona**; the run summary counts
+all chosen persona themes. Card budgets are still divided across the roster, so
+six writers, one theme each, and `CARDS_PER_THEME=12` target up to 12 initial drafts.
+`TABLOID_PERCENT` is a scouting preference rather than forced preset angles on
+this route. Scouting adds one call per selected writer, replacing the single
+shared scouting call (six writers = six scouting calls, five more than before).
+
+With a run directory, `research.json` freezes the full sampled pool and
+`scouts/writer.<id>.json` saves each persona's chosen angles, sources, and definition
+hash. Completed scouts are reused on resume, including after a later scout times
+out. Old checkpoints retain their shared-scout mode; use a fresh run directory
+to enable the new flow. `PERSONA_SCOUT=false` explicitly selects the old flow for
+a new run. The writer-only smoke script follows this setting unless an explicit
+`--theme` supplies the theme directly.
+
+`banned_from_4chan.toml` replaces `banned_from_the_thread.toml`; its display name is
+Banned From 4chan. Saved persona snapshots keep their original identities on resume.
