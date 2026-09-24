@@ -1,3 +1,7 @@
+## 1.21.0 (2026-09-24)
+
+* feat: track card-forge writers and harden curator output (#56) ([8d4cd49](https://github.com/jrrall/ace-cast/commit/8d4cd49)), closes [#56](https://github.com/jrrall/ace-cast/issues/56)
+
 ## <small>1.20.2 (2026-09-24)</small>
 
 * fix(card-forge): retry invalid JSON without accepting partial output (#55) ([c5ef04d](https://github.com/jrrall/ace-cast/commit/c5ef04d)), closes [#55](https://github.com/jrrall/ace-cast/issues/55)
