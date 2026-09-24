@@ -1,5 +1,7 @@
 """Model-estimated comedy dimensions with deterministic quality arithmetic."""
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator
+
+from .logging_setup import get_logger
 
 QUALITY_WEIGHTS = {'playability': .30, 'comic_turn': .25, 'specificity': .15,
                    'economy': .10, 'originality': .20}
@@ -57,6 +59,19 @@ class Evaluation(BaseModel):
     model_config = ConfigDict(strict=True, extra='forbid')
     index: int = Field(ge=0)
     quality: QualityScores
-    style: StyleScores
+    style: StyleScores | None = None
     premise_group: str = Field(min_length=1)
     reason: str = Field(min_length=1)
+
+
+    @field_validator("style", mode="before")
+    @classmethod
+    def _optional_style(cls, value):
+        if value is None:
+            return None
+        try:
+            return StyleScores.model_validate(value)
+        except ValidationError:
+            # Style is diagnostic only; never fabricate scores or relax quality.
+            get_logger().warning("curator.invalid_style_ignored")
+            return None

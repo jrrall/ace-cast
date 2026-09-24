@@ -409,6 +409,11 @@ function validateCandidate(card, pack) {
     return { ok: false, reason: 'invalid maturity_rating' };
   }
 
+  const writer = card.writer == null ? null : card.writer;
+  if (writer !== null && (typeof writer !== 'string' || !/^writer\.[a-z][a-z0-9_]{0,55}$/.test(writer))) {
+    return { ok: false, reason: 'invalid writer' };
+  }
+
   let blanks = Number(card.blanks);
   if (kind === 'prompt') {
     const markerCount = (text.match(BLANK_MARKER) || []).length;
@@ -432,6 +437,7 @@ function validateCandidate(card, pack) {
       text,
       blanks,
       maturity_rating: maturity,
+      writer,
       pack_id: pack.id,
     },
   };

@@ -113,3 +113,30 @@ def test_type_shortfall_does_not_restore_unselected_cards(settings, sample_moder
     llm = FakeLLM([rated_selection([1, 2])])
     batch = Curator(llm, FakeContentClient(), settings).run(sample_moderated)
     assert [c.text for c in batch.cards] == [sample_moderated[1].text]
+
+
+def test_misspelled_diagnostic_does_not_lose_valid_batch(settings, sample_moderated, caplog):
+    response = rated_selection([0, 1, 2])
+    style = response["evaluations"][0]["style"]
+    style["dead,pan"] = style.pop("deadpan")
+    del response["evaluations"][1]["style"]
+    batch = Curator(FakeLLM([response]), FakeContentClient(), settings).run(sample_moderated)
+    assert len(batch.cards) == 3
+    assert "curator.invalid_style_ignored" in caplog.text
+
+
+def test_missing_quality_still_fails_with_bad_style(settings, sample_moderated):
+    import pytest
+    response = rated_selection([0])
+    response["evaluations"][0]["style"] = {"dead,pan": 5}
+    del response["evaluations"][0]["quality"]["playability"]
+    with pytest.raises(ValueError):
+        Curator(FakeLLM([response]), FakeContentClient(), settings).run(sample_moderated)
+
+
+def test_compact_response_preserves_selection(settings, sample_moderated):
+    response = rated_selection([2, 0, 1])
+    for evaluation in response["evaluations"]:
+        del evaluation["style"]
+    batch = Curator(FakeLLM([response]), FakeContentClient(), settings).run(sample_moderated)
+    assert [c.text for c in batch.cards] == [sample_moderated[i].text for i in [2, 0, 1]]

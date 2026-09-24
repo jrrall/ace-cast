@@ -9,7 +9,24 @@ async function overview() {
   const retired = await db()('cards').whereNotNull('retired_at')
     .count({ count: '*' })
     .first();
-  return { ...counts, total: rows.reduce((sum, row) => sum + Number(row.count), 0), retired: Number(retired.count) };
+  const writerRows = await db()('cards').where({ source: 'generated' })
+    .select('writer', 'status')
+    .count({ count: '*' })
+    .groupBy('writer', 'status');
+  const byWriter = new Map();
+  writerRows.forEach((row) => {
+    const writer = row.writer || 'unknown';
+    if (!byWriter.has(writer)) {
+      byWriter.set(writer, {
+        writer, pending: 0, approved: 0, denied: 0,
+      });
+    }
+    byWriter.get(writer)[row.status] = Number(row.count);
+  });
+  const writers = [...byWriter.values()].sort((a, b) => a.writer.localeCompare(b.writer));
+  return {
+    writers, ...counts, total: rows.reduce((sum, row) => sum + Number(row.count), 0), retired: Number(retired.count),
+  };
 }
 
 async function library(query = {}) {
@@ -23,6 +40,7 @@ async function library(query = {}) {
     source: allowed('source', ['manual', 'generated']),
     retired: allowed('retired', ['yes', 'no']),
     pack: value('pack'),
+    writer: value('writer').slice(0, 64),
   };
   const base = db()('cards as c').leftJoin('packs as p', 'p.id', 'c.pack_id');
   if (filters.q) {
@@ -30,6 +48,8 @@ async function library(query = {}) {
     base.whereRaw('LOWER(c.text) LIKE ? ESCAPE \'!\'', [`%${escaped}%`]);
   }
   ['status', 'kind', 'source'].forEach((key) => { if (filters[key]) base.where(`c.${key}`, filters[key]); });
+  if (filters.writer === 'unknown') base.whereNull('c.writer');
+  else if (filters.writer) base.where('c.writer', filters.writer);
   if (filters.pack) base.where('p.slug', filters.pack);
   if (filters.retired === 'yes') base.whereNotNull('c.retired_at');
   if (filters.retired === 'no') base.whereNull('c.retired_at');
@@ -46,8 +66,17 @@ async function library(query = {}) {
     .offset((page - 1) * pageSize);
   const packs = await db()('packs').select('slug', 'name')
     .orderBy('name');
+  const writerRows = await db()('cards').whereNotNull('writer')
+    .distinct('writer')
+    .orderBy('writer');
   return {
-    cards, packs, filters, total, page, pages,
+    writers: writerRows.map((row) => row.writer),
+    cards,
+    packs,
+    filters,
+    total,
+    page,
+    pages,
   };
 }
 

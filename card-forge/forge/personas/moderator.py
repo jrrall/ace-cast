@@ -85,7 +85,7 @@ class Moderator:
             try:
                 moderated.append(
                     ModeratedCard(
-                        kind=card.kind, text=card.text, maturity_rating=rating
+                        kind=card.kind, text=card.text, maturity_rating=rating, writer=card.writer
                     )
                 )
             except Exception:  # noqa: BLE001 - drop anything that fails validation

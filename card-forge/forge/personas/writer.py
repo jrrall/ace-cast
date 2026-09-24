@@ -81,7 +81,7 @@ class Writer:
         for entry in raw or []:
             try:
                 cards.append(
-                    CardCandidate(kind=entry.get("kind"), text=entry.get("text", ""))
+                    CardCandidate(kind=entry.get("kind"), text=entry.get("text", ""), writer=self.name)
                 )
             except Exception:  # noqa: BLE001 - drop structurally invalid cards
                 continue

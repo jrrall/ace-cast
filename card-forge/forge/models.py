@@ -79,6 +79,7 @@ class CardCandidate(BaseModel):
     kind: Kind
     text: str
     blanks: int = 0
+    writer: str | None = Field(default=None, max_length=64)
 
     @field_validator("text")
     @classmethod
@@ -118,6 +119,7 @@ class SubmitCard(BaseModel):
     blanks: int
     maturity_rating: int = Field(ge=0, le=3)
     pack: str
+    writer: str | None = Field(default=None, max_length=64)
 
     @field_validator("text")
     @classmethod
@@ -147,6 +149,7 @@ class SubmitCard(BaseModel):
             blanks=card.blanks,
             maturity_rating=card.maturity_rating,
             pack=pack,
+            writer=card.writer,
         )
 
 
@@ -167,6 +170,7 @@ class SubmitBatch(BaseModel):
                     "blanks": c.blanks,
                     "maturity_rating": c.maturity_rating,
                     "pack": c.pack,
+                    **({"writer": c.writer} if c.writer is not None else {}),
                 }
                 for c in self.cards
             ]
