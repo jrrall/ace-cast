@@ -20,32 +20,14 @@ class Settings(BaseSettings):
         populate_by_name=True,  # allow field-name kwargs (e.g. tests / smoke overrides), not just env aliases
     )
 
-    # --- LLM (OpenAI-compatible litellm gateway) -------------------------------
-    llm_base_url: str = Field(default="https://llm.otix.ai", alias="LLM_BASE_URL")
+    # --- LLM (OpenAI-compatible API, including local Ollama) -------------------
+    llm_base_url: str = Field(default="http://localhost:11434/v1", alias="LLM_BASE_URL")
     llm_api_key: str = Field(default="", alias="LLM_API_KEY")
-    llm_model: str = Field(default="gpt-4o-mini", alias="LLM_MODEL")
-    # Capped just under the gateway's Cloudflare edge, which returns 524 if the
-    # origin has not answered within 120s. A client timeout above that is dead
-    # time: the connection is already gone, and we would sit waiting for a
-    # response Cloudflare abandoned. Reasoning models still need well over the
-    # SDK's default, so this is the usable ceiling, not a comfortable budget --
-    # if calls routinely 524, the fix is a faster model or a longer edge
-    # timeout, not a bigger number here.
-    llm_timeout: float = Field(default=115.0, alias="LLM_TIMEOUT")
-    # The OpenAI SDK retries twice by DEFAULT, silently. Against a flaky gateway
-    # that turns one stuck call into 3 x llm_timeout with nothing in the log --
-    # a run can burn most of an hour looking like it is simply thinking. Pin it
-    # low and log every attempt instead.
-    llm_max_retries: int = Field(default=1, alias="LLM_MAX_RETRIES")
-    # Reasoning models spend most of a call thinking before they answer -- on a
-    # card-writing prompt, ~4x more thinking than answer. That is the difference
-    # between a 40s call and a 2s one, and it is what pushes calls past the
-    # gateway's 120s edge timeout. It also measurably BLANDS the output: the
-    # deliberation converges on the safe joke instead of the mean one, which is
-    # the opposite of what this game wants. Set to "" to send nothing and use
-    # whatever the model does by default (needed for gateways that reject the
-    # parameter).
-    llm_reasoning_effort: str = Field(default="none", alias="LLM_REASONING_EFFORT")
+    llm_model: str = Field(default="huihui_ai/qwen3-abliterated:8b", alias="LLM_MODEL")
+    llm_timeout: float = Field(default=115.0, gt=0, alias="LLM_TIMEOUT")
+    llm_max_retries: int = Field(default=0, ge=0, alias="LLM_MAX_RETRIES")
+    # Omit vendor-specific reasoning settings unless explicitly configured.
+    llm_reasoning_effort: str = Field(default="", alias="LLM_REASONING_EFFORT")
 
     # --- Content API (ace-cast) ------------------------------------------------
     content_api_url: str = Field(

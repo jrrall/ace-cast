@@ -40,36 +40,41 @@ function normalizeText(text) {
  */
 async function insertPending(rows) {
   if (!rows || rows.length === 0) return [];
-  const ids = [];
-  // Insert one-by-one so we can collect ids portably across dialects and keep
-  // input order. Volume is bounded by the API's maxBatch cap.
-  // eslint-disable-next-line no-restricted-syntax
-  for (const row of rows) {
-    const insertRow = {
-      game_id: row.game_id,
-      kind: row.kind,
-      text: row.text,
-      blanks: row.blanks,
-      maturity_rating: row.maturity_rating,
-      pack_id: row.pack_id,
-      // Forced, not taken from `row`: fail-closed. Even if a caller passes
-      // status/source, generated candidates always land pending + generated.
-      status: 'pending',
-      source: 'generated',
-    };
-    // eslint-disable-next-line no-await-in-loop
-    const [id] = await db()('cards').insert(insertRow);
-    ids.push(id);
-  }
-  return ids;
+  return db().transaction(async (trx) => {
+    const ids = [];
+    // Insert one-by-one so we can collect ids portably across dialects and keep
+    // input order. Volume is bounded by the API's maxBatch cap.
+    // eslint-disable-next-line no-restricted-syntax
+    for (const row of rows) {
+      const insertRow = {
+        game_id: row.game_id,
+        kind: row.kind,
+        text: row.text,
+        blanks: row.blanks,
+        maturity_rating: row.maturity_rating,
+        pack_id: row.pack_id,
+        // Forced, not taken from `row`: fail-closed. Even if a caller passes
+        // status/source, generated candidates always land pending + generated.
+        status: 'pending',
+        source: 'generated',
+      };
+      // eslint-disable-next-line no-await-in-loop
+      const [{ id }] = await trx('cards').insert(insertRow)
+        .returning('id');
+      ids.push(id);
+    }
+    return ids;
+  });
 }
 
 /**
  * List candidate cards for the agent's dedupe corpus / the review UI.
- * @param {{ status?: string, kind?: string, limit?: number }} [options]
+ * @param {{ status?: string, kind?: string, limit?: number, before?: number }} [options]
  * @returns {Promise<Array<object>>}
  */
-function list({ status, kind, limit = 100 } = {}) {
+function list({
+  status, kind, limit = 100, before,
+} = {}) {
   const query = db()('cards')
     .select(
       'id',
@@ -87,6 +92,7 @@ function list({ status, kind, limit = 100 } = {}) {
       'created_at',
     )
     .orderBy('id', 'desc');
+  if (before) query.where('id', '<', before);
   if (status) query.where({ status });
   if (kind) query.where({ kind });
   query.limit(limit);

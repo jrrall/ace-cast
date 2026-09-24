@@ -54,7 +54,7 @@ def test_injection_does_not_leak_policy_violating_card(settings):
                     {"index": 1, "maturity_rating": 1, "allowed": True},
                 ]
             },
-            {"selected": [0, 1]},
+            {"selected": [0]},  # only the allowed card reaches Curator
         ]
     )
     content = FakeContentClient(corpus=[])

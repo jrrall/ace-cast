@@ -57,6 +57,7 @@ class FakeContentClient:
 @pytest.fixture
 def settings():
     return Settings(
+        _env_file=None,
         LLM_API_KEY="test-key",
         CONTENT_API_TOKEN="test-token",
         DENY_LIST="kys,forbiddenword,slur",

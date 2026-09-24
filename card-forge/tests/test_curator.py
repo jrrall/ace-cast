@@ -51,3 +51,15 @@ def test_curator_normalizes_before_dedupe(settings):
     llm = FakeLLM([{"selected": [0]}])
     batch = Curator(llm, content, settings).run(moderated)
     assert batch.cards == []  # normalised match -> deduped away
+
+
+def test_empty_selection_does_not_publish_entire_pool(settings, sample_moderated):
+    batch = Curator(FakeLLM([{"selected": []}]), FakeContentClient(), settings).run(sample_moderated)
+    assert batch.cards == []
+
+
+def test_invalid_ranking_fails_closed(settings, sample_moderated):
+    import pytest
+    for selected in [[True], [0.9], ["0"], [999], "invalid"]:
+        with pytest.raises(ValueError):
+            Curator(FakeLLM([{"selected": selected}]), FakeContentClient(), settings).run(sample_moderated)

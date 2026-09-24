@@ -44,16 +44,31 @@ class ContentClient:
             params["status"] = status
         if kind is not None:
             params["kind"] = kind
-        try:
-            resp = self._http.get(f"{self.base_url}/api/content/cards", params=params)
-        except httpx.HTTPError as exc:
-            raise ContentAPIError(f"GET /api/content/cards failed: {exc}") from exc
-        if resp.status_code != 200:
-            raise ContentAPIError(
-                f"GET /api/content/cards -> {resp.status_code}: {resp.text[:200]}"
-            )
-        body = resp.json()
-        return body.get("cards", [])
+        cards: list[dict] = []
+        before = None
+        while True:
+            if before is not None:
+                params["before"] = before
+            try:
+                resp = self._http.get(f"{self.base_url}/api/content/cards", params=params)
+            except httpx.HTTPError as exc:
+                raise ContentAPIError(f"GET /api/content/cards failed: {exc}") from exc
+            if resp.status_code != 200:
+                raise ContentAPIError(
+                    f"GET /api/content/cards -> {resp.status_code}: {resp.text[:200]}"
+                )
+            body = resp.json()
+            page = body.get("cards")
+            if not isinstance(page, list):
+                raise ContentAPIError("invalid corpus response: cards must be a list")
+            cards.extend(page)
+            cursor = body.get("next_before")
+            if cursor is None:
+                return cards
+            if (type(cursor) is not int or cursor <= 0 or not page
+                    or (before is not None and cursor >= before)):
+                raise ContentAPIError("invalid corpus pagination cursor")
+            before = cursor
 
     def submit(self, batch: SubmitBatch) -> SubmitResult:
         """POST the assembled batch.

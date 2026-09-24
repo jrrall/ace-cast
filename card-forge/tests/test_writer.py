@@ -50,3 +50,11 @@ def test_writer_makes_exactly_one_llm_call(settings, sample_theme):
     llm = FakeLLM([{"cards": [{"kind": "answer", "text": "Tax fraud."}]}])
     Writer(llm, settings).run(sample_theme)
     assert len(llm.calls) == 1
+
+
+def test_writer_caps_model_overproduction(settings, sample_theme):
+    settings.cards_per_theme = 2
+    llm = FakeLLM([{'cards': [
+        {'kind': 'answer', 'text': f'An original answer {i}'} for i in range(5)
+    ]}])
+    assert len(Writer(llm, settings).run(sample_theme)) == 2

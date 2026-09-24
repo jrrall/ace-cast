@@ -28,9 +28,11 @@
 
         const cardId = btn.dataset.cardId;
         const status = btn.dataset.action === 'approve' ? 'approved' : 'denied';
-        const deniedReason = status === 'denied'
-            ? window.prompt('Reason for denial (optional):') || undefined
+        const reason = status === 'denied'
+            ? window.prompt('Reason for denial (optional):')
             : undefined;
+        if (reason === null) return;
+        const deniedReason = reason || undefined;
 
         btn.disabled = true;
         try {

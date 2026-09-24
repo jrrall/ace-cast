@@ -51,11 +51,15 @@ class Moderator:
         raw = data.get("verdicts", data) if isinstance(data, dict) else data
 
         verdicts: dict[int, dict] = {}
-        for entry in raw or []:
-            try:
-                idx = int(entry.get("index"))
-            except (TypeError, ValueError):
+        duplicates: set[int] = set()
+        for entry in raw if isinstance(raw, list) else []:
+            if not isinstance(entry, dict):
                 continue
+            idx = entry.get("index")
+            if type(idx) is not int or not 0 <= idx < len(candidates):
+                continue
+            if idx in verdicts:
+                duplicates.add(idx)
             verdicts[idx] = entry
 
         moderated: list[ModeratedCard] = []
@@ -64,13 +68,12 @@ class Moderator:
             if self._deny_listed(card.text):
                 continue
             verdict = verdicts.get(i)
-            if verdict is None:
+            if verdict is None or i in duplicates:
                 continue
-            if not verdict.get("allowed", False):
+            if verdict.get("allowed") is not True:
                 continue
-            try:
-                rating = int(verdict.get("maturity_rating"))
-            except (TypeError, ValueError):
+            rating = verdict.get("maturity_rating")
+            if type(rating) is not int:
                 continue
             if rating < 0 or rating > 3:
                 continue

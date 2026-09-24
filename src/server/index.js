@@ -394,7 +394,9 @@ function validateCandidate(card, pack) {
   } else {
     // Answer cards carry no blank; default to 0 when unspecified.
     if (card.blanks == null) blanks = 0;
-    if (!Number.isInteger(blanks) || blanks < 0) return { ok: false, reason: 'invalid blanks' };
+    if (blanks !== 0 || (text.match(BLANK_MARKER) || []).length > 0) {
+      return { ok: false, reason: 'answer must have no blanks' };
+    }
   }
 
   return {
@@ -492,8 +494,17 @@ app.get('/api/content/cards', requireContentScope('content:read'), async (req, r
     const limit = Number.isFinite(requested)
       ? Math.min(Math.max(requested, 1), config.contentApi.maxBatch * 10)
       : 100;
-    const list = await ContentCardRepository.list({ status, kind, limit });
-    return res.json({ cards: list });
+    const before = req.query.before === undefined ? undefined : Number(req.query.before);
+    if (before !== undefined && (!Number.isSafeInteger(before) || before <= 0)) {
+      return res.status(400).json({ error: 'Invalid before cursor' });
+    }
+    const list = await ContentCardRepository.list({
+      status, kind, limit, before,
+    });
+    return res.json({
+      cards: list,
+      next_before: list.length === limit ? list[list.length - 1].id : null,
+    });
   } catch (error) {
     console.error('Failed to list content cards:', error);
     return res.status(500).json({ error: 'Failed to list content cards' });

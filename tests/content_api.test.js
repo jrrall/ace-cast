@@ -137,6 +137,32 @@ describe('Content API (/api/content/cards)', () => {
       expect(row.source).toBe('generated');
     });
 
+    test('answer cards reject blank markers and nonzero blank counts', async () => {
+      const res = await postBatch([
+        { ...validAnswer('bad ____ answer'), blanks: 0 },
+        { ...validAnswer('bad count answer'), blanks: 1 },
+      ]);
+      expect(res.body.created).toEqual([]);
+      expect(res.body.rejected).toHaveLength(2);
+    });
+
+    test('cursor pagination reaches older cards without repeating rows', async () => {
+      const submitted = await postBatch([
+        validAnswer('pagination one'), validAnswer('pagination two'), validAnswer('pagination three'),
+      ]);
+      const first = await request(app).get('/api/content/cards?limit=2')
+        .set('X-Api-Token', CONTENT_TOKEN);
+      expect(first.body.cards.map((c) => c.id)).toEqual(submitted.body.created.slice(1).reverse());
+      const second = await request(app)
+        .get(`/api/content/cards?limit=2&before=${first.body.next_before}`)
+        .set('X-Api-Token', CONTENT_TOKEN);
+      expect(second.body.cards[0].id).toBe(submitted.body.created[0]);
+      expect(second.body.cards.every((c) => c.id < first.body.next_before)).toBe(true);
+      const invalid = await request(app).get('/api/content/cards?before=nope')
+        .set('X-Api-Token', CONTENT_TOKEN);
+      expect(invalid.status).toBe(400);
+    });
+
     test('over-maxBatch → 400', async () => {
       const saved = config.contentApi.maxBatch;
       config.contentApi.maxBatch = 2;

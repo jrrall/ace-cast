@@ -72,18 +72,14 @@ class Curator:
         data = self.llm.complete_json(system=SYSTEM, user=user, temperature=0.3)
         raw = data.get("selected", data) if isinstance(data, dict) else data
 
+        if not isinstance(raw, list):
+            raise ValueError("curator selected must be a list of card indexes")
         order: list[int] = []
-        for idx in raw or []:
-            try:
-                i = int(idx)
-            except (TypeError, ValueError):
-                continue
-            if 0 <= i < len(pool) and i not in order:
-                order.append(i)
-        if not order:
-            # curation ranking unavailable -> fall back to moderated order;
-            # the pool is already vetted and deduped, so this is safe.
-            order = list(range(len(pool)))
+        for idx in raw:
+            if type(idx) is not int or not 0 <= idx < len(pool):
+                raise ValueError("curator returned an invalid card index")
+            if idx not in order:
+                order.append(idx)
 
         chosen = [pool[i] for i in order][: self.settings.batch_max]
         cards = [SubmitCard.from_moderated(c, pack) for c in chosen]

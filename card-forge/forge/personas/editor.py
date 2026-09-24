@@ -19,6 +19,13 @@ SYSTEM = (
     "  * Drop near-duplicates within the set.\n"
     f"  * A kind='prompt' card MUST keep exactly one {BLANK_MARKER!r} blank; a "
     "kind='answer' card must have none.\n"
+    "  * Test every prompt with unrelated noun phrases such as 'a tax audit' "
+    "and 'my landlord'. Rewrite or drop prompts requiring a verb or a specific "
+    "matching answer. Answers must stand alone without the source headline. "
+    "Rewrite complete-sentence answers into noun phrases: for example, "
+    "'You are not working hard enough' becomes 'A boss who times bathroom breaks'.\n"
+    "  * Preserve concrete surprises and sharp punchlines; do not flatten "
+    "them into generic observations or stock burnout jokes.\n"
     "  * Fix light wording but preserve the joke; do not invent brand-new cards.\n"
     'Return ONLY JSON of the form {"cards": [{"kind": "...", "text": "..."}]}.'
 )

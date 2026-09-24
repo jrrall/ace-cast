@@ -61,13 +61,14 @@ async function create({
   if (!clientId) throw new Error('clientId is required');
   const token = generateToken();
   const scopeStr = Array.isArray(scopes) ? scopes.join(',') : scopes;
-  const [id] = await db()(TABLE).insert({
+  const [{ id }] = await db()(TABLE).insert({
     client_id: clientId,
     name: name || clientId,
     token_hash: hashToken(token),
     scopes: scopeStr,
     created_by: createdBy,
-  });
+  })
+    .returning('id');
   const row = await db()(TABLE).where({ id })
     .first();
   return { token, row };

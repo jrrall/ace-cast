@@ -2,7 +2,7 @@
 
 A standalone, multi-persona LLM agent chain that fetches trends, writes
 MadLad-style cards, self-critiques / moderates / dedupes them, and POSTs the
-survivors as **`pending`** to the [ace-cast](../ace-cast) content API. A human
+survivors as **`pending`** to the [ace-cast](../README.md) content API. A human
 approves ~10–20/day from the game's `/admin/content` review list; only approved
 cards ever reach gameplay.
 
@@ -17,9 +17,10 @@ contract.
 
 ## The five personas
 
-Each persona is one LLM call with a typed pydantic input→output contract, so it
-is independently unit-testable with a mocked LLM. The pipeline emits one
-structured log entry per persona, so a run's five distinct calls are observable.
+Each stage has typed card/theme models and is independently testable with a
+mocked LLM. Writer calls the model once per theme; the other stages make at
+most one call each and may skip empty inputs. A four-theme run normally makes
+eight LLM calls. Logs record stage counts and LLM call start/completion times.
 
 | # | Persona | In → Out | Job |
 |---|---------|----------|-----|
@@ -34,16 +35,10 @@ Then `client.py` POSTs the batch; the server re-validates, dedupes on
 
 ## Why the OpenAI SDK (not pydantic-ai)
 
-The stage contracts are pydantic models either way. The chain itself is a fixed,
-linear sequence of **exactly one LLM call per persona** — there is no tool-use
-loop, planner, or dynamic control flow for an agent framework to manage. Wrapping
-each step in a pydantic-ai `Agent` would add its own run/retry/tool machinery and
-make "one mockable call per persona" and the "5 distinct calls observable"
-guarantee harder to assert. A single thin `LLMClient.complete_json` boundary
-(pointed at the OpenAI-compatible litellm gateway) keeps every persona a pure
-typed-in → typed-out function that a test mocks in one line, which is exactly what
-the plan's per-persona isolation requires. So: `openai` SDK for transport,
-`pydantic` for every stage boundary.
+The pipeline has a fixed order and needs no tool-use loop or planner. The thin
+`LLMClient.complete_json` boundary keeps transport mockable, while pydantic
+validates cards and themes. It uses an OpenAI-compatible Chat Completions API,
+including Ollama's local endpoint.
 
 ## Setup
 
@@ -64,15 +59,30 @@ uv run python forge.py             # run and submit pending cards to the content
 
 Start with `--dry-run` — it exercises the whole chain and every real LLM call,
 but POSTs nothing, so you can judge card quality before anything reaches the
-review queue.
+review queue. It still reads the game's corpus for dedupe.
+
+For a local Ollama smoke test with canned feeds and an empty corpus (no game
+server or credentials needed):
+
+```bash
+LLM_BASE_URL=http://localhost:11434/v1 LLM_API_KEY=ollama \
+LLM_MODEL=huihui_ai/qwen3-abliterated:8b LLM_REASONING_EFFORT=none \
+uv run python scripts/live_smoke.py
+```
+
+Use an installed model from `ollama list`. A server root URL is also accepted;
+`/v1` is appended only when absent. Reasoning settings are omitted unless set.
+See [Ollama's compatibility documentation](https://docs.ollama.com/api/openai-compatibility).
+
 
 `CONTENT_API_URL` points at the **live game**, so a real run puts real cards in
 the real `/admin/content` queue. They are inert until you approve them, and a
 bad batch is cleaned up by denying it (or `DELETE /api/content/cards/:id`, which
 only works while a card is still `pending`).
 
-The run **fails closed**: any stage exception → non-zero exit and nothing
-partial is submitted. It prints a summary line: themes + generated / edited /
+Generation-stage exceptions abort before submission. A submission timeout has
+an unknown outcome: the server may already have accepted the batch; check the
+review queue before retrying. It prints a summary line: themes + generated / edited /
 moderated / deduped / assembled / submitted counts.
 
 ## Configuration
@@ -131,3 +141,83 @@ and fail-closed behaviour. No test touches the network or the real gateway.
 - Embedding-based near-dup detection (current dedupe is normalised-text exact
   match, layered under the server's authoritative `(pack_id, text)` dedupe).
 - Multi-source feed expansion beyond the MVP two.
+
+## Current limits
+
+The same model writes and judges its output; five stages do not constitute five
+independent opinions. Structurally valid output can still be bland or combine
+poorly in gameplay. Review random prompt/answer pairings before approving a batch.
+
+Corpus pagination requires the updated game server. An older server returns a
+single page, so preflight dedupe is incomplete until the server is updated.
+Server dedupe currently checks before inserting and is not protected by a unique
+normalized-text constraint: simultaneous identical submissions can race. Batch
+insertion is transactional, but this does not make concurrent dedupe atomic.
+Service credentials identify requests, but the submitting client is not yet
+persisted on each card; retained token records alone cannot attribute old cards.
+
+## Docker container
+
+This is a one-shot job: it generates one batch, submits pending cards, and exits.
+The game and Ollama run separately. No port or database volume is needed.
+
+Build from the repository root:
+
+```bash
+docker build -t card-forge:local card-forge
+cp card-forge/.env.example card-forge/.env
+```
+
+Edit `.env`: set `CONTENT_API_TOKEN` to the game's service token and set the LLM
+endpoint/model. For Ollama on the host, use
+`LLM_BASE_URL=http://host.docker.internal:11434/v1`; `localhost` inside the
+container refers to the container itself. For an LLM on another machine, use its
+reachable LAN URL. Ollama must listen on an address reachable from Docker.
+On Linux add `--add-host=host.docker.internal:host-gateway` to the run command.
+
+```bash
+# Preview: real LLM/feed calls and a read of the live corpus; no submission.
+docker run --rm --env-file card-forge/.env card-forge:local --dry-run
+
+# Submit generated cards to the live review queue.
+docker run --rm --env-file card-forge/.env card-forge:local
+
+# Only test the LLM: canned feeds, empty corpus, no game API calls.
+docker run --rm --env-file card-forge/.env --entrypoint python \
+  card-forge:local /app/scripts/live_smoke.py
+```
+
+The image defaults `CONTENT_API_URL` to `https://unholy.cards` (without `/admin`).
+It calls `/api/content/cards` using the service token. Approve or deny results
+at `https://unholy.cards/admin/content` using your admin login/token.
+The agent does not need the admin credential. Environment files are runtime
+inputs and are excluded from the image.
+
+### Pull on another machine
+
+The Card Forge workflow builds both Linux AMD64 and ARM64 images and publishes
+them to GitHub Container Registry. Feature-branch builds use the `card-forge`
+tag; builds from `main` use `latest`. Every build also gets its full commit SHA
+as an immutable tag.
+
+```bash
+docker pull ghcr.io/jrrall/ace-cast/card-forge:card-forge
+docker run --rm --env-file card-forge.env \
+  ghcr.io/jrrall/ace-cast/card-forge:card-forge --dry-run
+```
+
+Create `card-forge.env` on that machine with:
+
+```dotenv
+CONTENT_API_URL=https://unholy.cards
+CONTENT_API_TOKEN=your-service-token
+LLM_BASE_URL=http://host.docker.internal:11434/v1
+LLM_API_KEY=ollama
+LLM_MODEL=huihui_ai/qwen3-abliterated:8b
+LLM_REASONING_EFFORT=none
+```
+
+Replace the LLM URL/model for your server. Remove `--dry-run` to submit a batch.
+If the registry package is private, run `docker login ghcr.io` first using a
+GitHub credential with permission to read it. Publishing requires pushing this
+workflow to GitHub and a successful workflow run.

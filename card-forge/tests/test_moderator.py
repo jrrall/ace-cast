@@ -66,3 +66,24 @@ def test_moderator_deny_list_overrides_model(settings):
     out = Moderator(llm, settings).run(cards)
     assert len(out) == 1
     assert out[0].text == "A perfectly nice answer."
+
+
+def test_malformed_verdicts_cannot_approve(settings, sample_candidates):
+    for bad in [
+        {'index': 0, 'maturity_rating': 1, 'allowed': 'false'},
+        {'index': 0, 'maturity_rating': 1, 'allowed': 1},
+        {'index': False, 'maturity_rating': 1, 'allowed': True},
+        {'index': 0, 'maturity_rating': 1.9, 'allowed': True},
+        {'index': 0, 'maturity_rating': True, 'allowed': True},
+        None, 'garbage',
+    ]:
+        llm = FakeLLM([{'verdicts': [bad]}])
+        assert Moderator(llm, settings).run(sample_candidates) == []
+
+
+def test_conflicting_duplicate_verdicts_are_dropped(settings, sample_candidates):
+    llm = FakeLLM([{'verdicts': [
+        {'index': 0, 'maturity_rating': 1, 'allowed': False},
+        {'index': 0, 'maturity_rating': 1, 'allowed': True},
+    ]}])
+    assert Moderator(llm, settings).run(sample_candidates) == []

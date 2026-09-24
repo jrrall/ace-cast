@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""Light LIVE smoke test of the agent chain against the real litellm gateway.
+"""Light LIVE smoke test of the agent chain against the configured OpenAI-compatible server.
 
 Runs the full 5-persona chain (Trendscout -> Writer -> Editor -> Moderator ->
-Curator) making REAL calls to the litellm stack, but WITHOUT needing the
+Curator) making REAL calls to the configured LLM server, but WITHOUT needing the
 ace-cast game server:
   * the content corpus (Curator's dedupe source) is stubbed to empty, and
   * the trend feeds are canned, so no Reddit/BBC network dependency.
@@ -61,10 +61,6 @@ def _canned_fetch(_settings) -> list[FeedItem]:
 
 def main() -> int:
     api_key = os.environ.get("LLM_API_KEY") or os.environ.get("LITELLM_API_KEY", "")
-    if not api_key:
-        print("ERROR: set LLM_API_KEY (or LITELLM_API_KEY) in the environment.", file=sys.stderr)
-        return 2
-
     # Small sizes keep this LIGHT: 1 theme, a few cards per theme.
     settings = load_settings(
         llm_api_key=api_key,

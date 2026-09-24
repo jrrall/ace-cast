@@ -177,7 +177,10 @@ describe('Service tokens (content API machine auth)', () => {
     test('re-minting for a LIVE client_id is rejected', async () => {
       await ServiceTokenRepository.create({ clientId: 'unique-client' });
       await expect(ServiceTokenRepository.create({ clientId: 'unique-client' }))
-        .rejects.toThrow();
+        .rejects.toMatchObject({ code: 'SQLITE_CONSTRAINT_UNIQUE' });
+      const rows = (await ServiceTokenRepository.list())
+        .filter((r) => r.client_id === 'unique-client');
+      expect(rows).toHaveLength(1);
     });
 
     test('rotation works: revoke then re-mint the SAME client_id', async () => {

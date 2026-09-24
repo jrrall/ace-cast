@@ -60,8 +60,11 @@ class LLMClient:
     def __init__(self, settings: Settings, client: OpenAI | None = None) -> None:
         self.settings = settings
         self.model = settings.llm_model
+        base_url = settings.llm_base_url.rstrip("/")
+        if not base_url.endswith("/v1"):
+            base_url += "/v1"
         self._client = client or OpenAI(
-            base_url=settings.llm_base_url.rstrip("/") + "/v1",
+            base_url=base_url,
             api_key=settings.llm_api_key or "not-set",
             timeout=settings.llm_timeout,
             # Explicit, because the SDK default of 2 is invisible: a stuck call
@@ -78,6 +81,7 @@ class LLMClient:
         kwargs: dict[str, Any] = {}
         if self.settings.llm_reasoning_effort:
             kwargs["reasoning_effort"] = self.settings.llm_reasoning_effort
+        LOG.info("llm.call_started", extra={"extra_fields": {"model": self.model}})
         started = time.monotonic()
         try:
             resp = self._client.chat.completions.create(

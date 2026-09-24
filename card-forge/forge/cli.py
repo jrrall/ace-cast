@@ -40,7 +40,7 @@ def main(argv: list[str] | None = None) -> int:
         summary, batch = pipeline.run(dry_run=args.dry_run)
     except Exception as exc:  # noqa: BLE001 - fail closed on ANY stage error
         log.error(
-            "run failed; nothing submitted",
+            "run failed; if submission was attempted, check the review queue before retrying",
             extra={"extra_fields": {"error": str(exc), "error_type": type(exc).__name__}},
         )
         return 1

@@ -66,6 +66,14 @@ describe('ContentCardRepository', () => {
     expect(texts).toEqual(['first', 'second', 'third']);
   });
 
+  test('a failed row rolls back the entire batch', async () => {
+    await expect(ContentCardRepository.insertPending([
+      baseRow({ text: 'must roll back' }),
+      baseRow({ text: null }),
+    ])).rejects.toMatchObject({ code: 'SQLITE_CONSTRAINT_NOTNULL' });
+    expect(await db.db()('cards').where({ pack_id: genPackId })).toHaveLength(0);
+  });
+
   test('existingTextsForPack returns normalized texts of ALL statuses incl. denied', async () => {
     await db.db()('cards').insert([
       baseRow({ text: '  Approved TEXT  ', status: 'approved' }),

@@ -22,6 +22,14 @@ SYSTEM = (
     "'Crippling student debt.'\n"
     "Humor skews raunchy, dark, absurd, and millennial-burnout. Keep each card "
     "to one line.\n"
+    "Build a specific comic image or an unexpected reversal, not merely a topic "
+    "label. Avoid stock AI jokes such as 'existential dread', 'a raccoon in a "
+    "trench coat', and 'crippling student debt'. Do not copy the format examples. "
+    "A prompt blank must accept an unrelated noun phrase naturally; never "
+    "require a verb (e.g. 'I would rather ____'), a specific answer, or knowledge "
+    "of the source headline. Answers must work across unrelated prompts. "
+    "Use concrete details, comic escalation, and adult absurdity when they "
+    "serve the joke; profanity alone is not a punchline.\n"
     + INJECTION_NOTICE
     + '\nReturn ONLY JSON of the form {"cards": [{"kind": "prompt"|"answer", '
     '"text": "..."}]}.'
@@ -57,4 +65,4 @@ class Writer:
                 )
             except Exception:  # noqa: BLE001 - drop structurally invalid cards
                 continue
-        return cards
+        return cards[: self.settings.cards_per_theme]
