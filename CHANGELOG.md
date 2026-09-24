@@ -1,3 +1,7 @@
+## <small>1.22.1 (2026-09-24)</small>
+
+* fix(card-forge): make persona scouting preferences deterministic (#65) ([f8f7ed8](https://github.com/jrrall/ace-cast/commit/f8f7ed8)), closes [#65](https://github.com/jrrall/ace-cast/issues/65)
+
 ## 1.22.0 (2026-09-24)
 
 * feat(card-forge): add resumable runs and persona-driven research (#64) ([6877ef5](https://github.com/jrrall/ace-cast/commit/6877ef5)), closes [#64](https://github.com/jrrall/ace-cast/issues/64)
