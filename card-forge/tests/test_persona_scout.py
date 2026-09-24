@@ -131,3 +131,18 @@ def test_comedy_room_keeps_each_writers_research_context(settings, tmp_path):
     assert 'Benefit' in llm.calls[1]['user']
     assert 'Grievance' in llm.calls[2]['user']
     assert 'Benefit' in llm.calls[3]['user']
+
+
+@pytest.mark.parametrize('percent', [0, 25, 100])
+def test_tabloid_preference_is_identical_across_writers_and_fresh_scouts(settings, percent):
+    settings.themes_per_run = 1
+    settings.tabloid_percent = percent
+    llm = FakeLLM([choices(0, 'Angle') for _ in range(4)])
+    writers = writing_team(llm, settings)
+    for writer in writers[:2]:
+        for _ in range(2):
+            Trendscout(llm, settings).for_writer(writer, feed())
+    requests = [call['user'] for call in llm.calls]
+    assert len(set(requests)) == 1
+    assert f'Fictional tabloid target: {percent}%' in requests[0]
+    assert 'preference, not a quota' in requests[0]

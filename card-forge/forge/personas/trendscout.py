@@ -65,13 +65,18 @@ class Trendscout:
             f"{i}. [{item.source}] {item.title}\n{item.excerpt}"
             for i, item in enumerate(items)
         )
-        slots = theme_slots(self.settings.themes_per_run, self.settings.tabloid_percent)
+        # This is a soft preference, not a randomized integer quota. Identical
+        # pools/settings must produce identical requests across writers/resumes.
+        preference = (
+            f"Fictional tabloid target: {self.settings.tabloid_percent:g}% of chosen themes "
+            "when suitable material exists; this is a preference, not a quota. "
+        )
         user = (
             wrap_feed_data(joined)
             + f"\nChoose up to {self.settings.themes_per_run} distinct sources and angles "
             "through your persona's worldview. You may choose different sources or "
             "interpretations from other writers. Do not write cards yet. "
-            + (f"Prefer about {slots} fictional tabloid themes if suitable material exists. " if slots else "")
+            + preference
             + "Every theme must include a valid source_index from the numbered pool."
         )
         request = user
