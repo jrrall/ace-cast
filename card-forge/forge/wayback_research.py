@@ -1,5 +1,5 @@
 """Sample archived Infowars claims as material for fictional conspiracy satire."""
-from datetime import date, timedelta
+from datetime import date
 import random
 import re
 from urllib.parse import urljoin, urlsplit, urlunsplit
@@ -71,15 +71,32 @@ def article_text(html):
     return '\n'.join(dict.fromkeys(p for p in paragraphs if len(p) >= 80))[:3500]
 
 
-def collect(client, *, rng=random):
-    start = date(2000, 1, 1)
-    day = start + timedelta(days=rng.randrange((date(2010, 1, 1) - start).days))
+def archive_day(*, today=None, rng=random):
+    """Same month/day in a random eligible year; Feb 29 uses leap years only."""
+    today = today or date.today()
+    choices = []
+    for year in range(2000, 2010):
+        try:
+            choices.append(date(year, today.month, today.day))
+        except ValueError:
+            continue
+    return rng.choice(choices)
+
+
+def collect(client, *, rng=random, today=None):
+    day = archive_day(today=today, rng=rng)
     response = client.get(FEED_URL, params={'url': 'infowars.com', 'timestamp': day.strftime('%Y%m%d')}, follow_redirects=False)
     response.raise_for_status()
     closest = response.json().get('archived_snapshots', {}).get('closest', {})
     if not closest.get('available') or str(closest.get('status')) != '200':
         raise ValueError('no available Infowars snapshot')
-    html, homepage = fetch_snapshot(client, closest.get('url', ''))
+    requested = day.strftime('%Y%m%d')
+    candidate = snapshot_url(closest.get('url', ''))
+    if candidate.split('/web/')[1][:8] != requested:
+        raise ValueError(f'no snapshot for this day in selected year: {day}; nearest capture differs')
+    html, homepage = fetch_snapshot(client, candidate)
+    if homepage.split('/web/')[1][:8] != requested:
+        raise ValueError(f'archive redirected away from requested day: {day}')
     stamp = homepage.split('/web/')[1][:14]
     origin = homepage.split('id_/', 1)[1]
     candidates = article_links(html, origin)

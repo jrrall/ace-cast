@@ -429,14 +429,17 @@ one answer per theme. No franchise roleplay is included.
 
 The default feed list also includes
 `https://archive.org/wayback/available?url=infowars.com`. This is a research
-adapter, not a live news feed: it picks a random date in 2000–2009, asks Internet
-Archive for the nearest available Infowars homepage snapshot in that era, and
+adapter, not a live news feed: it uses today’s month/day in a random year from
+2000–2009 and asks Internet Archive for an Infowars homepage snapshot. Only a
+capture on that exact date is accepted; nearest captures on other days are
+skipped. February 29 selects only leap years. From a matching homepage it
 samples up to two on-site article links. BeautifulSoup extracts bounded paragraph
 excerpts. Every item carries its snapshot URL/date and a label identifying it as
 unverified conspiracy claims. All writers can use the resulting themes.
 
 Trendscout extracts paranoid certainty, false causality, and invented connections
 as mechanisms for fictional comedy rather than treating the claims as facts.
+Linked articles may resolve to nearby captures within the same era.
 Unavailable articles fall back to the archived headline, explicitly labeled
 headline-only. An unavailable homepage logs a source failure and other feeds
 continue. No transcripts, video downloads, or live Infowars requests are used.

@@ -1,5 +1,13 @@
 import httpx
 import pytest
+from datetime import date
+import random
+
+
+@pytest.fixture(autouse=True)
+def fixed_archive_day(monkeypatch):
+    monkeypatch.setattr("forge.wayback_research.archive_day", lambda **kwargs: date(2005, 6, 2))
+
 from forge.wayback_research import collect, snapshot_url, article_text, article_links, FEED_URL
 from forge.feeds import fetch_feed_items
 from forge.config import Settings
@@ -63,3 +71,26 @@ def test_empty_archive_is_not_invented():
             collect(client)
     assert article_links('<a href="/login">Login</a>') == []
     assert article_text('<p>Short navigation</p>') == ''
+
+
+def test_missing_anniversary_does_not_use_nearest_capture():
+    wrong = HOME.replace('20050602', '20050603')
+    calls = []
+    def respond(request):
+        calls.append(str(request.url))
+        return httpx.Response(200, json={'archived_snapshots': {'closest': {'available': True, 'status': 200, 'url': wrong}}})
+    with httpx.Client(transport=httpx.MockTransport(respond)) as client:
+        with pytest.raises(ValueError, match='nearest capture differs'):
+            collect(client)
+    assert len(calls) == 1
+
+
+def test_anniversary_date_and_leap_years(fixed_archive_day, monkeypatch):
+    monkeypatch.undo()
+    from forge.wayback_research import archive_day
+    rng = random.Random(10)
+    days = [archive_day(today=date(2026, 9, 24), rng=rng) for _ in range(30)]
+    assert all((d.month, d.day) == (9, 24) and 2000 <= d.year <= 2009 for d in days)
+    assert len({d.year for d in days}) > 1
+    leap = [archive_day(today=date(2024, 2, 29), rng=rng) for _ in range(10)]
+    assert all(d.month == 2 and d.day == 29 and d.year in (2000, 2004, 2008) for d in leap)
