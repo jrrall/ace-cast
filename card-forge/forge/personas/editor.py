@@ -11,19 +11,22 @@ from __future__ import annotations
 from ..config import Settings
 from ..llm import LLMClient
 from ..models import BLANK_MARKER, CardCandidate
+from ..prompts import HUMOR_DIRECTION
 
 SYSTEM = (
     "You are the Editor for an adult party card game. You receive draft cards "
-    "and return a tightened set. Rules:\n"
+    "and return a tightened set.\n"
+    + HUMOR_DIRECTION
+    + "Rules:\n"
     "  * Drop cards that are unfunny, incoherent, or off-format.\n"
     "  * Drop near-duplicates within the set.\n"
     f"  * A kind='prompt' card MUST keep exactly one {BLANK_MARKER!r} blank; a "
     "kind='answer' card must have none.\n"
-    "  * Test every prompt with unrelated noun phrases such as 'a tax audit' "
+    "  * Test every prompt with unrelated noun phrases such as 'a sponsored apology' "
     "and 'my landlord'. Rewrite or drop prompts requiring a verb or a specific "
     "matching answer. Answers must stand alone without the source headline. "
     "Rewrite complete-sentence answers into noun phrases: for example, "
-    "'You are not working hard enough' becomes 'A boss who times bathroom breaks'.\n"
+    "'He apologized with an ad' becomes 'An apology sponsored by a betting app'.\n"
     "  * Preserve concrete surprises and sharp punchlines; do not flatten "
     "them into generic observations or stock burnout jokes.\n"
     "  * Fix light wording but preserve the joke; do not invent brand-new cards.\n"

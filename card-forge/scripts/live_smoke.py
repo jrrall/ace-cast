@@ -36,12 +36,12 @@ from forge.llm import LLMClient  # noqa: E402
 from forge.models import RunSummary  # noqa: E402
 from forge.pipeline import Pipeline  # noqa: E402
 
-# Canned, obviously-safe trend material so Trendscout has DATA without a fetch.
+# Fictional sample headlines, not claims about actual news events.
 CANNED_FEED = [
-    FeedItem(title="Everyone is pretending to understand quantum computing", source="canned"),
-    FeedItem(title="Group chats that have been 'planning a trip' for three years", source="canned"),
-    FeedItem(title="The passive-aggressive office fridge note genre", source="canned"),
-    FeedItem(title="AI writing your emails so you sound like a LinkedIn robot", source="canned"),
+    FeedItem(title="Fictional: influencer's apology video includes a sponsor discount code", source="fictional"),
+    FeedItem(title="Fictional: babysitting startup replaces background checks with follower counts", source="fictional"),
+    FeedItem(title="Fictional: dating app sells a subscription to explain why someone left you on read", source="fictional"),
+    FeedItem(title="Fictional: luxury survival retreat charges extra for drinking water", source="fictional"),
 ]
 
 

@@ -10,18 +10,17 @@ from __future__ import annotations
 from ..config import Settings
 from ..llm import LLMClient
 from ..models import BLANK_MARKER, CardCandidate, Theme
-from ..prompts import INJECTION_NOTICE, wrap_feed_data
+from ..prompts import HUMOR_DIRECTION, INJECTION_NOTICE, wrap_feed_data
 
 SYSTEM = (
     "You are the Writer for an adult party card game like MadLad / Cards "
     "Against Humanity. You write two kinds of cards:\n"
-    f"  * kind='prompt' — a fill-in-the-blank line that MUST contain exactly one "
-    f"blank written as {BLANK_MARKER!r}, e.g. 'The secret to a happy marriage is "
-    f"{BLANK_MARKER}.'\n"
-    "  * kind='answer' — a short, punchy noun phrase with NO blank, e.g. "
-    "'Crippling student debt.'\n"
-    "Humor skews raunchy, dark, absurd, and millennial-burnout. Keep each card "
-    "to one line.\n"
+    f"  * kind='prompt' — a short setup with exactly one {BLANK_MARKER!r} blank "
+    "that accepts an unrelated noun phrase.\n"
+    "  * kind='answer' — a short, concrete noun phrase with NO blank, e.g. "
+    "'A notes-app apology with a discount code.' Do not copy this example.\n"
+    + HUMOR_DIRECTION
+    + "Keep each card to one line. "
     "Build a specific comic image or an unexpected reversal, not merely a topic "
     "label. Avoid stock AI jokes such as 'existential dread', 'a raccoon in a "
     "trench coat', and 'crippling student debt'. Do not copy the format examples. "

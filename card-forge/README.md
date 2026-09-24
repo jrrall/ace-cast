@@ -33,6 +33,16 @@ eight LLM calls. Logs record stage counts and LLM call start/completion times.
 Then `client.py` POSTs the batch; the server re-validates, dedupes on
 `(pack_id, text)`, and stores everything as `pending`.
 
+## Editorial direction
+
+The chain targets adult Gen Z humor: deadpan absurdity, surreal escalation,
+ironic overconfidence, and online behavior colliding with real consequences.
+News supplies the contradiction or comic premise; cards should work without
+recognizing the headline. Avoid millennial-burnout filler and forced slang.
+Writer, Editor, and Curator share this direction with Trendscout. Prompts must
+have exactly one blank that accepts an unrelated answer card.
+The local smoke test uses explicitly fictional sample headlines in this vein.
+
 ## Why the OpenAI SDK (not pydantic-ai)
 
 The pipeline has a fixed order and needs no tool-use loop or planner. The thin

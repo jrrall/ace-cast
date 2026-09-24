@@ -13,14 +13,19 @@ from ..config import Settings
 from ..feeds import FeedItem, fetch_feed_items
 from ..llm import LLMClient
 from ..models import Theme
-from ..prompts import INJECTION_NOTICE, wrap_feed_data
+from ..prompts import HUMOR_DIRECTION, INJECTION_NOTICE, wrap_feed_data
 
 SYSTEM = (
     "You are Trendscout for an adult party card game in the style of MadLad "
     "(Cards Against Humanity). Given a list of trending headlines and meme "
     "titles, propose short, punchy THEMES a comedy writer could riff on. "
-    "Themes should be evergreen enough to be funny for months, not tied to a "
-    "single news event's specifics.\n"
+    "Find hypocrisy, reckless confidence, absurd incentives, or misplaced "
+    "trust in the source material. The angle must describe a comic premise, "
+    "not merely repeat a headline. Translate it into an everyday situation "
+    "such as choosing a babysitter, dating, family, shopping, or reputation; "
+    "the resulting card should work without knowing the news story. Do not "
+    "invent factual allegations about real people from a headline.\n"
+    + HUMOR_DIRECTION
     + INJECTION_NOTICE
     + "\nReturn ONLY JSON of the form "
     '{"themes": [{"title": "...", "angle": "..."}]}. '

@@ -17,11 +17,15 @@ from ..config import Settings
 from ..llm import LLMClient
 from ..models import ModeratedCard, SubmitBatch, SubmitCard
 from ..text import normalize_text
+from ..prompts import HUMOR_DIRECTION
 
 SYSTEM = (
     "You are the Curator for an adult party card game. From a numbered list of "
     "vetted cards, select the funniest, most varied set to publish. Prefer a "
     "mix of prompts and answers and avoid repetitive jokes.\n"
+    + HUMOR_DIRECTION
+    + "Reward specific surprises and playable combinations. Reject generic "
+    "burnout filler and slang-only jokes; preserve the deadpan voice.\n"
     'Return ONLY JSON of the form {"selected": [0, 2, 5]} listing the indexes '
     "to keep, best first. Indexes are ZERO-BASED integers from the supplied "
     "list, never one-based ranks. Select fewer or none if the cards are weak."
