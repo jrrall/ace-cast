@@ -14,6 +14,7 @@
             <% [['status', 'Review status', ['pending','approved','denied']], ['kind', 'Kind', ['prompt','answer']], ['source', 'Source', ['manual','generated']]].forEach(function (filter) { %>
             <label><%= filter[1] %><select name="<%= filter[0] %>"><option value="">All</option><% filter[2].forEach(function (option) { %><option value="<%= option %>" <%= filters[filter[0]] === option ? 'selected' : '' %>><%= option %></option><% }); %></select></label>
             <% }); %>
+            <label>Writer<select name="writer"><option value="">All writers</option><option value="unknown" <%= filters.writer === 'unknown' ? 'selected' : '' %>>Unknown</option><% writers.forEach(function (writer) { %><option value="<%= writer %>" <%= filters.writer === writer ? 'selected' : '' %>><%= writer %></option><% }); %></select></label>
             <label>Pack<select name="pack"><option value="">All packs</option><% packs.forEach(function (pack) { %><option value="<%= pack.slug %>" <%= filters.pack === pack.slug ? 'selected' : '' %>><%= pack.name %></option><% }); %></select></label>
             <label>Retirement<select name="retired"><option value="">All</option><option value="yes" <%= filters.retired === 'yes' ? 'selected' : '' %>>Retired</option><option value="no" <%= filters.retired === 'no' ? 'selected' : '' %>>Not retired</option></select></label>
             <button class="secondary-btn" type="submit">Apply filters</button>
@@ -26,7 +27,7 @@
             <article class="library-card <%= card.kind === 'prompt' ? 'prompt-card' : 'answer-card' %>">
                 <div class="card-meta"><span><%= card.kind %> · #<%= card.id %></span><span class="badge"><%= card.status %><%= card.retired_at ? ' / retired' : '' %></span></div>
                 <p class="card-copy"><%= card.text %></p>
-                <footer><span><%= card.packName || 'No pack' %></span><span><%= card.source %> · Maturity <%= card.maturity_rating %></span></footer>
+                <footer><span><%= card.packName || 'No pack' %></span><span><%= card.writer || "Unknown writer" %> · <%= card.source %> · Maturity <%= card.maturity_rating %></span></footer>
                 <% if (card.denied_reason) { %><details><summary>Rejection reason</summary><p><%= card.denied_reason %></p></details><% } %>
             </article>
             <% }); %>

@@ -8,6 +8,7 @@ duplicates that survive are removed deterministically.
 
 from __future__ import annotations
 
+from ..logging_setup import get_logger
 from ..config import Settings
 from ..llm import LLMClient
 from ..models import BLANK_MARKER, CardCandidate
@@ -50,7 +51,9 @@ SYSTEM = (
     "them into generic observations or stock burnout jokes.\n"
     "  * Preserve each card's kind; never turn answers into prompts or vice versa.\n"
     "  * Fix light wording but preserve the joke; do not invent brand-new cards.\n"
-    'Return ONLY JSON of the form {"cards": [{"kind": "...", "text": "..."}]}.'
+    "  * Return source_index, the zero-based draft number, for every edited card. "
+    "Keep a single source per card; do not merge jokes from different drafts.\n"
+    'Return ONLY JSON of the form {"cards": [{"source_index": 0, "kind": "...", "text": "..."}]}.'
 )
 
 
@@ -83,6 +86,25 @@ class Editor:
                 card = CardCandidate(kind=entry.get("kind"), text=entry.get("text", ""))
             except Exception:  # noqa: BLE001 - drop invalid
                 continue
+            source = None
+            if "source_index" in entry:
+                idx = entry["source_index"]
+                if type(idx) is not int or not 0 <= idx < len(candidates):
+                    get_logger().warning("editor.invalid_source_index")
+                    continue
+                source = candidates[idx]
+                if source.kind != card.kind:
+                    continue
+            else:
+                # Compatibility for unchanged drafts; never infer a writer for
+                # rewritten or ambiguous text when the model omits its index.
+                matches = [c for c in candidates if c.kind == card.kind and c.text == card.text]
+                if len(matches) == 1:
+                    source = matches[0]
+                elif any(c.writer is not None for c in candidates):
+                    get_logger().warning("editor.unattributed_draft_dropped")
+                    continue
+            card.writer = source.writer if source is not None else None
             key = (card.kind, card.text.lower())
             if key in seen:
                 continue

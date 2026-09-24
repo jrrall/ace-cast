@@ -19,6 +19,15 @@
             <section class="panel"><h2>The complete library</h2><p>Search original and generated cards, including rejected and retired material.</p><a class="secondary-btn" href="/admin/cards<%= suffix %>">Browse all cards</a></section>
             <section class="panel"><h2>What actually lands</h2><p>Explore gameplay wins and player flags. Retire weak cards or bring them back.</p><a class="secondary-btn" href="/admin/feedback<%= suffix %>">View gameplay feedback</a></section>
         </div>
+        <section class="panel">
+            <h2>Writer review outcomes</h2>
+            <p class="help-text">Approval reflects your review decisions, not a measured laugh rate. Pending cards are excluded from the approval percentage. Historical cards without attribution remain unknown.</p>
+            <table><thead><tr><th>Writer</th><th>Pending</th><th>Approved</th><th>Denied</th><th>Approval</th></tr></thead><tbody>
+            <% counts.writers.forEach(function (writer) { const reviewed = writer.approved + writer.denied; const params = new URLSearchParams({ source: 'generated', writer: writer.writer }); if (adminToken) params.set('token', adminToken); %>
+                <tr><td><a href="/admin/cards?<%= params.toString() %>"><%= writer.writer === 'unknown' ? 'Unknown' : writer.writer %></a></td><td><%= writer.pending %></td><td><%= writer.approved %></td><td><%= writer.denied %></td><td><%= reviewed ? Math.round(100 * writer.approved / reviewed) + '%' : 'Not reviewed' %></td></tr>
+            <% }); %>
+            </tbody></table>
+        </section>
         <p class="help-text">Approved cards may enter eligible decks. Retired cards remain in the library but are excluded from play. Generation runs separately; this page does not start a run.</p>
     </main>
 </div></body></html>

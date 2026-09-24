@@ -33,7 +33,7 @@
                 <table>
                     <thead>
                         <tr>
-                            <th>Kind</th><th>Text</th><th>Maturity</th><th>Source</th><th>Pack</th><th></th>
+                            <th>Kind</th><th>Text</th><th>Maturity</th><th>Writer</th><th>Source</th><th>Pack</th><th></th>
                         </tr>
                     </thead>
                     <tbody>
@@ -42,6 +42,7 @@
                             <td><%= c.kind %></td>
                             <td><%= c.text %></td>
                             <td><%= c.maturity_rating %></td>
+                            <td><%= c.writer || "Unknown" %></td>
                             <td><%= c.source %></td>
                             <td><%= c.packName || '—' %></td>
                             <td>

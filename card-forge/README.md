@@ -369,3 +369,18 @@ LLM timeout per attempt; they never retry the submission POST.
 If you build `card-forge:dev`, run that same tag to use your local changes.
 Running `ghcr.io/jrrall/ace-cast/card-forge:latest` uses the separately pulled
 registry image instead.
+
+### Writer attribution
+
+Writer IDs (for example `writer.unhinged`) are assigned by code, carried through
+editing using the original draft index, and submitted with every new card.
+The editor cannot overwrite the author. A rewritten draft without a valid
+source index is dropped rather than assigned to a guessed writer; uniquely
+matching unchanged drafts can retain attribution without an index.
+
+After deploying the game migration, the review queue and card library show
+writers, the library can filter by writer, and the admin overview shows pending,
+approved, denied, and approval percentage per writer. Use these review outcomes
+to identify voices to tune; they are not measured laugh rates. Cards generated
+before attribution was recorded remain Unknown. Deploy the game before using
+the updated generator, otherwise older servers will ignore writer metadata.

@@ -46,7 +46,51 @@ describe('GET /admin/content (admin gate + pending review)', () => {
     await db.db()('cards').where({ pack_id: genPackId }).del();
   });
 
-  test('404s without a token', async () => {
+  test('writer attribution survives review and drives library filters and outcomes', async () => {
+    const response = await request(app).post('/api/content/cards')
+      .set('Authorization', `Bearer ${CONTENT_TOKEN}`)
+      .send({ cards: [
+        { kind: 'answer', text: 'Writer approved fixture', maturity_rating: 2, pack: 'madlad-generated', writer: 'writer.deadpan' },
+        { kind: 'answer', text: 'Writer denied fixture', maturity_rating: 2, pack: 'madlad-generated', writer: 'writer.deadpan' },
+        { kind: 'answer', text: 'Writer pending fixture', maturity_rating: 2, pack: 'madlad-generated', writer: 'writer.unhinged' },
+        { kind: 'answer', text: 'Writer unknown fixture', maturity_rating: 2, pack: 'madlad-generated' },
+      ] });
+    expect(response.body.rejected).toEqual([]);
+    const [approved, denied] = response.body.created;
+    for (const [id, status] of [[approved, 'approved'], [denied, 'denied']]) {
+      const review = await request(app).patch(`/api/content/cards/${id}`)
+        .set('X-Admin-Token', ADMIN_TOKEN).send({ status });
+      expect(review.status).toBe(200);
+    }
+    const listed = await request(app).get('/api/content/cards').set('X-Api-Token', CONTENT_TOKEN);
+    expect(listed.body.cards.find((c) => c.id === approved).writer).toBe('writer.deadpan');
+    const queue = await request(app).get('/admin/content').query({ token: ADMIN_TOKEN });
+    expect(queue.text).toContain('writer.unhinged');
+    const library = await request(app).get('/admin/cards').query({ token: ADMIN_TOKEN, writer: 'writer.deadpan' });
+    expect(library.status).toBe(200);
+    expect(library.text).toContain('Writer approved fixture');
+    expect(library.text).toContain('Writer denied fixture');
+    expect(library.text).not.toContain('Writer pending fixture');
+    const unknown = await request(app).get('/admin/cards').query({ token: ADMIN_TOKEN, writer: 'unknown', source: 'generated' });
+    expect(unknown.text).toContain('Writer unknown fixture');
+    expect(unknown.text).not.toContain('Writer approved fixture');
+    const overview = await request(app).get('/admin').query({ token: ADMIN_TOKEN });
+    expect(overview.status).toBe(200);
+    expect(overview.text).toContain('50%');
+    expect(overview.text).toContain('Not reviewed');
+    const repository = require('../src/content/AdminCardRepository');
+    const counts = await repository.overview();
+    expect(counts.writers.find((w) => w.writer === 'writer.deadpan')).toEqual({ writer: 'writer.deadpan', pending: 0, approved: 1, denied: 1 });
+  });
+
+  test.each(['<script>', 'writer.', 123, 'writer.' + 'x'.repeat(60)])('invalid writer metadata is rejected: %s', async (writer) => {
+    const res = await request(app).post('/api/content/cards').set('X-Api-Token', CONTENT_TOKEN)
+      .send({ cards: [{ kind: 'answer', text: 'Invalid writer fixture', maturity_rating: 2, pack: 'madlad-generated', writer }] });
+    expect(res.body.created).toEqual([]);
+    expect(res.body.rejected[0].reason).toBe('invalid writer');
+  });
+
+  test('404s without a token' , async () => {
     const res = await request(app).get('/admin/content');
     expect(res.status).toBe(404);
   });
