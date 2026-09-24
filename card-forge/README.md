@@ -18,7 +18,7 @@ contract.
 ## The persona chain
 
 Each stage has typed card/theme models and is independently testable with a
-mocked LLM. Five writers each call the model once per theme, receiving identical
+mocked LLM. Six writers each call the model once per theme, receiving identical
 research without seeing each other's drafts. The other stages make at most one
 call each and may skip empty inputs. A four-theme run normally makes twenty-four
 LLM calls. Writer calls run sequentially to avoid overloading a local model. Logs record stage counts and LLM call start/completion times.
@@ -31,13 +31,14 @@ LLM calls. Writer calls run sequentially to avoid overloading a local model. Log
 | 2c | **PR Spin Doctor** | `Theme` → `[CardCandidate]` | Rebrands obvious failures as premium benefits. |
 | 2d | **Petty Villain** | `Theme` → `[CardCandidate]` | Turns small grievances into elaborate, absurd revenge. |
 | 2e | **Banned From the Thread** | `Theme` → `[CardCandidate]` | Mid-2000s forum shock humor: blunt filthy images, blasphemy, ugly confessions, and appalling priorities. |
+| 2f | **Hatemonger** | `Theme` → `[CardCandidate]` | Ranting uncle: petty grievances, scrambled conspiracies, absurd statistics, and defensive self-owns. |
 | 3 | **Editor** | `[CardCandidate]` → `[CardCandidate]` | Cull broken/unfunny/dupe cards; tighten wording. |
 | 4 | **Moderator** | `[CardCandidate]` → `[ModeratedCard]` | Assign maturity 0–3, cap at the configured generator ceiling, drop out-of-policy + deny-listed. |
 | 5 | **Curator** | `[ModeratedCard]` → `SubmitBatch` | Fetch the existing corpus (incl. denied), drop near-dups, rank/select 10–20. |
 
-`CARDS_PER_THEME` is the total budget shared by all five writers (minimum 5).
+`CARDS_PER_THEME` is the total budget shared by all six writers (minimum 6).
 Leftover cards are allocated in roster order: Deadpan, Unhinged, PR Spin Doctor,
-Petty Villain, then Banned From the Thread. The editor preserves their different voices;
+Petty Villain, Banned From the Thread, then Hatemonger. The editor preserves their different voices;
 the curator chooses strong cards across the roster without forcing a quota.
 
 Then `client.py` POSTs the batch; the server re-validates, dedupes on
@@ -346,7 +347,7 @@ fields or admin UI controls.
 ### Card type balance
 
 The writing team divides each theme into equal prompt and answer budgets,
-then assigns those slots across the five writers. Writer and
+then assigns those slots across the six writers. Writer and
 Curator enforce separate type budgets using `CARDS_PER_THEME` and `BATCH_MAX`,
 respectively; an odd slot goes to answers. They scan the full returned list so
 prompt-first ordering cannot crowd out later answers. Curator ranks all worthy
@@ -416,3 +417,10 @@ This prints the theme, source URL, research excerpt, and each writer's raw cards
 It never submits cards. Without `--live-research`, the smoke command still uses
 its fictional sample headlines. Normal Forge runs automatically use configured
 feeds, including b3ta, before the normal editing and review stages.
+
+Hatemonger (`writer.hatemonger`) writes as a paranoid uncle whose certainty
+exposes his own ridiculous reasoning. His invented stats concern absurd habits
+and objects; conspiracies scramble cause and effect. Cards retain the same
+prompt/answer formats and author tracking as the other writers. With six writers,
+`CARDS_PER_THEME` must be at least 6; use 12 to give each writer one prompt and
+one answer per theme. No franchise roleplay is included.

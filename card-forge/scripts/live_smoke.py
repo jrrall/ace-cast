@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Light LIVE smoke test of the agent chain against the configured OpenAI-compatible server.
 
-Runs the full chain (Trendscout -> five writers -> Editor -> Moderator ->
+Runs the full chain (Trendscout -> six writers -> Editor -> Moderator ->
 Curator) making REAL calls to the configured LLM server, but WITHOUT needing the
 ace-cast game server:
   * the content corpus (Curator's dedupe source) is stubbed to empty, and
@@ -73,7 +73,7 @@ def main() -> int:
     settings = load_settings(
         llm_api_key=api_key,
         themes_per_run=int(os.environ.get("THEMES_PER_RUN", "1")),
-        cards_per_theme=int(os.environ.get("CARDS_PER_THEME", "5")),
+        cards_per_theme=int(os.environ.get("CARDS_PER_THEME", "6")),
     )
     print(
         f"[live-smoke] gateway={settings.llm_base_url}  model={settings.llm_model}  "
