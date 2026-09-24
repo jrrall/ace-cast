@@ -18,11 +18,11 @@ contract.
 ## The persona chain
 
 Each stage has typed card/theme models and is independently testable with a
-mocked LLM. Seven writers each call the model once per theme, receiving identical
-research without seeing each other's drafts. The editor uses sequential chunks of up to `EDITOR_BATCH_SIZE` cards (default
-12), moderation uses `MODERATOR_BATCH_SIZE` (default 12), and curator scoring
-uses `CURATOR_BATCH_SIZE` (default 8). Empty stages skip model calls. A four-theme run normally makes twenty-four
-LLM calls. Writer calls run sequentially to avoid overloading a local model. Logs record stage counts and LLM call start/completion times.
+mocked LLM. Selected writers independently scout the same source pool, then write
+from their own chosen themes without seeing each other's drafts. Editor and
+moderator calls use chunks of up to 12 cards by default; curator scoring uses
+chunks of 8. Empty stages skip calls. Calls run sequentially to avoid overloading
+a local model. Logs record stage counts and model call timing.
 
 | # | Persona | In → Out | Job |
 |---|---------|----------|-----|
@@ -31,7 +31,7 @@ LLM calls. Writer calls run sequentially to avoid overloading a local model. Log
 | 2b | **Unhinged Writer** | `Theme` → `[CardCandidate]` | Vivid, excessive escalation grounded in the same premise. |
 | 2c | **PR Spin Doctor** | `Theme` → `[CardCandidate]` | Rebrands obvious failures as premium benefits. |
 | 2d | **Petty Villain** | `Theme` → `[CardCandidate]` | Turns small grievances into elaborate, absurd revenge. |
-| 2e | **Banned From the Thread** | `Theme` → `[CardCandidate]` | Mid-2000s forum shock humor: blunt filthy images, blasphemy, ugly confessions, and appalling priorities. |
+| 2e | **Banned From 4chan** | `Theme` → `[CardCandidate]` | Mid-2000s forum shock humor: blunt filthy images, blasphemy, ugly confessions, and appalling priorities. |
 | 2f | **Hatemonger** | `Theme` → `[CardCandidate]` | Ranting uncle: petty grievances, scrambled conspiracies, absurd statistics, and defensive self-owns. |
 | 2g | **Toxic Positivity** | `Theme` → `[CardCandidate]` | Self-congratulatory charity, privilege lectures, and demands for gratitude. |
 | 3 | **Editor** | `[CardCandidate]` → `[CardCandidate]` | Repair wording; drop broken/duplicate cards; preserve unusual jokes. |
@@ -40,7 +40,7 @@ LLM calls. Writer calls run sequentially to avoid overloading a local model. Log
 
 `CARDS_PER_THEME` is the total budget shared by all seven writers (minimum 7 for new runs).
 Leftover cards are allocated in roster order: Deadpan, Unhinged, PR Spin Doctor,
-Petty Villain, Banned From the Thread, Hatemonger, then Toxic Positivity. The editor preserves their different voices;
+Petty Villain, Banned From 4chan, Hatemonger, then Toxic Positivity. The editor preserves their different voices;
 the curator chooses strong cards across the roster without forcing a quota.
 
 Then `client.py` POSTs the batch; the server re-validates, dedupes on
@@ -358,7 +358,7 @@ use the following starting profiles (0 absent to 5 dominant):
 | Unhinged | 5 | 3 | 4 | 3 | 3 | 2 | 4 |
 | PR Spin Doctor | 2 | 1 | 3 | 1 | 4 | 4 | 3 |
 | Petty Villain | 3 | 2 | 2 | 1 | 2 | 3 | 5 |
-| Banned From the Thread | 4 | 4 | 4 | 3 | 4 | 4 | 5 |
+| Banned From 4chan | 4 | 4 | 4 | 3 | 4 | 4 | 5 |
 
 These profiles guide writing, not quotas or rewards for being explicit. The
 curator ranks eligible cards by computed quality and keeps at most one per
@@ -634,7 +634,7 @@ roster; checkpoints created before roster tracking retain the original six.
 Start a new run directory to include the seventh writer.
 
 The optional existing critique/revision loop still works. Toxic Positivity's
-drafts receive a challenge from Banned From the Thread; the original six
+drafts receive a challenge from Banned From 4chan; the original six
 challenge assignments are unchanged. All output goes through the same editor,
 moderator, curator, quality cutoff, and API batch limit.
 
