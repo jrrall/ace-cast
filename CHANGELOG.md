@@ -1,3 +1,7 @@
+## <small>1.20.2 (2026-09-24)</small>
+
+* fix(card-forge): retry invalid JSON without accepting partial output (#55) ([c5ef04d](https://github.com/jrrall/ace-cast/commit/c5ef04d)), closes [#55](https://github.com/jrrall/ace-cast/issues/55)
+
 ## <small>1.20.1 (2026-09-24)</small>
 
 * fix: ignore malformed cookies to prevent socket crash loops (#54) ([dc3cdab](https://github.com/jrrall/ace-cast/commit/dc3cdab)), closes [#54](https://github.com/jrrall/ace-cast/issues/54)
