@@ -86,7 +86,11 @@ class LLMClient:
         Raises ``LLMError`` on transport failure or unparseable output so the
         pipeline can fail closed.
         """
+        self.last_call_source = 'generation'
+        self.last_call_stats = {'model_attempts': 0, 'format_retries': 0}
         for attempt in range(self.settings.llm_json_retries + 1):
+            self.last_call_stats['model_attempts'] += 1
+            self.last_call_stats['format_retries'] += int(attempt > 0)
             try:
                 return self._complete_json_once(
                     system=system, user=user, temperature=temperature if attempt == 0 else 0.0,

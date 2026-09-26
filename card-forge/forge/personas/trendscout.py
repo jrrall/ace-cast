@@ -7,6 +7,8 @@ passed only inside explicit delimiters as DATA.
 
 from __future__ import annotations
 
+import json
+
 from collections.abc import Callable
 
 from ..config import Settings
@@ -17,7 +19,6 @@ from ..models import Theme
 from ..tabloid import SOURCE as TABLOID_SOURCE, theme_slots
 from ..prompts import wrap_feed_data
 from ..logging_setup import get_logger
-import json
 
 SYSTEM = (
     "You are Trendscout, a researcher for an adult party card game. Find varied "
@@ -78,10 +79,14 @@ class Trendscout:
             "Each story_id must be an exact ID in the submitted stories."
         )
         for attempt in range(self.settings.llm_json_retries + 1):
-            data = self.llm.complete_json(system=writer.phase_system('scout', format_rules=system),
-                                          user=json.dumps(payload, ensure_ascii=False))
+            from ..scout_metrics import scout_attempt
             try:
-                return resolve_themes(data, stories, self.settings.themes_per_run)
+                _, themes = scout_attempt(
+                    self.llm, writer, protocol='stories-v1', batch=0, stories=stories,
+                    payload=payload, system=writer.phase_system('scout', format_rules=system),
+                    attempt=attempt + 1,
+                    validate=lambda data: resolve_themes(data, stories, self.settings.themes_per_run))
+                return themes
             except ValueError as exc:
                 if attempt == self.settings.llm_json_retries:
                     raise ValueError(f'{writer.name} scout response invalid: {exc}') from exc

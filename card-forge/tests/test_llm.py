@@ -74,6 +74,8 @@ def test_format_retry_regenerates_complete_response(first_content, finish):
         sdk = OpenAI(api_key='test', base_url='http://localhost:11434/v1', http_client=http)
         llm = LLMClient(Settings(_env_file=None), client=sdk)
         assert llm.complete_json(system='Return JSON', user='source') == {'cards': []}
+    assert llm.last_call_source == 'generation'
+    assert llm.last_call_stats == {'model_attempts': 2, 'format_retries': 1}
     assert len(requests) == 2
     assert requests[1]['temperature'] == 0
     assert requests[1]['messages'][1] == requests[0]['messages'][1]
@@ -95,6 +97,7 @@ def test_bad_json_retry_budget_is_bounded(retries):
         llm = LLMClient(Settings(_env_file=None, llm_json_retries=retries), client=sdk)
         with pytest.raises(LLMError, match=f'after {retries + 1} attempts'):
             llm.complete_json(system='Return JSON', user='source')
+    assert llm.last_call_stats == {'model_attempts': retries + 1, 'format_retries': retries}
     assert len(requests) == retries + 1
 
 
