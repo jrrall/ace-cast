@@ -316,3 +316,20 @@ def test_partial_chunk_spillover_still_fails(settings, sample_moderated):
     settings.curator_batch_size = 2
     with pytest.raises(ValueError, match='invalid card index'):
         Curator(FakeLLM([rated_selection([0, 2])]), FakeContentClient(), settings).run(sample_moderated)
+
+
+def test_curator_separates_prior_context_and_repairs_out_of_range_index(settings, sample_moderated):
+    settings.curator_batch_size = 2
+    llm = FakeLLM([rated_selection([0, 1]), rated_selection([1]), rated_selection([2])])
+    batch = Curator(llm, FakeContentClient(), settings).run(sample_moderated)
+    assert len(batch.cards) == 3
+    request = llm.calls[1]['user']
+    candidates, context = request.split('Prior cards for duplicate context only (not candidates): ')
+    assert '2. [' in candidates
+    assert '0. [' not in candidates and '1. [' not in candidates
+    assert sample_moderated[0].text in context
+    assert '"index"' not in context
+    retry = llm.calls[2]['user']
+    assert 'invalid card index 1; expected 2 through 2' in retry
+    assert 'Allowed indexes for selected and evaluations: [2]' in retry
+    assert 'quality MUST' not in retry

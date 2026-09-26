@@ -77,20 +77,20 @@ class Curator:
         order: list[int] = []
         evaluations = {}
         size = self.settings.curator_batch_size
-        # Keep full-pool context for cross-chunk premise grouping, but bound the
-        # expensive structured output to one chunk. Selection caps apply once.
-        listing = "\n".join(f'{i}. [{c.kind}] {c.text}' for i, c in enumerate(pool))
+        # Only current candidates are numbered; earlier cards are duplicate context.
+        # Selection caps still apply once, after all chunks are scored.
         for start in range(0, len(pool), size):
             end = min(start + size, len(pool))
-            groups = [{"index": i, "premise_group": e.premise_group}
-                      for i, e in evaluations.items()]
+            listing = "\n".join(f'{i}. [{pool[i].kind}] {pool[i].text}' for i in range(start, end))
+            groups = [{"text": pool[i].text, "kind": pool[i].kind,
+                       "premise_group": e.premise_group} for i, e in evaluations.items()]
             user = (
-                f"Full pool for context only:\n{listing}\n\n"
+                f"Cards to evaluate:\n{listing}\n\n"
                 f"Evaluate ONLY indexes {start} through {end - 1}, inclusive. "
                 "Use these global indexes, not chunk-local numbering. "
                 "Return all playable cards in range, including prior-group variations; "
                 "reuse matching premise_group labels. Code selects the strongest globally. "
-                f"Prior group assignments: {json.dumps(groups)}"
+                f"Prior cards for duplicate context only (not candidates): {json.dumps(groups)}"
             )
             get_logger().info("curator.batch_started", extra={"extra_fields": {
                 "offset": start, "cards": end - start, "total": len(pool),
@@ -144,6 +144,14 @@ class Curator:
                 }})
                 # New request key preserves valid cached chunks and allows a
                 # malformed cached response to be repaired on resume.
+                if "index" in str(exc):
+                    request = user + (
+                        f"\nRetry {attempt + 1}: {exc}. "
+                        f"Allowed indexes for selected and evaluations: {list(range(start, end))}. "
+                        "Re-evaluate only those cards. Prior cards are context, never candidates. "
+                        "Return the complete JSON response using global indexes."
+                    )
+                    continue
                 request = user + (
                     "\nYour previous response did not match the required schema. "
                     "Re-evaluate this chunk and return the complete response again. "
@@ -248,7 +256,7 @@ class Curator:
         order: list[int] = []
         for idx in raw:
             if type(idx) is not int or not start <= idx < end:
-                raise ValueError("curator returned an invalid card index")
+                raise ValueError(f"curator returned an invalid card index {idx!r}; expected {start} through {end - 1}")
             if idx not in order:
                 order.append(idx)
 
