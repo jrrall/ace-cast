@@ -20,7 +20,7 @@ function listForDeck({ gameId, packIds = [], maturityMax = 3 }) {
     .andWhere('maturity_rating', '<=', maturityMax)
     .whereNull('retired_at')
     .andWhere('status', 'approved')
-    .select('id', 'kind', 'text', 'blanks');
+    .select('id', 'kind', 'text', 'blanks', 'writer');
 }
 
 /**

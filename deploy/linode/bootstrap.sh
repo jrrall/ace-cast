@@ -7,7 +7,7 @@
 #
 # Use it either way:
 #   A) After creating the Linode, from your laptop:
-#        ssh root@<LINODE_IP> "DOMAIN=unholy.cards REPO_URL=https://github.com/<you>/ace-cast.git GIT_REF=main bash -s" < bootstrap.sh
+#        ssh root@<LINODE_IP> "DOMAIN=omfg.cards REPO_URL=https://github.com/<you>/ace-cast.git GIT_REF=main bash -s" < bootstrap.sh
 #   B) As a Linode StackScript: paste this file, set the vars below, deploy at create time.
 #
 # NOTE: point your domain's A record at this box's IP. Caddy will keep retrying the TLS
@@ -15,7 +15,7 @@
 set -euo pipefail
 
 # ---- configure (or pass as env vars) --------------------------------------
-DOMAIN="${DOMAIN:-unholy.cards}"
+DOMAIN="${DOMAIN:-omfg.cards}"
 REPO_URL="${REPO_URL:-https://github.com/CHANGE-ME/ace-cast.git}"
 GIT_REF="${GIT_REF:-main}"          # branch/tag/sha to deploy (include F2 for flagging)
 APP_DIR="${APP_DIR:-/opt/ace-cast}"

@@ -1,92 +1,72 @@
-/* ==========================================================================
-   unholy.cards — host / launcher view (Unholy Ritual). Palette from theme.css.
-   ========================================================================== */
+/* Host layout: a compact invitation beside the table controls. */
 * { margin: 0; padding: 0; box-sizing: border-box; }
-
-body { font-family: var(--font-body); color: var(--text); min-height: 100vh; }
-
-.container { max-width: 1200px; margin: 0 auto; padding: 20px; }
-
-header { text-align: center; margin-bottom: 36px; padding-top: 12px; }
-header h1 {
-    font-family: var(--font-display); font-size: 3em; letter-spacing: 0.03em; margin-bottom: 8px;
-    background: linear-gradient(92deg, var(--oxblood), var(--ember) 55%, var(--gold));
-    -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;
-}
-header p { font-size: 1.15em; color: var(--text-dim); }
-
+.container { max-width: 1040px; margin: 0 auto; padding: 40px 24px; }
+header { margin-bottom: 36px; text-align: center; }
+header p { color: var(--text-dim); margin-top: 10px; font-size: 15px; }
 .screen { display: none; }
 .screen.active { display: block; }
-
+#room-screen.active { display: grid; grid-template-columns: 1.1fr 1fr; gap: 20px; align-items: start; }
 .setup-card, .room-info, .players-section, .game-controls, .game-status {
-    background: linear-gradient(180deg, var(--ink-2), var(--ink));
-    border: 1px solid var(--ink-line);
-    border-radius: var(--radius); padding: 28px; margin-bottom: 20px;
-    box-shadow: var(--shadow-card);
+    background: var(--ink-2); border: 1px solid var(--ink-line); border-radius: 16px; padding: 24px;
 }
-.setup-card { text-align: center; max-width: 440px; margin: 0 auto; }
-
-.primary-btn, .secondary-btn {
-    color: var(--bone); border: 1px solid transparent;
-    padding: 15px 30px; border-radius: 8px; font-size: 16px; font-weight: 700;
-    cursor: pointer; transition: transform 0.14s ease, box-shadow 0.14s ease; margin: 10px;
+.setup-card { max-width: 500px; margin: 56px auto; text-align: center; padding: 40px; }
+h2 { font-family: var(--font-display); font-size: 30px; line-height: 1.15; font-weight: 500; }
+h3 { font-size: 15px; font-weight: 600; }
+.setup-description { color: var(--text-dim); line-height: 1.6; margin: 18px 0 26px; }
+.room-info { grid-row: span 3; text-align: center; }
+.primary-btn, .secondary-btn, .play-link, .tv-link {
+    display: inline-flex; align-items: center; justify-content: center; min-height: 46px;
+    padding: 12px 18px; border-radius: 9px; font: 600 14px var(--font-body); cursor: pointer;
+    text-decoration: none; border: 1px solid var(--ink-line); transition: background .15s, border-color .15s;
 }
-.primary-btn { background: linear-gradient(180deg, var(--oxblood), var(--oxblood-deep)); border-color: rgba(224,75,47,0.5); }
-.primary-btn:hover { transform: translateY(-2px); box-shadow: var(--glow-ember); }
-.primary-btn:disabled { background: #1a1620; color: var(--text-faint); cursor: not-allowed; transform: none; box-shadow: none; }
-.secondary-btn { background: linear-gradient(180deg, var(--gold), var(--gold-dim)); color: #1a130a; }
-.secondary-btn:hover { transform: translateY(-2px); box-shadow: var(--glow-gold); }
-
-.room-code-display { text-align: center; margin: 20px 0; }
-.room-code {
-    font-family: var(--font-display); font-size: 2.5em; font-weight: 700; letter-spacing: 0.12em;
-    color: var(--gold); background: rgba(13, 11, 15, 0.7);
-    padding: 14px 26px; border-radius: 10px; display: inline-block;
-    border: 1px solid rgba(201, 162, 39, 0.4);
-}
-
-.qr-section, .tv-section { text-align: center; margin: 28px 0; }
-#qr-code-container { margin: 20px 0; display: inline-block; padding: 10px; background: var(--bone); border-radius: 12px; }
-.tv-link {
-    display: inline-block; text-decoration: none; color: var(--bone);
-    background: linear-gradient(180deg, var(--oxblood), var(--oxblood-deep));
-    padding: 12px 26px; border-radius: 8px; border: 1px solid rgba(224,75,47,0.5);
-    transition: transform 0.14s ease, box-shadow 0.14s ease;
-}
-.tv-link:hover { transform: translateY(-2px); box-shadow: var(--glow-ember); }
-
-.play-link {
-    display: inline-block; text-decoration: none; color: var(--ink, #0d0b0f); font-weight: 700;
-    background: linear-gradient(180deg, var(--gold), var(--gold-deep, #a8831f));
-    padding: 12px 26px; border-radius: 8px; border: 1px solid rgba(201, 162, 39, 0.6);
-    margin-top: 6px; transition: transform 0.14s ease, box-shadow 0.14s ease;
-}
-.play-link:hover { transform: translateY(-2px); box-shadow: var(--glow-gold, 0 0 18px rgba(201,162,39,0.5)); }
-
-.help-text, .join-url { color: var(--text-faint); font-size: 0.9em; margin-top: 10px; }
-.join-url a { color: var(--gold); text-decoration: none; }
-.join-url a:hover { text-decoration: underline; }
-
-#players-list { list-style: none; display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 14px; margin-top: 14px; }
-.player-item { background: rgba(32, 24, 38, 0.7); padding: 14px; border-radius: 8px; border-left: 3px solid var(--oxblood); color: var(--text); }
-
-/* ---- Start controls (auto-start countdown) ----------------------------- */
-#countdown-status { min-height: 1.2em; margin: 0 0 12px; font-weight: 700; color: var(--gold); }
-.start-controls { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 8px; }
-.start-controls .secondary-btn { margin: 0; }
-
-#game-status-content { background: rgba(21, 17, 27, 0.7); padding: 20px; border-radius: 8px; border-left: 3px solid var(--gold); color: var(--text-dim); }
-
-@media (max-width: 768px) {
-    .container { padding: 15px; }
-    header h1 { font-size: 2.2em; }
-    .setup-card, .room-info, .players-section, .game-controls, .game-status { padding: 20px; }
-    .room-code { font-size: 1.8em; }
+.primary-btn, .play-link { background: var(--bone); color: var(--ink); border-color: var(--bone); }
+.primary-btn:hover, .play-link:hover { background: #fff8e9; }
+.secondary-btn, .tv-link { background: var(--ink-3); color: var(--text); }
+.secondary-btn:hover, .tv-link:hover { border-color: var(--gold); }
+button:disabled { opacity: .45; cursor: not-allowed; }
+.room-code-display { display: flex; align-items: center; justify-content: space-between; gap: 16px; border: 1px solid var(--ink-line); border-radius: 10px; padding: 14px 18px; margin: 24px 0; }
+.label { color: var(--text-dim); font-size: 13px; }
+.room-code { font-size: 28px; font-weight: 600; letter-spacing: .16em; color: var(--gold); }
+.qr-section { display: flex; flex-direction: column; align-items: center; gap: 14px; }
+#qr-code-container { display: flex; padding: 8px; background: white; border-radius: 10px; }
+#qr-code-container img { display: block; width: 128px; height: 128px; }
+.play-link { width: 100%; }
+.help-text, .join-url { color: var(--text-dim); font-size: 13px; line-height: 1.5; }
+.setup-card .help-text { margin-top: 18px; }
+.join-url { overflow-wrap: anywhere; }
+.join-url a { color: var(--gold); text-underline-offset: 3px; }
+.tv-section { border-top: 1px solid var(--ink-line); padding-top: 20px; margin-top: 24px; }
+.tv-link { margin: 12px 0 10px; }
+#players-list { list-style: none; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin-top: 16px; }
+#players-list:empty::before { content: 'Seats are open. Share the room code to invite your friends.'; grid-column: 1 / -1; color: var(--text-dim); font-size: 14px; line-height: 1.6; padding: 16px 0; }
+.player-item { padding: 12px; border: 1px solid var(--ink-line); border-radius: 8px; overflow-wrap: anywhere; }
+.bot-tag { color: var(--gold); font-size: 11px; margin-left: 6px; }
+.bot-controls { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 16px; }
+.bot-controls .help-text { order: 3; flex-basis: 100%; margin-top: 4px; }
+.start-controls { display: flex; flex-wrap: wrap; gap: 8px; }
+#countdown-status { color: var(--gold); margin: 12px 0; }
+#countdown-status:empty { margin: 16px 0 0; }
+#game-status-content { color: var(--text-dim); line-height: 1.5; font-size: 14px; margin-top: 12px; }
+#end-game-btn { margin-top: 12px; }
+@media (max-width: 700px) {
+    .container { padding: 24px 16px; }
+    header { margin-bottom: 24px; }
+    #room-screen.active { grid-template-columns: minmax(0, 1fr); gap: 14px; }
+    .room-info { grid-row: auto; }
+    .setup-card { margin: 32px auto; padding: 28px 22px; }
+    .room-info, .players-section, .game-controls, .game-status { padding: 20px; }
+    h2 { font-size: 27px; }
+    .qr-section { display: grid; grid-template-columns: 100px minmax(0, 1fr); gap: 12px 16px; text-align: left; }
+    #qr-code-container { grid-column: 1; grid-row: 1 / 4; padding: 6px; }
+    #qr-code-container img { width: 88px; height: 88px; }
+    .qr-section h3, .play-link, .join-url { grid-column: 2; }
+    .play-link { padding: 12px 8px; }
+    .join-url { font-size: 11px; }
+    .tv-section { text-align: left; margin-top: 20px; padding-top: 16px; }
+    .tv-section h3 { display: none; }
+    .tv-link { margin: 0 0 8px; width: 100%; }
 }
 
-/* ---- Bot controls (lobby) ---------------------------------------------- */
-.bot-controls { display: flex; align-items: center; gap: 12px; margin: 6px 0 14px; flex-wrap: wrap; }
-.bot-controls .secondary-btn { margin: 0; padding: 8px 16px; font-size: 14px; }
-.bot-controls .help-text { margin: 0; flex: 1; min-width: 160px; }
-.player-item.bot { border-left-color: var(--gold); }
-.bot-tag { display: inline-block; margin-left: 8px; font-size: 0.8em; color: var(--gold); letter-spacing: 0.04em; white-space: nowrap; }
+.join-existing { display: inline-block; color: var(--text-dim); font-size: 14px; margin-top: 24px; text-underline-offset: 4px; }
+.room-next-step { color: var(--text-dim); font-size: 14px; line-height: 1.5; margin-top: 12px; }
+.game-controls > .help-text { margin-top: 12px; }

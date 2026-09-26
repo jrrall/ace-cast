@@ -64,7 +64,7 @@ class HostController {
         if (!this.autostartToggleBtn) return;
         // Label is the action the button performs: "Hold" while auto is on,
         // "Auto" (resume) while held.
-        this.autostartToggleBtn.textContent = this.autoStart ? 'Hold' : 'Auto';
+        this.autostartToggleBtn.textContent = this.autoStart ? 'Pause auto-start' : 'Resume auto-start';
         this.autostartToggleBtn.disabled = this.gameActive;
     }
 
@@ -166,7 +166,7 @@ class HostController {
             console.error('Error creating room:', error);
             alert('Failed to create room. Please try again.');
             this.createRoomBtn.disabled = false;
-            this.createRoomBtn.textContent = 'Create Room';
+            this.createRoomBtn.textContent = 'Create a game →';
         }
     }
 
@@ -269,15 +269,7 @@ class HostController {
     }
 
     updateGameStatus(message) {
-        const timestamp = new Date().toLocaleTimeString();
-        this.gameStatusContent.innerHTML = `
-            <div style="margin-bottom: 10px;">
-                <strong>Status:</strong> ${message}
-            </div>
-            <div style="font-size: 0.8em; color: #666;">
-                Last update: ${timestamp}
-            </div>
-        `;
+        this.gameStatusContent.textContent = message;
     }
 
     handleRoomState(data) {

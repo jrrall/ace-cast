@@ -43,7 +43,7 @@ async function buildDeck({ gameId, packIds = [], maturityMax = 3 }) {
     .map((c) => ({ id: c.id, text: c.text, blanks: c.blanks }));
   const answers = cards
     .filter((c) => c.kind === 'answer')
-    .map((c) => ({ id: c.id, text: c.text }));
+    .map((c) => ({ id: c.id, text: c.text, writer: c.writer || null }));
 
   if (prompts.length === 0 || answers.length === 0) {
     throw new Error(

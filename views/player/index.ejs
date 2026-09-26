@@ -1,6 +1,9 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+    <link rel="icon" href="/favicon.ico" sizes="any">
+    <link rel="icon" type="image/png" sizes="32x32" href="/images/brand/favicon-32.png">
+    <link rel="apple-touch-icon" href="/images/brand/apple-touch-icon.png">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><%= title %></title>
@@ -12,7 +15,7 @@
     <div class="container">
         <header>
             <button id="sound-toggle" class="sound-toggle" type="button" aria-pressed="false" aria-label="Mute sound">🔊</button>
-            <h1>🃏 unholy.cards</h1>
+            <h1 class="wordmark"><img class="brand-logo" src="/images/brand/omfg-logo.png" alt="omfg.cards" width="870" height="290"></h1>
             <div id="room-info" style="display: none;">
                 <span class="room-code">Room: <span id="current-room-code"></span></span>
             </div>
@@ -21,15 +24,17 @@
         <main>
             <div id="join-screen" class="screen active">
                 <div class="join-card">
-                    <h2>Join Game</h2>
+                    <p class="eyebrow">You’re invited</p>
+                    <h2>Take a seat.</h2>
+                    <p class="join-description">Good company. Terrible answers.</p>
                     <form id="join-form">
                         <div class="form-group">
-                            <label for="player-name">Your Name:</label>
-                            <input type="text" id="player-name" placeholder="Enter your name" required>
+                            <label for="player-name">Your name</label>
+                            <input type="text" id="player-name" placeholder="What should we call you?" autocomplete="nickname" maxlength="30" required>
                         </div>
                         <div class="form-group">
-                            <label for="room-code-input">Room Code:</label>
-                            <input type="text" id="room-code-input" placeholder="ABCD" maxlength="4" value="<%= roomCode %>" required>
+                            <label for="room-code-input">Room code</label>
+                            <input type="text" id="room-code-input" placeholder="ABCD" maxlength="4" autocapitalize="characters" spellcheck="false" value="<%= roomCode %>" required>
                         </div>
                         <button type="submit" class="primary-btn">Join Game</button>
                     </form>
@@ -38,11 +43,16 @@
 
             <div id="lobby-screen" class="screen">
                 <div class="lobby-info">
-                    <h2>Waiting for Game to Start</h2>
-                    <p id="player-status">You've joined the game!</p>
+                    <h2>You’re at the table.</h2>
+                    <p id="player-status" role="status">Waiting for the rest of your crew…</p>
+                    <p class="lobby-guidance">Invite a friend with the room code above. With 2 people, bots fill the table and the game starts automatically unless the host pauses it.</p>
                     
+                    <details class="how-to-play" open>
+                        <summary>How to play</summary>
+                        <ol><li>Read the prompt. Tap your funniest answer to play it.</li><li>The judge (Card Czar) picks their favorite. The winner gets a point.</li><li>Take turns judging. The round bar shows the score to beat.</li></ol>
+                    </details>
                     <div class="players-section">
-                        <h3>Players in Game (<span id="player-count">0</span>)</h3>
+                        <h3>At the table (<span id="player-count">0</span>)</h3>
                         <ul id="players-list"></ul>
                     </div>
                 </div>

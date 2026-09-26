@@ -144,4 +144,19 @@ describe('DeckService', () => {
     await db.db()('packs').where({ id: run.id }).del();
   });
 
+  test('retains the content writer when building answer cards', async () => {
+    const pack = await PackRepository.getDefault('madlad');
+    const [id] = await db.db()('cards').insert({
+      game_id: 'madlad', kind: 'answer', text: 'Writer artwork fixture', blanks: 0,
+      maturity_rating: 2, pack_id: pack.id, status: 'approved',
+      writer: 'writer.banned_from_4chan',
+    });
+    try {
+      const deck = await DeckService.buildDeck({ gameId: 'madlad' });
+      expect(deck.answers.find((card) => card.id === id).writer).toBe('writer.banned_from_4chan');
+    } finally {
+      await db.db()('cards').where({ id }).del();
+    }
+  });
+
 });

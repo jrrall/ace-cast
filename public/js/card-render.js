@@ -5,9 +5,7 @@
  * DOM. This replaces the duplicated `gameType === 'madlad'` inline-HTML card
  * branches that used to live separately in tv.js and player.js.
  *
- * Wire format reminder: cards are text-only on the client. `card.text` is
- * either a prompt string (which may contain a `____` blank run) or an answer
- * string. No card ids are assumed here.
+ * Card faces stay text-only, regardless of optional writer/cardId metadata.
  */
 (function (global) {
     'use strict';
@@ -75,13 +73,6 @@
 
         const inner = document.createElement('div');
         inner.className = 'card__inner';
-
-        // Reserved slot for future per-card sprite art (E3). Empty/hidden
-        // until that lands so the card face stays clean today.
-        const sprite = document.createElement('div');
-        sprite.className = 'card__sprite-slot';
-        sprite.setAttribute('aria-hidden', 'true');
-        inner.appendChild(sprite);
 
         const textEl = document.createElement('div');
         textEl.className = 'card__text';

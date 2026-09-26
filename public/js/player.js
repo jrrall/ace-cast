@@ -14,6 +14,7 @@ class PlayerController {
         // "played" state can show it (the server doesn't echo submitted card
         // text back).
         this.lastPlayedCardText = null;
+        this.lastPlayedCard = null;
 
         // Durable anonymous identity in a first-party cookie. Survives reloads
         // and reconnects; it's both the reconnect key and the telemetry visitor id.
@@ -231,7 +232,7 @@ class PlayerController {
 
         this.socket.on('start-countdown-cancelled', () => {
             if (this.playerStatus) {
-                this.playerStatus.textContent = "You've joined the game!";
+                this.playerStatus.textContent = "Waiting for the table to be ready…";
             }
         });
 
@@ -246,6 +247,7 @@ class PlayerController {
         this.socket.on('game-ended', () => {
             this.gameState = null;
             this.lastPlayedCardText = null;
+            this.lastPlayedCard = null;
             this.showLobbyScreen();
         });
 
@@ -289,6 +291,7 @@ class PlayerController {
         this.gameState = null;
         this.roomCode = null;
         this.lastPlayedCardText = null;
+        this.lastPlayedCard = null;
         // Don't auto-rejoin a room that no longer exists.
         try { localStorage.removeItem('acecast_session'); } catch (e) { /* ignore */ }
         this.showJoinScreen();
@@ -379,7 +382,7 @@ class PlayerController {
     }
 
     prettyGameType(type) {
-        if (type === 'madlad') return 'unholy.cards';
+        if (type === 'madlad') return 'omfg.cards';
         if (type === 'test') return 'Test Game';
         return type || 'Game';
     }
@@ -460,7 +463,7 @@ class PlayerController {
     }
 
     renderJudgeView(state) {
-        this.playerArea.appendChild(this.banner('👑 You are the Card Czar'));
+        this.playerArea.appendChild(this.banner('You’re the judge this round'));
 
         if (state.phase === 'answering') {
             this.playerArea.appendChild(this.note(
@@ -471,7 +474,7 @@ class PlayerController {
             const grid = document.createElement('div');
             grid.className = 'madlad-hand';
             (state.submissions || []).forEach((sub) => {
-                const card = this.whiteCard(sub.text);
+                const card = this.whiteCard(sub.text, sub);
                 card.onclick = () => {
                     if (window.SoundFX) window.SoundFX.playCard();
                     this.sendAction('pick-winner', { submissionId: sub.id });
@@ -488,15 +491,16 @@ class PlayerController {
 
     renderAnswererView(state, you) {
         if (state.phase === 'answering' && !you.hasSubmitted) {
-            this.playerArea.appendChild(this.note('Tap a card to play it:'));
+            this.playerArea.appendChild(this.note('Fill in the blank: tap your funniest answer to play it.'));
             const grid = document.createElement('div');
             grid.className = 'madlad-hand';
             (state.hand || []).forEach((card) => {
-                const el = this.whiteCard(card.text);
+                const el = this.whiteCard(card.text, card);
                 el.onclick = () => {
                     // Remember what we played so the post-submit state can show it
                     // (the server doesn't echo the submitted card text back).
                     this.lastPlayedCardText = card.text;
+                    this.lastPlayedCard = { ...card };
                     if (window.SoundFX) window.SoundFX.playCard();
                     this.sendAction('submit-card', { cardIndex: card.index });
                 };
@@ -532,7 +536,7 @@ class PlayerController {
             const cardWrap = document.createElement('div');
             cardWrap.className = 'hand-played__card-wrap';
             cardWrap.appendChild(window.CardRender.renderCard(
-                { kind: 'answer', text: this.lastPlayedCardText },
+                { ...this.lastPlayedCard, kind: 'answer', text: this.lastPlayedCardText },
                 { variant: 'hand', className: 'card--played' },
             ));
             const badge = document.createElement('span');
@@ -573,8 +577,8 @@ class PlayerController {
 
     // ---- Small DOM helpers ------------------------------------------------
 
-    whiteCard(text) {
-        return window.CardRender.renderCard({ kind: 'answer', text }, { variant: 'hand', as: 'button' });
+    whiteCard(text, metadata = {}) {
+        return window.CardRender.renderCard({ ...metadata, kind: 'answer', text }, { variant: 'hand', as: 'button' });
     }
 
     // Wrap a card with a small flag control (F2). Cards without an id (e.g. the

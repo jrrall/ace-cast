@@ -134,7 +134,7 @@ app.get('/healthz', async (req, res) => {
 
 // Routes
 app.get('/', (req, res) => {
-  res.render('host/index', { title: 'unholy.cards — Host', games: registry.listGames() });
+  res.render('host/index', { title: 'omfg.cards — Host', games: registry.listGames() });
 });
 
 // Public list of playable games (for the host UI / future clients).
@@ -145,14 +145,14 @@ app.get('/api/games', (req, res) => {
 app.get('/player/:roomCode', (req, res) => {
   const { roomCode } = req.params;
   res.render('player/index', {
-    title: 'unholy.cards — Play',
+    title: 'omfg.cards — Play',
     roomCode: roomCode || '',
   });
 });
 
 app.get('/player', (req, res) => {
   res.render('player/index', {
-    title: 'unholy.cards — Play',
+    title: 'omfg.cards — Play',
     roomCode: '',
   });
 });
@@ -178,7 +178,7 @@ app.get('/tv/:roomCode', async (req, res) => {
   }
 
   return res.render('tv/index', {
-    title: 'unholy.cards — TV',
+    title: 'omfg.cards — TV',
     roomCode,
     joinUrl,
     qrCode,
@@ -223,7 +223,7 @@ function requireAdmin(req, res, next) {
 app.get('/admin', requireAdmin, async (req, res) => {
   try {
     res.render('admin/index', {
-      title: 'unholy.cards — Admin',
+      title: 'omfg.cards — Admin',
       adminToken: typeof req.query.token === 'string' ? req.query.token : '',
       counts: await AdminCardRepository.overview(),
     });
@@ -236,7 +236,7 @@ app.get('/admin', requireAdmin, async (req, res) => {
 app.get('/admin/cards', requireAdmin, async (req, res) => {
   try {
     res.render('admin/cards', {
-      title: 'unholy.cards — Card Library',
+      title: 'omfg.cards — Card Library',
       adminToken: typeof req.query.token === 'string' ? req.query.token : '',
       ...await AdminCardRepository.library(req.query),
     });
@@ -256,7 +256,7 @@ app.get('/admin/feedback', requireAdmin, async (req, res) => {
       thresholds: config.feedback,
     });
     res.render('admin/feedback', {
-      title: 'unholy.cards — Feedback',
+      title: 'omfg.cards — Feedback',
       adminToken: typeof req.query.token === 'string' ? req.query.token : '',
       ...dashboard,
     });
@@ -706,7 +706,7 @@ app.get('/admin/content', requireAdmin, async (req, res) => {
     ]);
 
     res.render('admin/content', {
-      title: 'unholy.cards — Content Review',
+      title: 'omfg.cards — Content Review',
       adminToken: typeof req.query.token === 'string' ? req.query.token : '',
       cards,
       counts: { pending: pendingCount, approvedToday, deniedToday },
@@ -1482,7 +1482,7 @@ if (sweepTimer.unref) sweepTimer.unref();
 
 function logStartupBanner() {
   const port = server.address() ? server.address().port : PORT;
-  console.log(`🃏 unholy.cards server running on port ${port}`);
+  console.log(`🃏 omfg.cards server running on port ${port}`);
   if (config.server.publicUrl) {
     console.log(`🌍 Public URL: ${config.server.publicUrl}`);
   }

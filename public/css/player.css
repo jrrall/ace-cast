@@ -1,5 +1,5 @@
 /* ==========================================================================
-   unholy.cards — phone / player view (Unholy Ritual)
+   omfg.cards — phone / player view (Unholy Ritual)
    Card faces come from cards.css; palette from theme.css.
    ========================================================================== */
 * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -145,3 +145,60 @@ header h1 {
     .game-actions { grid-template-columns: 1fr; }
     .action-btn { width: 100%; max-width: none; margin: 5px 0; }
 }
+
+/* Phone refinement: reserve the screen for the prompt and the hand. */
+body { padding: 0 16px max(20px, env(safe-area-inset-bottom)); }
+header { text-align: left; padding: 22px 0 0; margin-bottom: 22px; }
+header h1.wordmark { font-size: 28px; letter-spacing: -.04em; background: none; -webkit-text-fill-color: var(--bone); padding-right: 48px; }
+header .brand-mark { width: 26px; height: 32px; font-size: 20px; }
+header .sound-toggle { top: 20px; right: 0; width: 44px; height: 44px; }
+#room-info { background: none; border: 0; border-bottom: 1px solid var(--ink-line); border-radius: 0; padding: 14px 0; margin-top: 6px; }
+.room-code { font-size: 12px; font-weight: 500; color: var(--text-dim); letter-spacing: .06em; }
+#current-room-code { color: var(--gold); font-weight: 700; margin-left: 6px; }
+.join-card, .lobby-info, .error-card { padding: 24px; box-shadow: none; background: var(--ink-2); }
+.join-card { text-align: left; }
+.join-card h2, .lobby-info h2 { font-family: var(--font-display); font-size: 30px; font-weight: 500; color: var(--bone); }
+.join-description { color: var(--text-dim); font-size: 14px; margin: 10px 0 28px; }
+.form-group label { font-size: 13px; font-weight: 500; }
+.primary-btn, .secondary-btn, .action-btn { margin: 0; max-width: none; min-height: 48px; }
+.primary-btn { background: var(--bone); border-color: var(--bone); color: var(--ink); }
+.primary-btn:hover { background: #fff8e9; box-shadow: none; transform: none; }
+.game-info { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 14px; }
+.game-info h3 { font-size: 13px; margin: 0; color: var(--text-dim); font-weight: 500; }
+.game-status { background: none; border: 0; padding: 0; font-size: 12px; text-align: right; }
+.game-content { padding: 0; border: 0; background: none; box-shadow: none; }
+.game-message { padding: 0; background: none; border: 0; margin-bottom: 18px; }
+.card--phone.card--prompt { padding: 24px 22px; font-size: 24px; min-height: 132px; box-shadow: none; }
+.player-area { padding: 0; background: none; margin-bottom: 20px; }
+.madlad-banner { font-size: 14px; font-weight: 600; padding: 12px; }
+.madlad-note { font-size: 13px; line-height: 1.5; margin: 12px 0; }
+.madlad-hand { gap: 12px; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.card--hand.card--answer { height: 184px; padding: 38px 15px 18px; font-size: 15px; border-radius: 10px; box-shadow: 0 4px 12px rgba(0,0,0,.18); background: var(--bone); }
+.card--hand.card--answer .card__inner { justify-content: flex-start; }
+.madlad-flag, .madlad-discard { min-width: 32px; min-height: 32px; }
+.player-item, .score-item .player-name { overflow-wrap: anywhere; }
+.scoreboard { padding: 16px; background: none; }
+.scoreboard h4 { text-align: left; font-size: 10px; letter-spacing: .12em; color: var(--text-dim); }
+.score-item { border: 0; background: var(--ink-2); }
+.connection-status { position: static; justify-content: center; width: fit-content; margin: 20px auto 0; padding: 6px 10px; font-size: 11px; border: 0; background: none; box-shadow: none; }
+.status-indicator { width: 6px; height: 6px; animation: none; }
+@media (max-width: 360px) {
+    body { padding-left: 12px; padding-right: 12px; }
+    header h1.wordmark { font-size: 25px; }
+    .join-card, .lobby-info { padding: 20px; }
+}
+
+.lobby-guidance { color: var(--text-dim); font-size: 13px; line-height: 1.6; margin-top: 12px; }
+.how-to-play { border-top: 1px solid var(--ink-line); margin-top: 22px; padding-top: 16px; font-size: 13px; line-height: 1.6; }
+.how-to-play summary { cursor: pointer; color: var(--bone); font-weight: 600; min-height: 32px; }
+.how-to-play ol { color: var(--text-dim); padding-left: 20px; }
+.how-to-play li + li { margin-top: 8px; }
+
+.score-item .player-name, .score-item .score { display: block; }
+.game-actions:empty { display: none; }
+
+/* Let long answers grow instead of clipping the copy. */
+.card--hand.card--answer { min-height: 184px; height: 100%; }
+.card--hand.card--answer .card__text { display: block; overflow: visible; }
+
+header .brand-logo { width: 220px; margin: 0; }

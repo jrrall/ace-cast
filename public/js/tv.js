@@ -257,7 +257,7 @@ class TVController {
     }
 
     prettyGameType(type) {
-        if (type === 'madlad') return 'unholy.cards';
+        if (type === 'madlad') return 'omfg.cards';
         if (type === 'test') return 'Test Game';
         return type || 'Game';
     }
@@ -428,7 +428,7 @@ class TVController {
             const cards = (state.submissions || [])
                 .map((s, i) => {
                     const el = window.CardRender.renderCard(
-                        { kind: 'answer', text: s.text },
+                        { ...s, kind: 'answer', text: s.text },
                         { variant: 'tv', className: staggered ? 'card--reveal' : '' },
                     );
                     if (staggered) {
@@ -444,7 +444,7 @@ class TVController {
         } else if ((state.phase === 'results' || state.phase === 'gameover') && state.lastWinner) {
             const celebrate = flags.enteredResults && !reduced;
             const winnerCard = window.CardRender.renderCard(
-                { kind: 'answer', text: state.lastWinner.text },
+                { ...state.lastWinner, kind: 'answer', text: state.lastWinner.text },
                 { variant: 'tv', winner: true, className: celebrate ? 'card--winner-pop' : '' },
             ).outerHTML;
             body = `
