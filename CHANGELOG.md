@@ -1,3 +1,7 @@
+## 1.24.0 (2026-09-26)
+
+* feat(card-forge): checkpoint small persona scout batches (#72) ([5c96bba](https://github.com/jrrall/ace-cast/commit/5c96bba)), closes [#72](https://github.com/jrrall/ace-cast/issues/72)
+
 ## 1.23.0 (2026-09-26)
 
 * fix(card-forge): cap excess scouting themes without retrying (#66) ([ff12362](https://github.com/jrrall/ace-cast/commit/ff12362)), closes [#66](https://github.com/jrrall/ace-cast/issues/66)
