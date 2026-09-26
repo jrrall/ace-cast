@@ -47,7 +47,7 @@ def resolve_themes(data, stories, limit):
             raise ValueError('theme must be an object')
         key = row.get('story_id')
         if not isinstance(key, str) or key not in by_id or by_id[key]['id'] in seen:
-            raise ValueError('story_id must be unique and belong to the submitted stories')
+            raise ValueError(f'story_id must be unique and belong to the submitted stories; rejected: {str(key)[:60]!r}')
         if any(not isinstance(row.get(k), str) or not row[k].strip() for k in ('title', 'angle')):
             raise ValueError('title and angle must be nonblank strings')
         seen.add(by_id[key]['id'])
