@@ -98,8 +98,9 @@ def main() -> int:
             if args.theme:
                 by_writer = {w.name: [Theme(title=args.theme)] for w in writers}
             elif settings.persona_scout:
-                items = scout.collect()
-                by_writer = {w.name: scout.for_writer(w, items) for w in writers}
+                from forge.stories import stories_from_items
+                stories = stories_from_items(scout.collect(distinct_stories=True))
+                by_writer = {w.name: scout.for_stories(w, stories) for w in writers}
             else:
                 themes = scout.run()
                 by_writer = {w.name: themes for w in writers}

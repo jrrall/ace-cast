@@ -44,6 +44,7 @@ class Settings(BaseSettings):
     maturity_max: int = Field(default=3, ge=0, le=3, alias="MATURITY_MAX")
 
     source_finds_max: int = Field(default=6, ge=0, le=12, alias="SOURCE_FINDS_MAX")
+    scout_excerpt_chars: int = Field(default=800, ge=100, le=4000, alias="SCOUT_EXCERPT_CHARS")
     persona_scout: bool = Field(default=True, alias="PERSONA_SCOUT")
     personas_dir: str = Field(default="", alias="PERSONAS_DIR")
     writers_per_run: int = Field(default=0, ge=0, alias="WRITERS_PER_RUN")

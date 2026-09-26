@@ -38,7 +38,7 @@ class FeedItem:
     finds: list[dict] = field(default_factory=list)
 
 
-def research_sample(items: list[FeedItem], limit: int = 60) -> list[FeedItem]:
+def research_sample(items: list[FeedItem], limit: int = 60, *, distinct_stories: bool = False) -> list[FeedItem]:
     """Interleave sources so an early, prolific feed cannot monopolize research."""
     if limit <= 0:
         return []
@@ -46,12 +46,13 @@ def research_sample(items: list[FeedItem], limit: int = 60) -> list[FeedItem]:
     for item in items:
         sources.setdefault(item.source, []).append(item)
     selected: list[FeedItem] = []
-    seen: set[str] = set()
+    seen = set()
     for row in zip_longest(*sources.values()):
         for item in row:
             if item is None:
                 continue
-            key = " ".join(item.title.casefold().split())
+            key = ((item.source, item.url, item.title, item.excerpt) if distinct_stories
+                   else " ".join(item.title.casefold().split()))
             if key in seen:
                 continue
             seen.add(key)

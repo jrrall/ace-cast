@@ -36,6 +36,7 @@ class Checkpoint:
                 saved_config = {k: v for k, v in manifest['settings'].items()
                                 if k not in ('moderator_batch_size', 'curator_batch_size', 'personas_dir', 'persona_scout')}
                 saved_config.setdefault('writers_per_run', 0)
+                saved_config.setdefault('scout_excerpt_chars', 800)
                 if saved_config.pop('opposites_round', False):
                     raise ValueError('Legacy swap-round checkpoint requires its original image')
                 saved_config.pop('opposites_setups', None)
@@ -49,6 +50,7 @@ class Checkpoint:
                 profiles = select_personas(self.settings)
                 manifest = {'version': 1, 'settings': config,
                             'persona_scout': self.settings.persona_scout,
+                            'scout_protocol': 'stories-v1',
                             'writer_names': [p.writer_name for p in profiles],
                             'personas': [p.model_dump() for p in profiles],
                             'persona_versions': {p.writer_name: p.version for p in profiles}}
@@ -57,6 +59,7 @@ class Checkpoint:
             self.writer_names = manifest.get('writer_names', [
                 w.name for w in WRITER_TYPES if w.name != 'writer.toxic_positivity'
             ])
+            self.scout_protocol = manifest.get('scout_protocol', 'legacy')
             self.persona_scout = manifest.get('persona_scout', False)
             from .persona_registry import Persona, select_personas
             if 'personas' in manifest and 'writer_names' in manifest:

@@ -52,6 +52,10 @@ def test_each_persona_sees_same_pool_but_writes_own_angle(settings, tmp_path):
     llm = FakeLLM([choices(0, 'Personal grievance'), choices(1, 'Premium benefit'), *rest()])
     content = FakeContentClient()
     with Checkpoint(tmp_path/'run', settings) as cp:
+        cp.scout_protocol = 'legacy'
+        manifest = cp.read('manifest')
+        manifest['scout_protocol'] = 'legacy'
+        cp.write('manifest', manifest)
         summary, batch = Pipeline(settings, llm, content, fetch_fn=lambda _: feed(), checkpoint=cp).run(dry_run=True)
         assert cp.read('scouts/writer.alpha')['themes'][0]['url'] == 'https://example.com/one'
         assert cp.read('scouts/writer.beta')['themes'][0]['raw_excerpt'] == 'Headline two\nExcerpt two'
@@ -72,6 +76,10 @@ def test_resume_reuses_completed_scout_and_original_pool(settings, tmp_path):
     def timeout(_):
         raise LLMError('timeout')
     with Checkpoint(tmp_path/'run', settings) as cp:
+        cp.scout_protocol = 'legacy'
+        manifest = cp.read('manifest')
+        manifest['scout_protocol'] = 'legacy'
+        cp.write('manifest', manifest)
         with pytest.raises(LLMError):
             Pipeline(settings, FakeLLM([choices(0, 'Original angle'), timeout]), FakeContentClient(),
                      fetch_fn=lambda _: feed(), checkpoint=cp).run(dry_run=True)

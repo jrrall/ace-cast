@@ -45,23 +45,30 @@ class Pipeline:
         writers = writing_team(self.llm, self.settings, names=self.writer_names, definitions=self.personas)
         persona_scout = self.checkpoint.persona_scout if self.checkpoint else self.settings.persona_scout
         research = self.checkpoint.read("research") if self.checkpoint else None
+        structured = not self.checkpoint or self.checkpoint.scout_protocol == "stories-v1"
         if persona_scout:
             if research is None:
-                items = scout.collect()
+                items = scout.collect(distinct_stories=structured)
+                from .stories import stories_from_items
+                stories = stories_from_items(items)
                 if self.checkpoint:
                     self.checkpoint.write("research", {
                         "items": [asdict(item) for item in items],
+                        "stories": stories,
                         "fetched": [asdict(item) for item in scout.fetched],
                     })
             else:
                 items = [FeedItem(**item) for item in research["items"]]
                 scout.fetched = [FeedItem(**item) for item in research["fetched"]]
+            if research is not None and structured:
+                stories = research["stories"]
             by_writer = {}
             for writer in writers:
                 key = "scouts/" + writer.name
                 saved = self.checkpoint.read(key) if self.checkpoint else None
                 if saved is None:
-                    themes = scout.for_writer(writer, items)
+                    themes = (scout.for_stories(writer, stories) if structured
+                              else scout.for_writer(writer, items))
                     if self.checkpoint:
                         self.checkpoint.write(key, {
                             "writer": writer.name, "persona_version": writer.definition.version,
