@@ -100,7 +100,8 @@ def main() -> int:
             elif settings.persona_scout:
                 from forge.stories import stories_from_items
                 stories = stories_from_items(scout.collect(distinct_stories=True))
-                by_writer = {w.name: scout.for_stories(w, stories) for w in writers}
+                from forge.scout_batches import scout_team
+                by_writer = scout_team(llm, settings, writers, stories)
             else:
                 themes = scout.run()
                 by_writer = {w.name: themes for w in writers}

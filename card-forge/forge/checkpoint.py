@@ -35,6 +35,9 @@ class Checkpoint:
                     raise ValueError('No supported checkpoint found; start a new run directory')
                 saved_config = {k: v for k, v in manifest['settings'].items()
                                 if k not in ('moderator_batch_size', 'curator_batch_size', 'personas_dir', 'persona_scout')}
+                if manifest.get('scout_protocol') != 'batches-v1':
+                    saved_config.pop('scout_batch_size', None)
+                    config.pop('scout_batch_size', None)
                 saved_config.setdefault('writers_per_run', 0)
                 saved_config.setdefault('scout_excerpt_chars', 800)
                 if saved_config.pop('opposites_round', False):
@@ -50,7 +53,7 @@ class Checkpoint:
                 profiles = select_personas(self.settings)
                 manifest = {'version': 1, 'settings': config,
                             'persona_scout': self.settings.persona_scout,
-                            'scout_protocol': 'stories-v1',
+                            'scout_protocol': 'batches-v1',
                             'writer_names': [p.writer_name for p in profiles],
                             'personas': [p.model_dump() for p in profiles],
                             'persona_versions': {p.writer_name: p.version for p in profiles}}

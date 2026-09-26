@@ -56,6 +56,11 @@ def test_structured_pipeline_checkpoints_and_resumes_full_sources(settings, tmp_
     def timeout(_):
         raise LLMError('timeout')
     with Checkpoint(tmp_path/'run', settings) as cp:
+        cp.scout_protocol = 'stories-v1'
+        manifest = cp.read('manifest')
+        manifest['scout_protocol'] = 'stories-v1'
+        manifest['settings'].pop('scout_batch_size')
+        cp.write('manifest', manifest)
         with pytest.raises(LLMError):
             Pipeline(settings, FakeLLM([selected, timeout]), FakeContentClient(),
                      fetch_fn=lambda _: feed(), checkpoint=cp).run(dry_run=True)
