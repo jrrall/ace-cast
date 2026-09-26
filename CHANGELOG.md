@@ -1,3 +1,7 @@
+## 1.28.0 (2026-09-26)
+
+* feat: add manual admin cards and prevent silent moderation loss (#77) ([fe8ee95](https://github.com/jrrall/ace-cast/commit/fe8ee95)), closes [#77](https://github.com/jrrall/ace-cast/issues/77)
+
 ## 1.27.0 (2026-09-26)
 
 * feat(card-forge): add super bitch and random comedy challengers (#76) ([b9a275d](https://github.com/jrrall/ace-cast/commit/b9a275d)), closes [#76](https://github.com/jrrall/ace-cast/issues/76)
