@@ -1,3 +1,7 @@
+## 1.26.0 (2026-09-26)
+
+* feat(card-forge): measure scout batches against full-pool baseline (#73) ([b9d289f](https://github.com/jrrall/ace-cast/commit/b9d289f)), closes [#73](https://github.com/jrrall/ace-cast/issues/73)
+
 ## 1.25.0 (2026-09-26)
 
 * feat(card-forge): add Intrusive Thoughts and sharpen Banned voice (#74) ([1f99145](https://github.com/jrrall/ace-cast/commit/1f99145)), closes [#74](https://github.com/jrrall/ace-cast/issues/74)
