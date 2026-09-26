@@ -771,10 +771,9 @@ The thought stays brief, hypothetical, and unacted. Its comic mechanism is the
 forbidden association arriving before judgment catches up. The optional comedy
 loop uses Deadpan as its challenger, with the usual fallback if Deadpan is absent.
 
-Banned From 4chan now explicitly puts uncensored fuck/fucking into both prompt
-and answer text at maturity 3. Profanity is part of the character's speech; each
-card still needs a concrete terrible decision or self-own underneath it. Writing,
-answering, and revision all carry this direction.
+Banned From 4chan's compact voice asks for uncensored fuck/fucking as punctuation
+in prompts and answers at maturity 3. Profanity is part of the character's speech; each
+card still needs a concrete terrible decision or self-own underneath it. Each phase adds one short task instruction to that shared voice.
 
 New runs load these definitions. Resuming a checkpoint preserves its old roster
 and frozen voices, even if the TOMLs change. `WRITERS_PER_RUN=6` samples six of the
