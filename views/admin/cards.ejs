@@ -4,10 +4,23 @@
     <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><%= title %></title><link rel="stylesheet" href="/css/theme.css"><link rel="stylesheet" href="/css/admin.css">
 </head>
-<body><div class="container">
+<body data-admin-token="<%= adminToken %>"><div class="container">
     <%- include('nav', { active: 'cards', description: 'Every card. The keepers, the rejects, and the ones awaiting judgment.' }) %>
     <main>
         <h1>Card library</h1>
+        <details class="panel">
+            <summary>Add card</summary>
+            <form id="add-card-form" class="filters">
+                <label class="card-text-field">Card text<textarea name="text" rows="3" maxlength="1000" required aria-describedby="card-format-help"></textarea></label>
+                <p id="card-format-help" class="help-text">Prompts need exactly one ____ blank. Answers have no blanks.</p>
+                <label>Kind<select name="kind"><option value="answer">Answer</option><option value="prompt">Prompt</option></select></label>
+                <label>Pack<select name="pack" required><option value="">Choose a pack</option><% packs.forEach(function (pack) { %><option value="<%= pack.slug %>"><%= pack.name %></option><% }); %></select></label>
+                <label>Maturity<select name="maturity_rating"><option value="0">0 — Family-friendly</option><option value="1">1 — Mild</option><option value="2" selected>2 — Adult</option><option value="3">3 — Extreme</option></select></label>
+                <label>Status<select name="status"><option value="pending">Pending review</option><option value="approved">Approved — ready to play</option></select></label>
+                <button class="secondary-btn" type="submit">Add card</button>
+                <p id="add-card-status" role="status" aria-live="polite"></p>
+            </form>
+        </details>
         <form class="panel filters" method="get" action="/admin/cards">
             <% if (adminToken) { %><input type="hidden" name="token" value="<%= adminToken %>"><% } %>
             <label class="search-field">Search card text<input name="q" type="search" maxlength="200" value="<%= filters.q %>" placeholder="Search the deck…"></label>
@@ -39,4 +52,4 @@
             <% if (page < pages) { %><a class="secondary-btn" href="<%= pageLink(page + 1) %>">Next →</a><% } %>
         </nav>
     </main>
-</div></body></html>
+</div><script src="/js/admin-cards.js"></script></body></html>
