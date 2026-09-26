@@ -36,6 +36,7 @@ class HostController {
         this.autostartToggleBtn = document.getElementById('autostart-toggle-btn');
         this.addBotBtn = document.getElementById('add-bot-btn');
         this.removeBotBtn = document.getElementById('remove-bot-btn');
+        this.botHint = document.getElementById('bot-hint');
     }
 
     bindEvents() {
@@ -73,11 +74,15 @@ class HostController {
         
         this.socket.on('connect', () => {
             console.log('Connected to server');
+            if (this.roomCode) this.joinRoomAsHost();
         });
 
         this.socket.on('disconnect', () => {
             console.log('Disconnected from server');
+            this.updateBotControls(null);
         });
+
+        this.socket.on('bot-controls', (data) => this.updateBotControls(data));
 
         this.socket.on('player-joined', (data) => {
             this.addPlayer(data.playerId, data.playerName, data.isBot);
@@ -192,10 +197,22 @@ class HostController {
     }
 
     joinRoomAsHost() {
+        this.updateBotControls(null);
         this.socket.emit('join-room', {
             roomCode: this.roomCode,
             deviceType: 'host'
         });
+    }
+
+    updateBotControls(data) {
+        if (this.addBotBtn) this.addBotBtn.disabled = !data || !data.canAdd;
+        if (this.removeBotBtn) this.removeBotBtn.disabled = !data || !data.canRemove;
+        if (this.botHint) {
+            this.botHint.textContent = !data ? 'Connecting to the table…'
+                : data.humanCount < 2 ? 'Join with 2 people to add bots. People take turns judging.'
+                : !data.canAdd ? 'The table is full. Remove a bot to free a seat.'
+                : `${data.botCount} ${data.botCount === 1 ? 'bot' : 'bots'} at the table. Add or remove one at a time.`;
+        }
     }
 
     addPlayer(playerId, playerName, isBot = false) {

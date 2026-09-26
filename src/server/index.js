@@ -1131,6 +1131,17 @@ function maybeStartCountdown(room) {
   if (room.startCountdownTimer.unref) room.startCountdownTimer.unref();
 }
 
+function broadcastBotControls(room) {
+  const humanCount = room.getHumanPlayers().length;
+  const botCount = room.getBotPlayers().length;
+  io.to(room.code).emit('bot-controls', {
+    humanCount,
+    botCount,
+    canAdd: humanCount >= 2 && room.players.size < config.room.maxPlayers,
+    canRemove: botCount > 0,
+  });
+}
+
 // Fill (or trim) bot seats toward room.botTarget once >= 2 humans are present.
 // Humans are always preferred; bots only fill the remaining seats. Emits
 // join/leave so the host + TV update. Safe to call on any join/leave (a no-op
@@ -1162,6 +1173,8 @@ function reconcileBots(room) {
     broadcastGameState(room);
     bots.scheduleBotActions(room, afterBotAction);
   }
+
+  broadcastBotControls(room);
 
   // Any join/leave/bot change re-evaluates the auto-start countdown (self-guards
   // when a game is active or the table isn't ready yet).
@@ -1323,13 +1336,16 @@ io.on('connection', (socket) => {
     }
   });
 
-  // Host nudges the bot fill target up/down. Bots only actually appear once
-  // there are >= 2 humans (see reconcileBots / desiredBotCount).
+  // Each host click changes one actual seat; never queue invisible bot additions.
   socket.on('add-bot', () => {
     if (socket.deviceType !== 'host') return;
     const room = gameManager.getRoom(socket.roomCode);
     if (!room) return;
-    room.botTarget = Math.min(config.room.maxPlayers, room.botTarget + 1);
+    if (room.getHumanPlayers().length < 2 || room.players.size >= config.room.maxPlayers) {
+      broadcastBotControls(room);
+      return;
+    }
+    room.botTarget = room.players.size + 1;
     reconcileBots(room);
   });
 
@@ -1337,7 +1353,11 @@ io.on('connection', (socket) => {
     if (socket.deviceType !== 'host') return;
     const room = gameManager.getRoom(socket.roomCode);
     if (!room) return;
-    room.botTarget = Math.max(0, room.botTarget - 1);
+    if (room.getBotPlayers().length === 0) {
+      broadcastBotControls(room);
+      return;
+    }
+    room.botTarget = room.players.size - 1;
     reconcileBots(room);
   });
 
