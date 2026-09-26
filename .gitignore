@@ -245,6 +245,8 @@ bower_components
 *.mp3
 *.ogg
 *.flac
+# Approved game sounds are shipped with the browser client.
+!/public/audio/layered/*.wav
 
 # Video files (if not part of the game distribution)
 *.mp4

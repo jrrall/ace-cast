@@ -366,6 +366,7 @@ class PlayerController {
     }
 
     handleGameStarted(data) {
+        this._lastSoundSig = null;
         this.gameTypeDisplay.textContent = this.prettyGameType(data.gameType);
         this.showGameScreen();
     }
@@ -422,9 +423,13 @@ class PlayerController {
         const sig = `${state.round}:${state.phase}`;
         if (sig === this._lastSoundSig) return;
         this._lastSoundSig = sig;
-        if (state.phase === 'judging') {
+        if (state.phase === 'answering') {
+            window.SoundFX.playNewRound();
+        } else if (state.phase === 'judging') {
             window.SoundFX.playFlip();
-        } else if ((state.phase === 'results' || state.phase === 'gameover') && state.lastWinner) {
+        } else if (state.phase === 'gameover' && state.lastWinner) {
+            window.SoundFX.playGameWin();
+        } else if (state.phase === 'results' && state.lastWinner) {
             window.SoundFX.playWin();
         }
     }
@@ -618,7 +623,7 @@ class PlayerController {
         swapBtn.setAttribute('aria-label', 'Swap this card for a new one');
         swapBtn.onclick = (e) => {
             e.stopPropagation();
-            if (window.SoundFX) window.SoundFX.playCard();
+            if (window.SoundFX) window.SoundFX.playSwap();
             this.sendAction('discard-card', { cardIndex: card.index });
         };
         wrap.appendChild(swapBtn);
