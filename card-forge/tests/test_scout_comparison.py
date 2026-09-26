@@ -178,3 +178,18 @@ def test_interrupt_preserves_partial_artifacts(settings, tmp_path):
     assert json.loads((output/'summary.json').read_text())['status'] == 'interrupted'
     assert json.loads((output/'outcomes.json').read_text())[0]['status'] == 'interrupted'
     assert (output/'report.md').exists()
+
+
+def test_comparison_accepts_all_eight_saved_personas(settings, tmp_path):
+    settings.themes_per_run = 1
+    source = tmp_path/'source'
+    with Checkpoint(source, settings) as cp:
+        assert len(cp.personas) == 8
+        cp.write('research', {'stories': stories_from_items(feed())})
+    def empty(call):
+        return {'theme': None} if 'Return only {"theme":' in call['system'] else {'themes': []}
+    llm = FakeLLM([empty] * 16)
+    report = compare(source, tmp_path/'all-eight', settings, persona_count=8, factory=lambda _: llm)
+    assert report['status'] == 'complete'
+    assert len(llm.calls) == 16
+    assert len(report['results']['batches']['themes_by_persona']) == 8

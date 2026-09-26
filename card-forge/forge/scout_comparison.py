@@ -127,8 +127,8 @@ def summarize(events, outcomes, calls):
 
 def compare(source, output, connection, *, persona_count=2, max_calls=24, max_seconds=900,
             timeout=90, base_url=None, factory=LLMClient):
-    if not 1 <= persona_count <= 7 or max_calls < 1 or max_seconds <= 0 or timeout <= 0:
-        raise ValueError('persona count must be 1..7 and budgets must be positive')
+    if persona_count < 1 or max_calls < 1 or max_seconds <= 0 or timeout <= 0:
+        raise ValueError('persona count and budgets must be positive')
     source, output = Path(source), Path(output)
     manifest = json.loads((source/'manifest.json').read_text())
     research = json.loads((source/'research.json').read_text())

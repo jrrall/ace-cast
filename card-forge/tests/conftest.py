@@ -64,7 +64,7 @@ def settings():
         DENY_LIST="",
         MATURITY_MAX=2,
         THEMES_PER_RUN=4,
-        CARDS_PER_THEME=8,
+        CARDS_PER_THEME=16,
         BATCH_MIN=2,
         BATCH_MAX=20,
     )

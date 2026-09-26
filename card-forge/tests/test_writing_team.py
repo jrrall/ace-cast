@@ -1,4 +1,4 @@
-"""All seven voices must independently read the same research and reach review."""
+"""All eight voices must independently read the same research and reach review."""
 import pytest
 from pydantic import ValidationError
 from forge.config import Settings
@@ -9,14 +9,14 @@ from conftest import rated_selection, FakeLLM, FakeContentClient
 
 
 def test_all_voices_share_research_and_split_budget(settings):
-    settings.cards_per_theme = 7
+    settings.cards_per_theme = 8
     theme = Theme(title='Sponsored apologies', angle='Remorse as ad inventory')
     llm = FakeLLM([{'cards': [*({'kind': 'prompt', 'text': f'{voice} {i}: ____.'} for i in range(6)), *({'kind': 'answer', 'text': f'{voice} {i}'} for i in range(6))]}
-                   for voice in ['dry', 'wild', 'spin', 'petty', 'banned', 'uncle', 'positive']])
+                   for voice in ['dry', 'wild', 'spin', 'petty', 'banned', 'uncle', 'positive', 'intrusive']])
     writers = writing_team(llm, settings)
     results = [w.run(theme) for w in writers]
-    assert [len(cards) for cards in results] == [1, 1, 1, 1, 1, 1, 1]
-    for index, voice in enumerate(['Deadpan', 'Unhinged', 'PR Spin Doctor', 'Petty Villain', 'Banned From 4chan', 'Hatemonger', 'Toxic Positivity']):
+    assert [len(cards) for cards in results] == [1] * 8
+    for index, voice in enumerate(['Deadpan', 'Unhinged', 'PR Spin Doctor', 'Petty Villain', 'Banned From 4chan', 'Hatemonger', 'Toxic Positivity', 'Intrusive Thoughts']):
         assert f'You are the {voice} Writer' in llm.calls[index]['system']
     for call in llm.calls:
         assert 'Sponsored apologies' in call['user']
@@ -26,29 +26,30 @@ def test_all_voices_share_research_and_split_budget(settings):
 
 
 def test_pipeline_reviews_cards_from_all_writers(settings):
-    settings.cards_per_theme = 14
+    settings.cards_per_theme = 16
     drafts = [{'kind': 'prompt', 'text': 'The background check only asked about ____.'},
               {'kind': 'answer', 'text': 'A babysitter sponsored by a bail bondsman.'},
               {'kind': 'answer', 'text': 'A premium accountability opt-out.'},
               {'kind': 'answer', 'text': 'An anonymous one-star review of a birthday party.'},
               {'kind': 'answer', 'text': 'A verified expert in losing arguments to parking meters.'},
               {'kind': 'answer', 'text': 'A notarized grudge against the thermostat.'},
-              {'kind': 'answer', 'text': 'A charity gala honoring my humility.'}]
+              {'kind': 'answer', 'text': 'A charity gala honoring my humility.'},
+              {'kind': 'answer', 'text': 'A loyalty program for the witness protection program.'}]
     llm = FakeLLM([
         {'themes': [{'title': 'Trust badges'}]},
         *[{'cards': [card]} for card in drafts],
         {'cards': drafts},
-        {'verdicts': [{'index': i, 'allowed': True, 'maturity_rating': 1} for i in range(7)]},
-        rated_selection([0, 1, 2, 3, 4, 5, 6]),
+        {'verdicts': [{'index': i, 'allowed': True, 'maturity_rating': 1} for i in range(8)]},
+        rated_selection(list(range(8))),
     ])
     content = FakeContentClient()
     summary, batch = Pipeline(settings, llm, content, fetch_fn=lambda _: []).run(dry_run=True)
-    assert len({call['user'] for call in llm.calls[1:8]}) == 1
+    assert len({call['user'] for call in llm.calls[1:9]}) == 1
     for card in drafts:
-        assert card['text'] in llm.calls[8]['user']
-    assert summary.generated == 7
-    assert len(batch.cards) == 7
-    assert batch.cards[-1].writer == "writer.toxic_positivity"
+        assert card['text'] in llm.calls[9]['user']
+    assert summary.generated == 8
+    assert len(batch.cards) == 8
+    assert batch.cards[-1].writer == "writer.intrusive_thoughts"
     assert content.submitted == []
 
 
@@ -57,7 +58,7 @@ def test_budget_requires_a_card_for_each_writer():
         Settings(_env_file=None, cards_per_theme=5)
 
 
-@pytest.mark.parametrize("total", [7, 8, 10, 11, 14, 32])
+@pytest.mark.parametrize("total", [8, 9, 10, 11, 16, 32])
 def test_team_reserves_half_the_slots_for_each_type(settings, total):
     settings.cards_per_theme = total
     writers = writing_team(FakeLLM([]), settings)
@@ -66,10 +67,10 @@ def test_team_reserves_half_the_slots_for_each_type(settings, total):
     assert all(0 <= w.prompt_limit <= w.card_limit for w in writers)
 
 
-def test_new_roster_requires_seven_but_legacy_six_can_resume(settings):
+def test_new_roster_requires_eight_but_legacy_six_can_resume(settings):
     from forge.personas.writer import WRITER_TYPES
     settings.cards_per_theme = 6
-    with pytest.raises(ValueError, match='at least 7'):
+    with pytest.raises(ValueError, match='at least 8'):
         writing_team(FakeLLM([]), settings)
     legacy = [w.name for w in WRITER_TYPES if w.name != 'writer.toxic_positivity']
     writers = writing_team(FakeLLM([]), settings, names=legacy)

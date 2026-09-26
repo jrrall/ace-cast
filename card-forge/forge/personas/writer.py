@@ -117,6 +117,7 @@ BannedFromTheThreadWriter = BannedFrom4chanWriter  # old script imports
 HatemongerWriter = _builtin_writer("HatemongerWriter", "hatemonger")
 ToxicPositivityWriter = _builtin_writer("ToxicPositivityWriter", "toxic_positivity")
 
+# Historical fallback for checkpoints without a saved roster; new voices are loaded from TOML.
 WRITER_TYPES = (DeadpanWriter, UnhingedWriter, PRSpinDoctorWriter, PettyVillainWriter, BannedFrom4chanWriter, HatemongerWriter, ToxicPositivityWriter)
 
 

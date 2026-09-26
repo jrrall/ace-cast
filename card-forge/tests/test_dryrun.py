@@ -1,6 +1,6 @@
 """End-to-end dry-run: assembled batch is all-valid and nothing is submitted.
 
-Also asserts observability: 10 distinct persona stage log entries and a POST
+Also asserts observability: 12 distinct persona stage log entries and a POST
 that never happens in dry-run.
 """
 
@@ -16,7 +16,7 @@ from conftest import rated_selection, FakeContentClient, FakeLLM
 
 
 def _scripted_llm():
-    # exactly one theme -> all seven writers called once -> 11 LLM calls total
+    # exactly one theme -> all eight writers called once -> 12 LLM calls total
     return FakeLLM(
         [
             {"themes": [{"title": "Burnout", "angle": "work is a scam"}]},
@@ -32,6 +32,7 @@ def _scripted_llm():
             {"cards": []},  # Banned From 4chan
             {"cards": []},  # Hatemonger
             {"cards": []},  # Toxic Positivity
+            {"cards": []},  # Intrusive Thoughts
             {
                 "cards": [
                     {"kind": "prompt", "text": "My new hustle is just ____."},
@@ -74,7 +75,7 @@ def test_dry_run_batch_all_valid(settings):
     json.dumps(batch.payload())
 
 
-def test_dry_run_ten_distinct_persona_calls(settings, caplog):
+def test_dry_run_twelve_distinct_persona_calls(settings, caplog):
     llm = _scripted_llm()
     content = FakeContentClient(corpus=[])
     pipeline = Pipeline(settings, llm, content, fetch_fn=lambda s: _feed())
@@ -88,9 +89,9 @@ def test_dry_run_ten_distinct_persona_calls(settings, caplog):
         if isinstance(getattr(r, "extra_fields", None), dict)
         and r.extra_fields.get("stage")
     ]
-    assert personas == ["trendscout", "writer.deadpan", "writer.unhinged", "writer.pr_spin_doctor", "writer.petty_villain", "writer.banned_from_4chan", "writer.hatemonger", "writer.toxic_positivity", "editor", "moderator", "curator"]
-    # 10 distinct underlying LLM calls
-    assert len(llm.calls) == 11
+    assert personas == ["trendscout", "writer.deadpan", "writer.unhinged", "writer.pr_spin_doctor", "writer.petty_villain", "writer.banned_from_4chan", "writer.hatemonger", "writer.toxic_positivity", "writer.intrusive_thoughts", "editor", "moderator", "curator"]
+    # 12 distinct underlying LLM calls
+    assert len(llm.calls) == 12
 
 
 def _feed():
