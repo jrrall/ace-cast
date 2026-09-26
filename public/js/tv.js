@@ -283,19 +283,18 @@ class TVController {
         this.playerCount.textContent = this.players.size;
         this.playersGrid.innerHTML = '';
         
-        const playerAvatars = ['👤', '👥', '🎮', '🕹️', '🎯', '🎲', '🃏', '🎪'];
         let avatarIndex = 0;
         
         for (const player of this.players.values()) {
             const playerCard = document.createElement('div');
             playerCard.className = 'tv-player-card fade-in';
             
-            const avatar = playerAvatars[avatarIndex % playerAvatars.length];
+            const avatar = String(avatarIndex + 1).padStart(2, '0');
             avatarIndex++;
             
             playerCard.innerHTML = `
                 <div class="player-avatar">${avatar}</div>
-                <div class="player-name">${player.name}</div>
+                <div class="player-name">${this.esc(player.name)}</div>
             `;
             
             this.playersGrid.appendChild(playerCard);
@@ -305,11 +304,10 @@ class TVController {
         if (this.players.size < 4) {
             for (let i = this.players.size; i < 4; i++) {
                 const waitingCard = document.createElement('div');
-                waitingCard.className = 'tv-player-card';
-                waitingCard.style.opacity = '0.3';
+                waitingCard.className = 'tv-player-card tv-player-card--empty';
                 waitingCard.innerHTML = `
-                    <div class="player-avatar">❓</div>
-                    <div class="player-name">Waiting...</div>
+                    <div class="player-avatar" aria-hidden="true">+</div>
+                    <div class="player-name">Open seat</div>
                 `;
                 this.playersGrid.appendChild(waitingCard);
             }
@@ -415,7 +413,7 @@ class TVController {
             : '';
         const spotlight = state.phase === 'judging' ? ' madlad-czar--spotlight' : '';
         const czar = state.judgeName
-            ? `<div class="madlad-czar${!reduced ? spotlight : ''}">👑 Card Czar: ${this.esc(state.judgeName)}</div>`
+            ? `<div class="madlad-czar${!reduced ? spotlight : ''}">Judge: ${this.esc(state.judgeName)}</div>`
             : '';
 
         let body = '';
@@ -451,13 +449,13 @@ class TVController {
                 <div class="madlad-winner-card">
                     ${celebrate ? this.confettiHTML() : ''}
                     ${winnerCard}
-                    <div class="madlad-winner-name">🏆 ${this.esc(state.lastWinner.playerName)}</div>
+                    <div class="madlad-winner-name">${this.esc(state.lastWinner.playerName)} wins</div>
                 </div>
             `;
         }
 
         const dealClass = (flags.isNewRound && !reduced) ? ' madlad-board--deal' : '';
-        return `<div class="madlad-board${dealClass}">${black}${czar}${body}</div>`;
+        return `<div class="madlad-board${dealClass}"><div class="madlad-prompt">${czar}${black}</div><div class="madlad-play">${body}</div></div>`;
     }
 
     // Small purely-decorative confetti burst for the winner celebration.

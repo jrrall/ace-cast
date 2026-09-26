@@ -1,172 +1,97 @@
-/* ==========================================================================
-   omfg.cards — TV / cast view (Unholy Ritual)
-   Card faces come from cards.css; palette from theme.css. This file is board
-   layout + chrome, sized to fit a single 16:9 screen with no scroll.
-   ========================================================================== */
+/* OMFG TV: a shared table, sized for the big screen. */
 * { margin: 0; padding: 0; box-sizing: border-box; }
-
-body {
-    /* Base canvas comes from theme.css; here we just lock it to one screen. */
-    background-attachment: fixed;
-    height: 100vh;
-    overflow: hidden;
-}
-
-.tv-container {
-    display: flex;
-    flex-direction: column;
-    height: 100vh;
-    max-width: 100vw;
-}
-
-/* ---- Header ------------------------------------------------------------- */
-.tv-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: clamp(10px, 1.6vh, 20px) clamp(20px, 3vw, 48px);
-    background: rgba(13, 11, 15, 0.6);
-    border-bottom: 1px solid rgba(224, 75, 47, 0.35);
-    backdrop-filter: blur(8px);
-}
-.game-title h1 {
-    font-family: var(--font-display);
-    font-size: clamp(1.6rem, 3vw, 3rem);
-    letter-spacing: 0.04em;
-    background: linear-gradient(92deg, var(--oxblood), var(--ember) 55%, var(--gold));
-    -webkit-background-clip: text;
-    background-clip: text;
-    -webkit-text-fill-color: transparent;
-}
-.game-title .room-code {
-    font-size: clamp(1rem, 1.4vw, 1.6rem);
-    font-weight: 700;
-    letter-spacing: 0.12em;
-    color: var(--gold);
-}
-.tv-header-right { display: flex; align-items: center; gap: clamp(12px, 1.6vw, 24px); }
-.player-counter {
-    font-size: clamp(1.1rem, 1.8vw, 2rem);
-    font-weight: 700;
-    color: var(--bone);
-}
-.player-counter #tv-player-count { color: var(--ember); }
-.tv-header-right .sound-toggle { font-size: clamp(1rem, 1.6vw, 1.4rem); padding: clamp(6px, 0.9vw, 10px) clamp(9px, 1.1vw, 13px); }
-
-/* ---- Screens ------------------------------------------------------------ */
-.tv-main { flex: 1; position: relative; overflow: hidden; }
-.tv-screen {
-    position: absolute;
-    inset: 0;
-    display: none !important;
-    padding: clamp(18px, 3vh, 40px);
-}
-.tv-screen.active { display: block !important; }
-
-/* ---- Lobby -------------------------------------------------------------- */
-#tv-lobby-screen.active { display: flex !important; align-items: center; justify-content: center; }
-.waiting-content { text-align: center; max-width: 900px; }
-.game-logo { font-size: clamp(4rem, 9vh, 8rem); margin-bottom: 24px; opacity: 0.85; animation: float 3s ease-in-out infinite; filter: drop-shadow(0 0 20px rgba(224,75,47,0.35)); }
-@keyframes float { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-18px); } }
-.waiting-content h2 { font-family: var(--font-display); font-size: clamp(2rem, 5vh, 4rem); margin-bottom: 16px; color: var(--bone); }
-.join-instructions { font-size: clamp(1.1rem, 2vh, 1.8rem); margin-bottom: 40px; color: var(--text-dim); line-height: 1.4; }
-.connected-players h3 { font-size: clamp(1.4rem, 2.4vh, 2.4rem); margin-bottom: 24px; color: var(--gold); }
-.players-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 18px; max-width: 1000px; margin: 0 auto; }
-.tv-player-card {
-    background: rgba(32, 24, 38, 0.7);
-    padding: 22px; border-radius: var(--radius);
-    border: 1px solid rgba(201, 162, 39, 0.3);
-    text-align: center; transition: transform 0.2s ease, border-color 0.2s ease;
-}
-.tv-player-card:hover { transform: translateY(-4px); border-color: var(--ember); box-shadow: var(--glow-ember); }
-.tv-player-card .player-avatar { font-size: 2.6em; margin-bottom: 8px; }
-.tv-player-card .player-name { font-size: 1.3em; font-weight: 700; color: var(--text); }
-
-/* ---- Game screen -------------------------------------------------------- */
-#tv-game-screen.active { display: flex !important; flex-direction: column; }
-.game-display { height: 100%; display: grid; grid-template-rows: auto 1fr auto; gap: clamp(10px, 1.6vh, 20px); min-height: 0; }
-.game-header { text-align: center; }
-.game-header h2 { font-family: var(--font-display); font-size: clamp(1.4rem, 2.6vw, 2.6rem); color: var(--bone); }
-.game-status-display {
-    display: inline-block; font-size: clamp(0.9rem, 1.4vw, 1.4rem);
-    color: var(--gold);
-    background: rgba(201, 162, 39, 0.08); padding: 8px 22px; border-radius: 999px;
-    border: 1px solid rgba(201, 162, 39, 0.3); margin-top: 8px;
-}
-
-/* Board: single column so the cards own the screen. No permanent side panel. */
-.game-board { display: grid; grid-template-rows: auto 1fr; gap: clamp(10px, 2vh, 24px); height: 100%; min-height: 0; }
-.central-message {
-    text-align: center; font-family: var(--font-display);
-    font-size: clamp(1.2rem, 2.2vw, 2.2rem);
-    color: var(--text);
-}
-.game-content-area {
-    min-height: 0; overflow: hidden;
-    display: flex; align-items: center; justify-content: center;
-    font-size: 1.3em;
-}
-
-/* Scoreboard (bottom rail) */
-.scoreboard-tv { background: rgba(21, 17, 27, 0.55); border-radius: var(--radius); padding: clamp(10px, 1.4vh, 18px); border: 1px solid var(--ink-line); }
-.scoreboard-tv h3 { font-size: clamp(1rem, 1.5vw, 1.6rem); margin-bottom: 10px; color: var(--gold); text-align: center; letter-spacing: 0.08em; text-transform: uppercase; }
-.scoreboard-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 12px; }
-.tv-score-item { background: rgba(32, 24, 38, 0.7); padding: 12px; border-radius: 10px; text-align: center; border: 1px solid rgba(139, 30, 45, 0.35); }
-.tv-score-item .player-name { font-size: 1.1em; font-weight: 700; margin-bottom: 4px; color: var(--text); }
-.tv-score-item .score { font-size: 1.9em; font-weight: 800; color: var(--gold); }
-
-/* ---- MadLad board ------------------------------------------------------- */
-.madlad-board { display: flex; flex-direction: column; align-items: center; gap: clamp(12px, 2vh, 24px); padding: 8px; width: 100%; height: 100%; justify-content: center; }
-.madlad-czar { font-size: clamp(1rem, 1.6vw, 1.6rem); font-weight: 700; color: var(--gold); }
-.madlad-status { font-size: clamp(1rem, 1.5vw, 1.5rem); color: var(--text-dim); text-align: center; }
-.madlad-submissions { display: flex; flex-wrap: wrap; justify-content: center; align-items: stretch; gap: clamp(10px, 1.4vw, 20px); margin-top: 4px; overflow: auto; max-height: 100%; }
-.madlad-winner-card { display: flex; flex-direction: column; align-items: center; gap: 14px; }
-.madlad-winner-name { font-family: var(--font-display); font-size: clamp(1.4rem, 2.4vw, 2.2rem); font-weight: 800; color: var(--gold); text-shadow: var(--glow-gold); }
-
-/* ---- Recent actions: transient corner toasts (not a permanent panel) ---- */
-.action-feed {
-    position: fixed;
-    right: 18px; bottom: 64px;
-    width: min(340px, 32vw);
-    display: flex; flex-direction: column; gap: 8px;
-    pointer-events: none; z-index: 50;
-}
-.action-feed h4 { display: none; }          /* no permanent "Recent Actions" header */
+body { height: 100vh; overflow: hidden; }
+.tv-container { display: flex; flex-direction: column; height: 100vh; height: 100dvh; }
+.tv-header { display: flex; align-items: center; justify-content: space-between; gap: 24px; padding: 12px 3vw; border-bottom: 1px solid var(--ink-line); }
+.game-title, .tv-header-right { display: flex; align-items: center; gap: 2vw; }
+.game-title .brand-logo { display: block; height: auto; max-width: 100%; width: clamp(160px, 17vw, 280px); margin: 0; }
+.room-code { padding-left: 2vw; border-left: 1px solid var(--ink-line); color: var(--text-dim); font-size: clamp(14px, 1.2vw, 22px); }
+.room-code strong { color: var(--gold); letter-spacing: .14em; margin-left: 8px; }
+.player-counter { color: var(--text-dim); font-size: clamp(14px, 1.2vw, 22px); }
+.player-counter span { color: var(--bone); font-weight: 700; }
+.tv-main { flex: 1; min-height: 0; position: relative; }
+.tv-screen { display: none; position: absolute; inset: 0; padding: 3vh 3vw; }
+.tv-screen.active { display: block; }
+#tv-lobby-screen.active { display: flex; align-items: center; justify-content: center; }
+.waiting-content { width: min(1500px, 100%); display: grid; grid-template-columns: 1.2fr 1fr; gap: 6vw; align-items: center; max-height: 100%; overflow: auto; }
+.eyebrow { font-size: clamp(11px, 1vw, 17px); }
+.waiting-content h2 { font-family: var(--font-display); font-size: clamp(30px, 3.6vw, 64px); line-height: 1.08; font-weight: 500; color: var(--bone); }
+.join-instructions { margin-top: 18px; color: var(--text-dim); font-size: clamp(17px, 1.4vw, 25px); line-height: 1.45; }
+.tv-join { display: flex; align-items: center; gap: 2vw; margin: 4vh 0 2vh; }
+.tv-qr { width: clamp(140px, 23vh, 270px); height: auto; background: white; padding: 10px; border-radius: 12px; }
+.tv-join-info { min-width: 0; }
+.tv-join-label { font-size: clamp(18px, 1.7vw, 30px); color: var(--bone); font-family: var(--font-display); }
+.tv-join-url { font-size: clamp(13px, 1.1vw, 20px); color: var(--text-dim); overflow-wrap: anywhere; margin-top: 10px; }
+.tv-join-code { margin-top: 20px; color: var(--text-dim); font-size: clamp(14px, 1.2vw, 22px); }
+.tv-join-code span { display: block; color: var(--gold); font-size: clamp(26px, 2.8vw, 48px); letter-spacing: .16em; margin-top: 4px; }
+.lobby-help { max-width: 460px; color: var(--text-dim); line-height: 1.6; font-size: clamp(13px, 1.1vw, 20px); }
+.connected-players { border-left: 1px solid var(--ink-line); padding-left: 4vw; min-width: 0; }
+.connected-players h3 { font-family: var(--font-display); font-size: clamp(26px, 2.8vw, 48px); font-weight: 500; margin-bottom: 24px; }
+.players-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.tv-player-card { display: flex; align-items: center; gap: 14px; background: var(--ink-2); border: 1px solid var(--ink-line); border-radius: 12px; padding: clamp(12px, 1.5vw, 26px); min-width: 0; }
+.player-avatar { color: var(--gold); font-size: clamp(16px, 1.4vw, 24px); font-family: var(--font-display); }
+.player-name { overflow-wrap: anywhere; }
+.tv-player-card .player-name { font-size: clamp(15px, 1.4vw, 24px); }
+.tv-player-card--empty { background: transparent; border-style: dashed; color: var(--text-dim); }
+.tv-player-card--empty .player-avatar { color: var(--text-faint); }
+#tv-game-screen.active { display: flex; flex-direction: column; }
+.game-display { display: grid; grid-template-rows: auto minmax(0, 1fr) auto; gap: 2vh; height: 100%; }
+.game-header { display: flex; justify-content: space-between; align-items: center; gap: 20px; }
+.game-header h2 { font-family: var(--font-display); font-weight: 500; color: var(--bone); font-size: clamp(20px, 2vw, 34px); }
+.game-status-display { color: var(--gold); font-size: clamp(14px, 1.2vw, 22px); }
+.game-board { display: grid; grid-template-rows: auto minmax(0, 1fr); gap: 2vh; min-height: 0; }
+.central-message { color: var(--text-dim); font-size: clamp(16px, 1.4vw, 24px); }
+.game-content-area { min-height: 0; overflow: auto; }
+.madlad-board { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.65fr); gap: 3vw; min-height: 100%; align-items: center; padding: 8px; }
+.madlad-prompt { min-width: 0; }
+.madlad-czar { color: var(--gold); margin-bottom: 16px; font-size: clamp(16px, 1.3vw, 24px); }
+.madlad-board .card--prompt { width: 100%; max-width: none; padding: clamp(24px, 2.5vw, 44px); font-size: clamp(23px, 2.4vw, 42px); }
+.madlad-play { min-width: 0; padding: 4px; }
+.madlad-status { color: var(--text-dim); text-align: center; font-size: clamp(18px, 1.7vw, 30px); margin-bottom: 18px; }
+.madlad-submissions { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+.madlad-submissions .card--answer { width: 100%; min-width: 0; min-height: 115px; padding: 14px; font-size: clamp(16px, 1.25vw, 24px); text-align: left; }
+.madlad-submissions .card--tv.card--answer .card__text { text-align: left; }
+.madlad-winner-card { display: flex; flex-direction: column; align-items: center; gap: 22px; }
+.madlad-winner-card .card--answer { width: min(100%, 440px); min-height: 170px; font-size: clamp(22px, 2vw, 36px); }
+.madlad-winner-name { color: var(--gold); font-family: var(--font-display); font-size: clamp(24px, 2.4vw, 42px); text-align: center; overflow-wrap: anywhere; }
+.scoreboard-tv { border-top: 1px solid var(--ink-line); padding-top: 14px; padding-right: 190px; min-height: 88px; }
+.scoreboard-tv h3 { color: var(--text-dim); font-size: 11px; text-transform: uppercase; letter-spacing: .14em; margin-bottom: 10px; }
+.scoreboard-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap: 8px; }
+.tv-score-item { display: flex; align-items: center; justify-content: space-between; gap: 12px; border-radius: 8px; padding: 10px 12px; background: var(--ink-2); min-width: 0; }
+.tv-score-item .player-name { font-size: clamp(14px, 1.1vw, 20px); }
+.tv-score-item .score { font-size: clamp(20px, 1.8vw, 30px); color: var(--gold); font-weight: 600; }
+.tv-join-badge { position: absolute; right: 3vw; bottom: 3vh; display: flex; align-items: center; gap: 12px; width: 174px; }
+.tv-join-badge img { width: 72px; height: 72px; background: white; padding: 5px; border-radius: 6px; }
+.tv-join-badge span { font-size: 14px; color: var(--text-dim); }
+.action-feed { position: fixed; right: 3vw; top: 110px; width: min(340px, 32vw); pointer-events: none; z-index: 50; }
+.action-feed h4 { display: none; }
 .actions-list { display: flex; flex-direction: column; gap: 8px; }
-.action-item {
-    background: rgba(21, 17, 27, 0.92);
-    padding: 10px 14px; border-radius: 10px;
-    border-left: 3px solid var(--ember);
-    font-size: 0.95rem; color: var(--text-dim);
-    box-shadow: 0 6px 18px rgba(0,0,0,0.5);
-    animation: toastIn 0.35s ease forwards, toastOut 0.5s ease 4.5s forwards;
-}
-@keyframes toastIn  { from { opacity: 0; transform: translateX(24px); } to { opacity: 1; transform: translateX(0); } }
-@keyframes toastOut { to { opacity: 0; transform: translateX(24px); } }
-
-/* ---- Error -------------------------------------------------------------- */
-#tv-error-screen { display: flex; align-items: center; justify-content: center; }
+.action-item { padding: 12px 16px; background: var(--ink-2); border: 1px solid var(--ink-line); border-left: 3px solid var(--oxblood); border-radius: 8px; color: var(--text-dim); animation: toastIn .3s ease both, toastOut .5s ease 4.5s forwards; }
+@keyframes toastIn { from { opacity: 0; transform: translateX(20px); } to { opacity: 1; transform: translateX(0); } }
+@keyframes toastOut { to { opacity: 0; transform: translateX(20px); } }
+#tv-error-screen.active { display: flex; align-items: center; justify-content: center; }
 .error-display { text-align: center; max-width: 600px; }
-.error-display h2 { font-size: 3rem; color: var(--ember); margin-bottom: 16px; }
-.error-display p { font-size: 1.5rem; color: var(--text-dim); margin-bottom: 24px; }
-.error-icon { font-size: 5rem; opacity: 0.7; animation: pulse 2s infinite; }
-@keyframes pulse { 0%,100% { opacity: 0.7; } 50% { opacity: 0.3; } }
-
-/* ---- Footer ------------------------------------------------------------- */
-.tv-footer { display: flex; justify-content: space-between; align-items: center; padding: 10px clamp(20px, 3vw, 40px); background: rgba(0,0,0,0.4); border-top: 1px solid var(--ink-line); font-size: 1rem; color: var(--text-faint); }
-.connection-status { display: flex; align-items: center; }
-.connection-status::before { content: '●'; margin-right: 8px; color: #6aa84f; animation: pulse 2s infinite; }
-.connection-status.disconnected::before { color: var(--ember); animation: none; }
-.game-timer { color: var(--gold); font-weight: 700; }
-
-.fade-in { animation: fadeIn 0.5s ease; }
+.error-display h2 { font-family: var(--font-display); font-size: 42px; font-weight: 500; margin-bottom: 18px; }
+.error-display p { color: var(--text-dim); font-size: 24px; }
+.error-icon { font-size: 48px; margin-top: 24px; }
+.tv-footer { display: flex; align-items: center; justify-content: space-between; gap: 20px; padding: 12px 3vw; border-top: 1px solid var(--ink-line); color: var(--text-dim); font-size: clamp(12px, 1vw, 18px); }
+.footer-tagline { text-align: center; max-width: 70%; }
+.connection-status::before { content: ''; display: inline-block; width: 6px; height: 6px; background: #80a77b; border-radius: 50%; margin-right: 8px; }
+.connection-status.disconnected::before { background: var(--ember); }
+.game-timer { color: var(--gold); font-variant-numeric: tabular-nums; }
+.fade-in { animation: fadeIn .3s ease; }
 @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-.slide-up { animation: slideUp 0.5s ease; }
-@keyframes slideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
-
-@media (prefers-reduced-motion: reduce) {
-    .game-logo, .error-icon, .connection-status::before { animation: none; }
-    .action-item { animation: toastIn 0.2s ease forwards; }
+@media (max-width: 800px) {
+    .waiting-content { gap: 3vw; grid-template-columns: 1.1fr 1fr; }
+    .connected-players { padding-left: 3vw; }
+    .players-grid { grid-template-columns: minmax(0, 1fr); }
+    .tv-join { flex-wrap: wrap; }
+    .tv-qr { width: 130px; }
+    .madlad-board { grid-template-columns: minmax(0, 1fr); }
+    .madlad-submissions { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .footer-tagline { display: none; }
+    .room-code { font-size: 12px; }
+    .room-code strong { display: block; margin: 4px 0 0; }
 }
 
 /* ---- J5: TV board choreography ------------------------------------------
@@ -260,75 +185,4 @@ body {
     .card--winner-pop,
     .tv-confetti__piece,
     .tv-score-item .score--tick { animation: none !important; }
-}
-
-/* ---- Join QR (lobby feature + in-game drop-in badge) -------------------- */
-.tv-join {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: clamp(20px, 3vw, 44px);
-    margin: clamp(16px, 3vh, 36px) 0;
-    flex-wrap: wrap;
-}
-.tv-qr {
-    width: clamp(180px, 22vh, 320px);
-    height: auto;
-    padding: 12px;
-    background: var(--bone);
-    border-radius: 14px;
-    border: 2px solid var(--gold);
-    box-shadow: var(--glow-gold), 0 10px 30px rgba(0, 0, 0, 0.55);
-}
-.tv-join-info { text-align: left; }
-.tv-join-label {
-    font-family: var(--font-display);
-    font-size: clamp(1.2rem, 2.2vw, 2.2rem);
-    color: var(--gold);
-    letter-spacing: 0.06em;
-}
-.tv-join-url {
-    font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
-    font-size: clamp(1rem, 1.6vw, 1.5rem);
-    color: var(--text);
-    margin-top: 6px;
-    word-break: break-all;
-}
-.tv-join-code {
-    margin-top: 12px;
-    font-size: clamp(1rem, 1.5vw, 1.4rem);
-    color: var(--text-dim);
-    text-transform: uppercase;
-    letter-spacing: 0.12em;
-}
-.tv-join-code span {
-    color: var(--ember);
-    font-weight: 800;
-    letter-spacing: 0.24em;
-}
-
-/* Small persistent join badge on the game screen (drop-in players). */
-.tv-join-badge {
-    position: fixed;
-    left: 18px; bottom: 60px;
-    display: flex; align-items: center; gap: 10px;
-    background: rgba(21, 17, 27, 0.92);
-    padding: 8px 12px 8px 8px;
-    border-radius: 12px;
-    border: 1px solid rgba(201, 162, 39, 0.4);
-    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.5);
-    z-index: 50;
-}
-.tv-join-badge img {
-    width: clamp(56px, 6vh, 84px);
-    height: auto;
-    background: var(--bone);
-    padding: 5px;
-    border-radius: 8px;
-}
-.tv-join-badge span {
-    font-size: 0.95rem;
-    color: var(--text-dim);
-    letter-spacing: 0.06em;
-    white-space: nowrap;
 }
