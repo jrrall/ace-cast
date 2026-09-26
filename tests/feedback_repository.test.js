@@ -24,12 +24,14 @@ describe('FeedbackRepository', () => {
 
     [packId] = await knex('packs').insert({ slug: 'test-pack', name: 'Test Pack', game_id: 'madlad' });
 
+    // status defaults to `pending` (F1); cardStats only surfaces approved cards,
+    // so these fixtures must be approved to appear on the dashboard at all.
     const cardIds = await knex('cards').insert(
       [
-        { game_id: 'madlad', kind: 'answer', text: 'Winner', pack_id: packId },
-        { game_id: 'madlad', kind: 'answer', text: 'Loser', pack_id: packId },
-        { game_id: 'madlad', kind: 'answer', text: 'Too few plays', pack_id: packId },
-        { game_id: 'madlad', kind: 'answer', text: 'Untouched', pack_id: packId },
+        { game_id: 'madlad', kind: 'answer', text: 'Winner', pack_id: packId, status: 'approved' },
+        { game_id: 'madlad', kind: 'answer', text: 'Loser', pack_id: packId, status: 'approved' },
+        { game_id: 'madlad', kind: 'answer', text: 'Too few plays', pack_id: packId, status: 'approved' },
+        { game_id: 'madlad', kind: 'answer', text: 'Untouched', pack_id: packId, status: 'approved' },
       ],
       'id',
     );
@@ -114,6 +116,31 @@ describe('FeedbackRepository', () => {
     expect(suggestedAfterRetire).toHaveLength(0);
 
     await CardRepository.unretire(ids[1]);
+  });
+
+  // F1.5 — cardStats is the SECOND cards reader. Only approved cards can ever be
+  // played, so pending/denied (generated) cards must never flood the dashboard.
+  test('cardStats excludes pending and denied cards', async () => {
+    const [genPackId] = await knex('packs')
+      .insert({ slug: 'gen-pack', name: 'Gen Pack', game_id: 'madlad' });
+    const before = await FeedbackRepository.cardStats({ minPlays: 10 });
+
+    await knex('cards').insert([
+      {
+        game_id: 'madlad', kind: 'answer', text: 'Pending gen', pack_id: genPackId, status: 'pending', source: 'generated',
+      },
+      {
+        game_id: 'madlad', kind: 'answer', text: 'Denied gen', pack_id: genPackId, status: 'denied', source: 'generated',
+      },
+    ]);
+
+    const after = await FeedbackRepository.cardStats({ minPlays: 10 });
+    expect(after).toHaveLength(before.length); // neither pending nor denied appears
+    expect(after.some((c) => c.text === 'Pending gen')).toBe(false);
+    expect(after.some((c) => c.text === 'Denied gen')).toBe(false);
+
+    await knex('cards').where({ pack_id: genPackId }).del();
+    await knex('packs').where({ id: genPackId }).del();
   });
 
   test('buildDashboard composes cardStats + rollups + suggestions from thresholds', async () => {

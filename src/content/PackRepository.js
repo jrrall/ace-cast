@@ -29,4 +29,26 @@ function listByGame(gameId, { publishedOnly = true } = {}) {
   return query.orderBy('id');
 }
 
-module.exports = { getBySlug, getDefault, listByGame };
+async function ensureRunPack(slug, base) {
+  await db()('packs').insert({
+    slug,
+    name: slug,
+    game_id: base.game_id,
+    maturity_max: 3,
+    published: true,
+    is_default: false,
+    generated_from_pack_id: base.id,
+  })
+    .onConflict('slug')
+    .ignore();
+  const pack = await getBySlug(slug);
+  return pack && pack.generated_from_pack_id === base.id ? pack : null;
+}
+
+function listRunPacks(baseId) {
+  return db()('packs').where({ generated_from_pack_id: baseId, published: true });
+}
+
+module.exports = {
+  getBySlug, getDefault, listByGame, ensureRunPack, listRunPacks,
+};

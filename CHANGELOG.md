@@ -1,3 +1,60 @@
+## 1.26.0 (2026-09-26)
+
+* feat(card-forge): measure scout batches against full-pool baseline (#73) ([b9d289f](https://github.com/jrrall/ace-cast/commit/b9d289f)), closes [#73](https://github.com/jrrall/ace-cast/issues/73)
+
+## 1.25.0 (2026-09-26)
+
+* feat(card-forge): add Intrusive Thoughts and sharpen Banned voice (#74) ([1f99145](https://github.com/jrrall/ace-cast/commit/1f99145)), closes [#74](https://github.com/jrrall/ace-cast/issues/74)
+
+## 1.24.0 (2026-09-26)
+
+* feat(card-forge): checkpoint small persona scout batches (#72) ([5c96bba](https://github.com/jrrall/ace-cast/commit/5c96bba)), closes [#72](https://github.com/jrrall/ace-cast/issues/72)
+
+## 1.23.0 (2026-09-26)
+
+* fix(card-forge): cap excess scouting themes without retrying (#66) ([ff12362](https://github.com/jrrall/ace-cast/commit/ff12362)), closes [#66](https://github.com/jrrall/ace-cast/issues/66)
+* feat(card-forge): scout structured stories with stable source IDs (#71) ([be4c115](https://github.com/jrrall/ace-cast/commit/be4c115)), closes [#71](https://github.com/jrrall/ace-cast/issues/71)
+
+## <small>1.22.1 (2026-09-24)</small>
+
+* fix(card-forge): make persona scouting preferences deterministic (#65) ([f8f7ed8](https://github.com/jrrall/ace-cast/commit/f8f7ed8)), closes [#65](https://github.com/jrrall/ace-cast/issues/65)
+
+## 1.22.0 (2026-09-24)
+
+* feat(card-forge): add resumable runs and persona-driven research (#64) ([6877ef5](https://github.com/jrrall/ace-cast/commit/6877ef5)), closes [#64](https://github.com/jrrall/ace-cast/issues/64)
+
+## <small>1.21.1 (2026-09-24)</small>
+
+* fix(card-forge): tune banned writer for crude forum shock humor (#57) ([011da84](https://github.com/jrrall/ace-cast/commit/011da84)), closes [#57](https://github.com/jrrall/ace-cast/issues/57)
+
+## 1.21.0 (2026-09-24)
+
+* feat: track card-forge writers and harden curator output (#56) ([8d4cd49](https://github.com/jrrall/ace-cast/commit/8d4cd49)), closes [#56](https://github.com/jrrall/ace-cast/issues/56)
+
+## <small>1.20.2 (2026-09-24)</small>
+
+* fix(card-forge): retry invalid JSON without accepting partial output (#55) ([c5ef04d](https://github.com/jrrall/ace-cast/commit/c5ef04d)), closes [#55](https://github.com/jrrall/ace-cast/issues/55)
+
+## <small>1.20.1 (2026-09-24)</small>
+
+* fix: ignore malformed cookies to prevent socket crash loops (#54) ([dc3cdab](https://github.com/jrrall/ace-cast/commit/dc3cdab)), closes [#54](https://github.com/jrrall/ace-cast/issues/54)
+
+## 1.20.0 (2026-09-24)
+
+* feat: target maturity 3 comedy and remove API pack ceiling (#53) ([9fde30c](https://github.com/jrrall/ace-cast/commit/9fde30c)), closes [#53](https://github.com/jrrall/ace-cast/issues/53)
+
+## 1.19.0 (2026-09-24)
+
+* feat: expand card-forge writing and admin review with balanced card types (#52) ([d688e11](https://github.com/jrrall/ace-cast/commit/d688e11)), closes [#52](https://github.com/jrrall/ace-cast/issues/52)
+
+## 1.18.0 (2026-09-24)
+
+* feat: Card Forge — LLM card generation with human review gate (#47) ([bf9c21a](https://github.com/jrrall/ace-cast/commit/bf9c21a)), closes [#47](https://github.com/jrrall/ace-cast/issues/47)
+
+## 1.17.0 (2026-07-13)
+
+* feat(host): add "Play on this phone" link on the start-game page (#46) ([0acdf1a](https://github.com/jrrall/ace-cast/commit/0acdf1a)), closes [#46](https://github.com/jrrall/ace-cast/issues/46)
+
 ## <small>1.16.1 (2026-07-09)</small>
 
 * fix(session): stop phones rejoining a dead game after game-over (#45) ([d85d9b7](https://github.com/jrrall/ace-cast/commit/d85d9b7)), closes [#45](https://github.com/jrrall/ace-cast/issues/45)

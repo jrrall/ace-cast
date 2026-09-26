@@ -32,7 +32,11 @@ const CardEventsRepository = require('../content/CardEventsRepository');
 const bots = require('./bots');
 const CardFlagRepository = require('../content/CardFlagRepository');
 const CardRepository = require('../content/CardRepository');
+const ContentCardRepository = require('../content/ContentCardRepository');
+const ServiceTokenRepository = require('../content/ServiceTokenRepository');
+const PackRepository = require('../content/PackRepository');
 const FeedbackRepository = require('../content/FeedbackRepository');
+const AdminCardRepository = require('../content/AdminCardRepository');
 const IdentityRepository = require('../content/IdentityRepository');
 const SessionRepository = require('../content/SessionRepository');
 const { isResumable } = require('../game/contract');
@@ -215,6 +219,33 @@ function requireAdmin(req, res, next) {
   next();
 }
 
+// Shared admin overview and complete card library, using the existing admin gate.
+app.get('/admin', requireAdmin, async (req, res) => {
+  try {
+    res.render('admin/index', {
+      title: 'unholy.cards — Admin',
+      adminToken: typeof req.query.token === 'string' ? req.query.token : '',
+      counts: await AdminCardRepository.overview(),
+    });
+  } catch (error) {
+    console.error('Failed to load admin overview:', error);
+    res.status(500).render('error', { message: 'Failed to load admin overview' });
+  }
+});
+
+app.get('/admin/cards', requireAdmin, async (req, res) => {
+  try {
+    res.render('admin/cards', {
+      title: 'unholy.cards — Card Library',
+      adminToken: typeof req.query.token === 'string' ? req.query.token : '',
+      ...await AdminCardRepository.library(req.query),
+    });
+  } catch (error) {
+    console.error('Failed to load card library:', error);
+    res.status(500).render('error', { message: 'Failed to load card library' });
+  }
+});
+
 // F3 — feedback dashboard: per-card plays/wins/win-rate + flag counts, plus
 // rollups (top winners, dead weight, most-flagged) and F4 suggested
 // retirements. Same read model serves the HTML view and the JSON API.
@@ -275,6 +306,377 @@ app.post('/api/admin/cards/:id/unretire', requireAdmin, async (req, res) => {
   } catch (error) {
     console.error('Failed to unretire card:', error);
     return res.status(500).json({ error: 'Failed to unretire card' });
+  }
+});
+
+// F2 (Card Forge) — content ingestion API for the standalone LLM agent.
+//
+// Auth is deliberately split (S2, prevents auto-publish): the machine token
+// (CONTENT_API_TOKEN) may WRITE candidates (POST), read them (GET), and delete a
+// still-pending one (DELETE) — but the human approve/deny gate (PATCH) rides on
+// `requireAdmin`, so a compromised or buggy agent can never publish its own
+// cards. If CONTENT_API_TOKEN is unset the whole content API is off (404, like
+// requireAdmin's denyAdmin), so its existence isn't even observable.
+
+// Basic content-policy deny-list. A server-side backstop against a poisoned feed
+// or prompt-injection slipping a slur/hard-block term past the agent — the
+// authoritative guard, not the only one. Matched case-insensitively as a
+// substring. Intentionally minimal; expand as needed.
+const CONTENT_DENY_LIST = ['slur1', 'slur2', 'childporn', 'child porn'];
+
+// The blank marker in prompt cards (see madladCards.js). A prompt's `blanks`
+// must equal how many of these it contains.
+const BLANK_MARKER = /____/g;
+
+function suppliedContentToken(req) {
+  const authHeader = req.get('Authorization') || '';
+  const bearer = /^Bearer\s+(.+)$/i.exec(authHeader);
+  if (bearer) return bearer[1].trim();
+  const header = req.get('X-Api-Token');
+  return header ? header.trim() : null;
+}
+
+// Machine auth for the content API. Two credential sources, checked in order:
+//
+//   1. A `service_tokens` row (preferred) — named, scoped, revocable per client,
+//      and attributable: `req.serviceClient` identifies who made the call.
+//   2. The legacy shared `CONTENT_API_TOKEN` — kept working so an existing
+//      deployment keeps submitting across the upgrade, but it grants every
+//      scope and identifies nobody. Mint a service token and drop it.
+//
+// Status codes carry meaning: 404 = the content API is off entirely (no secret
+// AND no active token) so its existence isn't observable; 401 = it's on and you
+// presented nothing usable; 403 = your token is valid but lacks this scope.
+function requireContentScope(scope) {
+  return async (req, res, next) => {
+    try {
+      const presented = suppliedContentToken(req);
+      const legacy = config.contentApi.token;
+
+      if (presented) {
+        const row = await ServiceTokenRepository.verify(presented);
+        if (row) {
+          const scopes = ServiceTokenRepository.parseScopes(row.scopes);
+          if (!scopes.includes(scope)) {
+            res.status(403).json({ error: `token lacks required scope: ${scope}` });
+            return;
+          }
+          req.serviceClient = { clientId: row.client_id, name: row.name, scopes };
+          // Best-effort, deliberately not awaited: last-used tracking must not
+          // add latency to (or fail) the request it is observing.
+          ServiceTokenRepository.touch(row.id);
+          next();
+          return;
+        }
+        if (legacy && presented === legacy) {
+          req.serviceClient = { clientId: 'legacy-shared-secret', name: 'CONTENT_API_TOKEN', scopes: [scope] };
+          next();
+          return;
+        }
+      }
+
+      // Nothing usable was presented. Distinguish "feature off" from "wrong
+      // credential" — but only now, so the extra count query costs nothing on
+      // the success path.
+      const activeTokens = await ServiceTokenRepository.countActive();
+      if (!legacy && activeTokens === 0) {
+        res.status(404).json({ error: 'Not found' });
+        return;
+      }
+      res.status(401).json({ error: 'Unauthorized' });
+    } catch (error) {
+      next(error);
+    }
+  };
+}
+
+function containsDenyListed(text) {
+  const lower = String(text).toLowerCase();
+  return CONTENT_DENY_LIST.some((term) => lower.includes(term));
+}
+
+// Validate a single submitted candidate against a resolved pack. Returns either
+// `{ ok: true, row }` (a normalized insert row) or `{ ok: false, reason }`.
+function validateCandidate(card, pack) {
+  if (!card || typeof card !== 'object') return { ok: false, reason: 'not an object' };
+  const { kind, text } = card;
+  if (kind !== 'prompt' && kind !== 'answer') return { ok: false, reason: 'invalid kind' };
+  if (typeof text !== 'string' || text.trim() === '') return { ok: false, reason: 'empty text' };
+  if (containsDenyListed(text)) return { ok: false, reason: 'content policy' };
+
+  const maturity = Number(card.maturity_rating);
+  if (!Number.isInteger(maturity) || maturity < 0 || maturity > 3) {
+    return { ok: false, reason: 'invalid maturity_rating' };
+  }
+
+  const generationRoute = card.generation_route == null ? null : card.generation_route;
+  if (generationRoute !== null && !['writer', 'paired_revision', 'source_find'].includes(generationRoute)) {
+    return { ok: false, reason: 'invalid generation_route' };
+  }
+  const sourceUrl = card.source_url == null ? null : card.source_url;
+  if (sourceUrl !== null) {
+    try {
+      if (typeof sourceUrl !== 'string' || sourceUrl.length > 2048) throw new Error('invalid URL');
+      const parsed = new URL(sourceUrl);
+      if (!['https:', 'http:'].includes(parsed.protocol) || parsed.username || parsed.password) {
+        throw new Error('invalid URL');
+      }
+    } catch (_) {
+      return { ok: false, reason: 'invalid source_url' };
+    }
+  }
+  if (generationRoute === 'source_find' && (!sourceUrl || card.writer != null)) {
+    return { ok: false, reason: 'source_find requires source_url and no invented writer' };
+  }
+  const writer = card.writer == null ? null : card.writer;
+  if (writer !== null && (typeof writer !== 'string' || !/^writer\.[a-z][a-z0-9_]{0,55}$/.test(writer))) {
+    return { ok: false, reason: 'invalid writer' };
+  }
+
+  let blanks = Number(card.blanks);
+  if (kind === 'prompt') {
+    const markerCount = (text.match(BLANK_MARKER) || []).length;
+    if (markerCount === 0) return { ok: false, reason: 'prompt missing ____ blank' };
+    if (!Number.isInteger(blanks) || blanks !== markerCount) {
+      return { ok: false, reason: 'blanks does not match marker count' };
+    }
+  } else {
+    // Answer cards carry no blank; default to 0 when unspecified.
+    if (card.blanks == null) blanks = 0;
+    if (blanks !== 0 || (text.match(BLANK_MARKER) || []).length > 0) {
+      return { ok: false, reason: 'answer must have no blanks' };
+    }
+  }
+
+  return {
+    ok: true,
+    row: {
+      game_id: pack.game_id,
+      kind,
+      text,
+      blanks,
+      maturity_rating: maturity,
+      writer,
+      generation_route: generationRoute,
+      source_url: sourceUrl,
+      pack_id: pack.id,
+    },
+  };
+}
+
+// POST — submit a batch of generated candidates. Each lands `pending` (a human
+// approves later). Per-item validation + dedupe: bad items are rejected, exact
+// (pack_id, text) duplicates (across ALL statuses incl. denied) are skipped, the
+// rest are inserted.
+app.post('/api/content/cards', requireContentScope('content:write'), async (req, res) => {
+  const { cards } = req.body || {};
+  if (!Array.isArray(cards)) {
+    return res.status(400).json({ error: 'cards must be an array' });
+  }
+  if (cards.length > config.contentApi.maxBatch) {
+    return res.status(400).json({ error: `batch exceeds maxBatch (${config.contentApi.maxBatch})` });
+  }
+
+  try {
+    const runPack = req.body.run_pack;
+    let runBase = null;
+    if (runPack != null) {
+      if (typeof runPack !== 'object' || typeof runPack.slug !== 'string'
+          || !/^[a-z0-9][a-z0-9_-]{0,127}$/.test(runPack.slug)
+          || typeof runPack.base_pack !== 'string'
+          || cards.some((card) => !card || card.pack !== runPack.slug)) {
+        return res.status(400).json({ error: 'invalid run_pack' });
+      }
+      runBase = await PackRepository.getBySlug(runPack.base_pack);
+      if (!runBase || runBase.slug !== `${runBase.game_id}-generated`) {
+        return res.status(400).json({ error: 'invalid run_pack base' });
+      }
+      const existing = await PackRepository.getBySlug(runPack.slug);
+      if (existing && existing.generated_from_pack_id !== runBase.id) {
+        return res.status(400).json({ error: 'run pack slug already belongs to another pack' });
+      }
+    }
+    const packCache = new Map(); // slug -> pack row | null (miss)
+    const existingCache = new Map(); // pack_id -> Set(normalized text)
+    const rejected = [];
+    const survivors = [];
+    let skipped = 0;
+
+    // Resolve the pack for this item (slug → row), caching lookups.
+    const resolvePack = async (slug) => {
+      if (packCache.has(slug)) return packCache.get(slug);
+      const pack = slug ? await PackRepository.getBySlug(slug) : null;
+      packCache.set(slug, pack || null);
+      return pack || null;
+    };
+
+    for (let i = 0; i < cards.length; i += 1) {
+      const card = cards[i];
+      const slug = card && card.pack;
+      // eslint-disable-next-line no-await-in-loop
+      let pack;
+      if (runBase) {
+        const preview = validateCandidate(card, runBase);
+        if (!preview.ok) {
+          rejected.push({ index: i, reason: preview.reason });
+          // eslint-disable-next-line no-continue
+          continue;
+        }
+        if (!packCache.has(slug)) {
+          // eslint-disable-next-line no-await-in-loop
+          packCache.set(slug, await PackRepository.ensureRunPack(slug, runBase));
+        }
+        pack = packCache.get(slug);
+      } else {
+        // eslint-disable-next-line no-await-in-loop
+        pack = await resolvePack(slug);
+      }
+      if (!pack) {
+        rejected.push({ index: i, reason: 'unknown pack' });
+        // eslint-disable-next-line no-continue
+        continue;
+      }
+
+      const result = validateCandidate(card, pack);
+      if (!result.ok) {
+        rejected.push({ index: i, reason: result.reason });
+        // eslint-disable-next-line no-continue
+        continue;
+      }
+
+      // Dedupe on (pack_id, text) across every status (incl. denied) so denied
+      // content can't re-flood the queue.
+      if (!existingCache.has(pack.id)) {
+        // eslint-disable-next-line no-await-in-loop
+        existingCache.set(pack.id, await ContentCardRepository.existingTextsForPack(pack.id));
+      }
+      const existing = existingCache.get(pack.id);
+      const normalized = ContentCardRepository.normalizeText(result.row.text);
+      // Also dedupe within this same batch.
+      if (existing.has(normalized)) {
+        skipped += 1;
+        // eslint-disable-next-line no-continue
+        continue;
+      }
+      existing.add(normalized);
+      survivors.push(result.row);
+    }
+
+    const created = await ContentCardRepository.insertPending(survivors);
+    return res.status(201).json({ created, skipped, rejected });
+  } catch (error) {
+    console.error('Failed to ingest content cards:', error);
+    return res.status(500).json({ error: 'Failed to ingest content cards' });
+  }
+});
+
+// GET — the agent's dedupe corpus (and the review UI's data source). Machine
+// token; the server-rendered admin page reads the repository directly.
+app.get('/api/content/cards', requireContentScope('content:read'), async (req, res) => {
+  try {
+    const status = typeof req.query.status === 'string' ? req.query.status : undefined;
+    const kind = typeof req.query.kind === 'string' ? req.query.kind : undefined;
+    const requested = Number.parseInt(req.query.limit, 10);
+    const limit = Number.isFinite(requested)
+      ? Math.min(Math.max(requested, 1), config.contentApi.maxBatch * 10)
+      : 100;
+    const before = req.query.before === undefined ? undefined : Number(req.query.before);
+    if (before !== undefined && (!Number.isSafeInteger(before) || before <= 0)) {
+      return res.status(400).json({ error: 'Invalid before cursor' });
+    }
+    const list = await ContentCardRepository.list({
+      status, kind, limit, before,
+    });
+    return res.json({
+      cards: list,
+      next_before: list.length === limit ? list[list.length - 1].id : null,
+    });
+  } catch (error) {
+    console.error('Failed to list content cards:', error);
+    return res.status(500).json({ error: 'Failed to list content cards' });
+  }
+});
+
+// PATCH — approve/deny. HUMAN gate: rides on `requireAdmin`, NOT the content
+// token, so the agent can never publish its own submissions (S2).
+app.patch('/api/content/cards/:id', requireAdmin, async (req, res) => {
+  const id = Number(req.params.id);
+  if (!Number.isInteger(id) || id <= 0) {
+    return res.status(400).json({ error: 'Invalid card id' });
+  }
+  const { status, denied_reason: deniedReason } = req.body || {};
+  if (status !== 'approved' && status !== 'denied') {
+    return res.status(400).json({ error: 'status must be approved or denied' });
+  }
+  try {
+    const reviewedBy = suppliedAdminToken(req) ? 'admin' : null;
+    const updated = await ContentCardRepository.setStatus(id, {
+      status,
+      reviewed_by: reviewedBy,
+      denied_reason: deniedReason,
+    });
+    if (updated === 0) {
+      return res.status(404).json({ error: 'Card not found' });
+    }
+    return res.json({ id, status });
+  } catch (error) {
+    console.error('Failed to review content card:', error);
+    return res.status(500).json({ error: 'Failed to review content card' });
+  }
+});
+
+// DELETE — hard-delete, but only while still pending (approved/denied rows carry
+// history/dedupe weight). 409 otherwise.
+app.delete('/api/content/cards/:id', requireContentScope('content:write'), async (req, res) => {
+  const id = Number(req.params.id);
+  if (!Number.isInteger(id) || id <= 0) {
+    return res.status(400).json({ error: 'Invalid card id' });
+  }
+  try {
+    const deleted = await ContentCardRepository.deletePending(id);
+    if (deleted === 0) {
+      return res.status(409).json({ error: 'Only pending cards can be deleted' });
+    }
+    return res.json({ id, deleted: true });
+  } catch (error) {
+    console.error('Failed to delete content card:', error);
+    return res.status(500).json({ error: 'Failed to delete content card' });
+  }
+});
+
+// F3 — content review dashboard: the pending queue plus today's approve/deny
+// counts. Server-rendered like /admin/feedback; the page carries the admin
+// token so its approve/deny buttons can PATCH the content API themselves.
+app.get('/admin/content', requireAdmin, async (req, res) => {
+  try {
+    const pending = await ContentCardRepository.list({ status: 'pending', limit: 100 });
+
+    // Resolve pack_id -> pack name for display (pending cards may span games).
+    const gameIds = [...new Set(pending.map((c) => c.game_id))];
+    const packLists = await Promise.all(
+      gameIds.map((gameId) => PackRepository.listByGame(gameId, { publishedOnly: false })),
+    );
+    const packNameById = new Map();
+    packLists.flat().forEach((pack) => packNameById.set(pack.id, pack.name));
+    const cards = pending.map((c) => ({ ...c, packName: packNameById.get(c.pack_id) || null }));
+
+    const startOfDay = new Date();
+    startOfDay.setHours(0, 0, 0, 0);
+    const [pendingCount, approvedToday, deniedToday] = await Promise.all([
+      ContentCardRepository.countByStatus('pending'),
+      ContentCardRepository.countByStatus('approved', { since: startOfDay }),
+      ContentCardRepository.countByStatus('denied', { since: startOfDay }),
+    ]);
+
+    res.render('admin/content', {
+      title: 'unholy.cards — Content Review',
+      adminToken: typeof req.query.token === 'string' ? req.query.token : '',
+      cards,
+      counts: { pending: pendingCount, approvedToday, deniedToday },
+    });
+  } catch (error) {
+    console.error('Failed to load content review dashboard:', error);
+    res.status(500).render('error', { message: 'Failed to load content review dashboard' });
   }
 });
 

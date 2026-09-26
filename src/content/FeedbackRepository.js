@@ -28,6 +28,10 @@ async function cardStats({ minPlays = 10 } = {}) {
   const rows = await knex('cards as c')
     .leftJoin('card_stats as cs', 'cs.card_id', 'c.id')
     .leftJoin('packs as p', 'p.id', 'c.pack_id')
+    // Second `cards` reader (F1.5): only approved cards can appear in a deck, so
+    // the feedback dashboard must not be flooded with never-played pending/denied
+    // generated content.
+    .where('c.status', 'approved')
     .select(
       'c.id',
       'c.kind',

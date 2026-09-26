@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title><%= title %></title><link rel="stylesheet" href="/css/theme.css"><link rel="stylesheet" href="/css/admin.css">
+</head>
+<body><div class="container">
+    <%- include('nav', { active: 'cards', description: 'Every card. The keepers, the rejects, and the ones awaiting judgment.' }) %>
+    <main>
+        <h1>Card library</h1>
+        <form class="panel filters" method="get" action="/admin/cards">
+            <% if (adminToken) { %><input type="hidden" name="token" value="<%= adminToken %>"><% } %>
+            <label class="search-field">Search card text<input name="q" type="search" maxlength="200" value="<%= filters.q %>" placeholder="Search the deck…"></label>
+            <% [['status', 'Review status', ['pending','approved','denied']], ['kind', 'Kind', ['prompt','answer']], ['source', 'Source', ['manual','generated']]].forEach(function (filter) { %>
+            <label><%= filter[1] %><select name="<%= filter[0] %>"><option value="">All</option><% filter[2].forEach(function (option) { %><option value="<%= option %>" <%= filters[filter[0]] === option ? 'selected' : '' %>><%= option %></option><% }); %></select></label>
+            <% }); %>
+            <label>Writer<select name="writer"><option value="">All writers</option><option value="unknown" <%= filters.writer === 'unknown' ? 'selected' : '' %>>Unknown</option><% writers.forEach(function (writer) { %><option value="<%= writer %>" <%= filters.writer === writer ? 'selected' : '' %>><%= writer %></option><% }); %></select></label>
+            <label>Pack<select name="pack"><option value="">All packs</option><% packs.forEach(function (pack) { %><option value="<%= pack.slug %>" <%= filters.pack === pack.slug ? 'selected' : '' %>><%= pack.name %></option><% }); %></select></label>
+            <label>Retirement<select name="retired"><option value="">All</option><option value="yes" <%= filters.retired === 'yes' ? 'selected' : '' %>>Retired</option><option value="no" <%= filters.retired === 'no' ? 'selected' : '' %>>Not retired</option></select></label>
+            <button class="secondary-btn" type="submit">Apply filters</button>
+            <a href="/admin/cards<%= adminToken ? '?token=' + encodeURIComponent(adminToken) : '' %>">Reset</a>
+        </form>
+        <p role="status"><strong><%= total %></strong> matching cards · Page <%= page %> of <%= pages %></p>
+        <% if (!cards.length) { %><section class="panel"><h2>No cards match</h2><p>Try another search or clear your filters.</p></section><% } %>
+        <div class="card-grid">
+            <% cards.forEach(function (card) { %>
+            <article class="library-card <%= card.kind === 'prompt' ? 'prompt-card' : 'answer-card' %>">
+                <div class="card-meta"><span><%= card.kind %> · #<%= card.id %></span><span class="badge"><%= card.status %><%= card.retired_at ? ' / retired' : '' %></span></div>
+                <p class="card-copy"><%= card.text %></p>
+                <footer><span><%= card.packName || 'No pack' %></span><span><%= card.writer || (card.generation_route === "source_find" ? "Found phrase" : "Unknown writer") %> · <%= card.source %> · Maturity <%= card.maturity_rating %></span><% if (card.generation_route) { %><span><%= card.generation_route %></span><% } %><% if (card.source_url) { %><a href="<%= card.source_url %>" target="_blank" rel="noopener noreferrer">Original source</a><% } %></footer>
+                <% if (card.denied_reason) { %><details><summary>Rejection reason</summary><p><%= card.denied_reason %></p></details><% } %>
+            </article>
+            <% }); %>
+        </div>
+        <% const pageLink = function (target) { const params = new URLSearchParams(filters); params.set('page', target); if (adminToken) params.set('token', adminToken); return '/admin/cards?' + params.toString(); }; %>
+        <nav class="pagination" aria-label="Card library pages">
+            <% if (page > 1) { %><a class="secondary-btn" href="<%= pageLink(page - 1) %>">← Previous</a><% } %>
+            <span>Page <%= page %> of <%= pages %></span>
+            <% if (page < pages) { %><a class="secondary-btn" href="<%= pageLink(page + 1) %>">Next →</a><% } %>
+        </nav>
+    </main>
+</div></body></html>

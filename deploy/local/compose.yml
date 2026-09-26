@@ -1,0 +1,52 @@
+# Local feature testing only. No production database, token, or destination.
+name: ace-cast-local
+services:
+  app:
+    build:
+      context: ../..
+    image: ace-cast:dev
+    ports:
+      - "127.0.0.1:${LOCAL_PORT:-3180}:3000"
+    environment:
+      NODE_ENV: development
+      PORT: "3000"
+      DATABASE_URL: sqlite:///app/data/local.db
+      PUBLIC_URL: http://localhost:${LOCAL_PORT:-3180}
+      ALLOWED_ORIGINS: http://localhost:${LOCAL_PORT:-3180}
+      TRUST_PROXY: "false"
+      AUTH_PROVIDER: dev
+      ADMIN_TOKEN: local-review-only
+      CONTENT_API_TOKEN: local-content-only
+      AUTH_SESSION_SECRET: local-feature-test-session-secret-not-for-production
+    volumes:
+      - game_data:/app/data
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://127.0.0.1:3000/healthz',r=>process.exit(r.statusCode===200?0:1)).on('error',()=>process.exit(1))"]
+      interval: 3s
+      timeout: 3s
+      retries: 30
+
+  forge:
+    profiles: [forge]
+    build:
+      context: ../../card-forge
+    image: card-forge:dev
+    env_file:
+      - path: ../../card-forge/.env.local
+        required: false
+    environment:
+      # Override any production values in .env.local for this local-only stack.
+      CONTENT_API_URL: http://app:3000
+      CONTENT_API_TOKEN: local-content-only
+      LLM_BASE_URL: ${LOCAL_LLM_BASE_URL:-http://host.docker.internal:11434/v1}
+      LLM_TIMEOUT: ${LOCAL_LLM_TIMEOUT:-300}
+      LLM_REASONING_EFFORT: ${LOCAL_LLM_REASONING_EFFORT:-none}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    depends_on:
+      app:
+        condition: service_healthy
+    command: ["--dry-run"]
+
+volumes:
+  game_data:

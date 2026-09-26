@@ -15,6 +15,15 @@ describe('identity token', () => {
     expect(idToken.verifyToken(`${idToken.makeToken('abc')}x`)).toBeNull(); // altered sig
   });
 
+  test.each(['%', '%ZZ', '%E0%A4%A', '%FF'])('ignores malformed cookie value %s and preserves valid identity', (bad) => {
+    const token = idToken.makeToken('cookie-regression');
+    const cookies = idToken.parseCookies(`bad=${bad}; acecast_did=${encodeURIComponent(token)}; other=ok`);
+    expect(cookies.bad).toBeUndefined();
+    expect(idToken.verifyToken(cookies.acecast_did)).toBe('cookie-regression');
+    expect(cookies.other).toBe('ok');
+    expect(idToken.verifyToken(idToken.parseCookies(`acecast_did=${bad}`).acecast_did)).toBeNull();
+  });
+
   test('parseCookies parses and url-decodes a Cookie header', () => {
     const cookies = idToken.parseCookies('a=1; acecast_did=xyz%2E; b=2');
     expect(cookies.a).toBe('1');
