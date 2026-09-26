@@ -1,3 +1,7 @@
+## <small>1.29.1 (2026-09-26)</small>
+
+* fix(card-forge): publish immutable release images (#78) ([c3817c5](https://github.com/jrrall/ace-cast/commit/c3817c5)), closes [#78](https://github.com/jrrall/ace-cast/issues/78)
+
 ## 1.29.0 (2026-09-26)
 
 * feat(audio): add layered SuperCollider game sounds (#79) ([7c5d0f1](https://github.com/jrrall/ace-cast/commit/7c5d0f1)), closes [#79](https://github.com/jrrall/ace-cast/issues/79)
