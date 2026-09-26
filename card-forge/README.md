@@ -759,3 +759,104 @@ runs use the small batches and per-batch recovery described above.
 Scout requests use exact short IDs (`story-` plus 12 hash digits); checkpoints
 retain the full hashes. Short-ID collisions fail before sending a request.
 Old full IDs remain accepted, but misspelled IDs are never fuzzy-matched.
+
+### Measuring scout batches (#69)
+
+Both structured scout routes emit `scout.attempt` JSON events with persona,
+protocol, batch index, story count, input character count (system plus user),
+user-only character count, one-based schema attempt, duration, validation failure,
+error type, and selected-theme count. `source` distinguishes fresh `generation`
+from raw-response `cache` replay. `scout.reused` denotes a completed `checkpoint`
+batch; its input count and model duration are zero, including cached null results.
+Do not interpret replay speed as model-generation speed.
+
+`model_attempts` counts application-level model attempts, including bounded JSON
+format retries; `format_retries` is separate from schema retries. SDK transport
+retries can add HTTP attempts in ordinary runs. The comparison tool disables
+those retries, uses fresh clients without response caches, and does not change
+the saved source run.
+
+Run a bounded comparison from an existing checkpoint with saved research and
+persona definitions:
+
+```bash
+cd card-forge
+uv run python scripts/compare_scouts.py \
+  --source-run runs/your-saved-run \
+  --output runs/scout-comparison-01 \
+  --personas 2 --max-calls 24 --max-seconds 900 --timeout 90
+```
+
+For a host process reading a Docker-created checkpoint, add
+`--base-url http://localhost:11434/v1`. Credentials come from the current environment
+or `.env`; model, research, persona definitions, roster order, and generation
+settings come from the saved manifest. JSON retry count comes from current
+settings and is frozen equally for both routes. The default two-persona sample
+retains the original full-roster card budgets. Pass a larger `--personas` count
+to cover more of the saved roster. Both routes use the same settings and research;
+the route-specific prompts and batch assignments are the comparison treatment.
+
+The tool alternates route order by persona, runs full-pool scouting and small-batch
+scouting, then writes drafts only from that persona's selected themes. It records
+failed units and continues within the call/time budget. The time budget is checked
+before each call and used to shorten remaining request timeouts; in-flight calls
+still follow the client's timeout behavior. Schema retries and writing count
+against `--max-calls`; each logical call can additionally make the configured
+bounded JSON-format retries. Output directories must be new; repeat into a new
+directory instead of mixing fresh measurements with replay.
+
+Local artifacts:
+
+- `inputs.json`: frozen input/settings, persona snapshots, limits, and fingerprint;
+  API keys and content tokens are excluded.
+- `calls.jsonl`: requests, responses or failure types, timings, and model-attempt
+  counts, flushed after every call.
+- `scout-events.jsonl`: per-attempt telemetry with the comparison route.
+- `outcomes.json`: selected story IDs, angles, and writer-attributed candidate cards,
+  updated after each unit.
+- `summary.json` and `report.md`: request sizes, scouting and writing durations, retries/failures,
+  distinct selected stories/sources/angles, and draft counts by card kind.
+
+No cards are submitted, moderated, curated, or published by this tool. The existing
+admin approval loop remains the human card-quality review path; there is no extra
+benchmark approval workflow. Distinct wording and more drafts do not establish
+funnier cards or preserved persona quality. A single sample also cannot establish
+reliability rates. Keep `SCOUT_BATCH_SIZE=6` as the current operational default
+unless repeated measurements justify a change. JSON formatting bounds the input
+representation; it does not itself prevent output overproduction. Existing output
+caps and retained-selection validation still enforce the requested limits.
+
+#### Initial local measurement (2026-09-26)
+
+Using the 60-story pool and frozen definitions from `gemma-20260926-101326`,
+compared Deadpan and Unhinged with `huihui_ai/gemma-4-abliterated:12b`, two themes
+per persona, batch size six, temperature 0.8, and the original six-persona
+allocation of two cards per selected theme. Both routes used a 90-second request
+timeout, one allowed JSON/schema retry, and zero SDK transport retries. The
+comparison was capped at 24 logical calls / 900 seconds; it used ten fresh calls.
+
+| Measure | Full pool | Six-story batches |
+| --- | ---: | ---: |
+| Scout calls | 2 | 4 |
+| Median request characters, system + user | 16,470 | 2,563 |
+| Total scout request characters | 32,940 | 10,307 |
+| Observed scouting seconds, including timeouts | 180.166 | 131.836 |
+| Scout timeouts | 2 | 0 |
+| Schema/JSON retries | 0 | 0 |
+| Selected distinct stories | 0 | 4 |
+| Selected source labels | 0 | 3 |
+| Draft cards | 0 | 8 (4 prompts, 4 answers) |
+
+The batch route selected two themes per persona and wrote eight distinct draft
+texts in another 109.256 seconds, without writer failures. No cache/checkpoint
+replay was included. All four batch selections passed validation on their first
+attempts. Both full-pool calls timed out, so their timings are lower bounds on
+successful completion time, and they supplied no baseline drafts for a quality
+comparison. Zero retries on that route does not imply valid output: no output
+arrived before timeout.
+
+This sample supports retaining the six-story default under this timeout budget;
+it does not establish general reliability, funnier output, or preserved persona
+quality. That judgment stays with the existing admin approval loop. The local
+artifacts are in `runs/scout-comparison-issue69/` (ignored by Git); candidate cards
+were not submitted or published.

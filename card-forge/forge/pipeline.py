@@ -80,6 +80,9 @@ class Pipeline:
                             })
                     else:
                         themes = [Theme.model_validate(t) for t in saved["themes"]]
+                        from .scout_metrics import scout_reused
+                        scout_reused(writer, 0, stories if structured else items, themes,
+                                     protocol=self.checkpoint.scout_protocol)
                     by_writer[writer.name] = themes
             summary.themes = sum(len(themes) for themes in by_writer.values())
         else:
