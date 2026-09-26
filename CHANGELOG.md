@@ -1,3 +1,9 @@
+## 1.27.0 (2026-09-26)
+
+* feat(card-forge): add super bitch and random comedy challengers (#76) ([b9a275d](https://github.com/jrrall/ace-cast/commit/b9a275d)), closes [#76](https://github.com/jrrall/ace-cast/issues/76)
+* fix(madlad): track the Card Czar by player id, not list position (#50) ([09d4606](https://github.com/jrrall/ace-cast/commit/09d4606)), closes [#50](https://github.com/jrrall/ace-cast/issues/50) [#49](https://github.com/jrrall/ace-cast/issues/49) [#48](https://github.com/jrrall/ace-cast/issues/48) [#49](https://github.com/jrrall/ace-cast/issues/49)
+* Keep humor persona-driven, harden model calls, and name packs by run (#75) ([2bb391c](https://github.com/jrrall/ace-cast/commit/2bb391c)), closes [#75](https://github.com/jrrall/ace-cast/issues/75)
+
 ## 1.26.0 (2026-09-26)
 
 * feat(card-forge): measure scout batches against full-pool baseline (#73) ([b9d289f](https://github.com/jrrall/ace-cast/commit/b9d289f)), closes [#73](https://github.com/jrrall/ace-cast/issues/73)
