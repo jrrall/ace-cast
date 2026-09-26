@@ -743,3 +743,7 @@ Original source metadata is attached in code, never taken from the model.
 Older checkpoints retain numbered-source scouting for resume compatibility.
 This is the structured-input foundation: the current call still receives the
 sampled pool. Small per-persona batches and per-batch recovery are tracked in #68.
+
+Scout requests use exact short IDs (`story-` plus 12 hash digits); checkpoints
+retain the full hashes. Short-ID collisions fail before sending a request.
+Old full IDs remain accepted, but misspelled IDs are never fuzzy-matched.

@@ -70,3 +70,25 @@ def test_structured_pipeline_checkpoints_and_resumes_full_sources(settings, tmp_
     assert len(batch.cards) == 1
     assert 'Scout as beta' in llm.calls[0]['system']
     assert len(llm.calls) == 6
+
+
+def test_short_ids_resolve_exactly_and_full_ids_remain_supported():
+    records = stories_from_items(feed())
+    alias = request_payload(records, max_themes=1)['stories'][0]['id']
+    assert len(alias) == 18
+    assert len(records[0]['id']) == 70
+    def response(key):
+        return {'themes': [{'story_id': key, 'title': 'T', 'angle': 'A'}]}
+    assert resolve_themes(response(alias), records, 1)[0].url == records[0]['url']
+    assert resolve_themes(response(records[0]['id']), records, 1)[0].url == records[0]['url']
+    with pytest.raises(ValueError):
+        resolve_themes(response(alias[:-1] + 'z'), records, 1)
+    with pytest.raises(ValueError):
+        resolve_themes({'themes': response(alias)['themes'] + response(records[0]['id'])['themes']}, records, 2)
+
+
+def test_short_id_collisions_fail_before_sending():
+    records = stories_from_items(feed())
+    records[1]['id'] = records[0]['id'][:18] + 'different'
+    with pytest.raises(ValueError, match='collision'):
+        request_payload(records, max_themes=1)
