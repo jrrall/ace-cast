@@ -34,13 +34,14 @@ a local model. Logs record stage counts and model call timing.
 | 2e | **Banned From 4chan** | `Theme` → `[CardCandidate]` | Mid-2000s forum shock humor: blunt filthy images, blasphemy, ugly confessions, and appalling priorities. |
 | 2f | **Hatemonger** | `Theme` → `[CardCandidate]` | Ranting uncle: petty grievances, scrambled conspiracies, absurd statistics, and defensive self-owns. |
 | 2g | **Toxic Positivity** | `Theme` → `[CardCandidate]` | Self-congratulatory charity, privilege lectures, and demands for gratitude. |
+| 2h | **Intrusive Thoughts** | `Theme` → `[CardCandidate]` | Dangerous curiosity, forbidden associations, and catastrophically inappropriate possibilities. |
 | 3 | **Editor** | `[CardCandidate]` → `[CardCandidate]` | Repair wording; drop broken/duplicate cards; preserve unusual jokes. |
 | 4 | **Moderator** | `[CardCandidate]` → `[ModeratedCard]` | Assign maturity 0–3, cap at the configured generator ceiling, drop out-of-policy + deny-listed. |
 | 5 | **Curator** | `[ModeratedCard]` → `SubmitBatch` | Fetch the existing corpus (incl. denied), drop near-dups, rank/select up to `BATCH_MAX` (default 50). |
 
-`CARDS_PER_THEME` is the total budget shared by all seven writers (minimum 7 for new runs).
+`CARDS_PER_THEME` is the total budget shared by all eight writers (minimum 8 when all are selected).
 Leftover cards are allocated in roster order: Deadpan, Unhinged, PR Spin Doctor,
-Petty Villain, Banned From 4chan, Hatemonger, then Toxic Positivity. The editor preserves their different voices;
+Petty Villain, Banned From 4chan, Hatemonger, Toxic Positivity, then Intrusive Thoughts. The editor preserves their different voices;
 the curator chooses strong cards across the roster without forcing a quota.
 
 Then `client.py` POSTs the batch; the server re-validates, dedupes on
@@ -382,7 +383,7 @@ fields or admin UI controls.
 ### Card type balance
 
 The writing team divides each theme into equal prompt and answer budgets,
-then assigns those slots across the seven writers. Writer and
+then assigns those slots across the selected writers. Writer and
 Curator enforce separate type budgets using `CARDS_PER_THEME` and `BATCH_MAX`,
 respectively; an odd slot goes to answers. They scan the full returned list so
 prompt-first ordering cannot crowd out later answers. Curator ranks all worthy
@@ -456,8 +457,8 @@ feeds, including b3ta, before the normal editing and review stages.
 Hatemonger (`writer.hatemonger`) writes as a paranoid uncle whose certainty
 exposes his own ridiculous reasoning. His invented stats concern absurd habits
 and objects; conspiracies scramble cause and effect. Cards retain the same
-prompt/answer formats and author tracking as the other writers. With seven writers,
-`CARDS_PER_THEME` must be at least 7 for new runs; use 14 to give each writer one prompt and
+prompt/answer formats and author tracking as the other writers. With all eight writers,
+`CARDS_PER_THEME` must be at least 8 for new runs; use 16 to give each writer one prompt and
 one answer per theme. No franchise roleplay is included.
 
 ### Archived conspiracy research
@@ -500,14 +501,14 @@ Trendscout will select a theme from it on every run.
 
 Set `COMEDY_LOOP=true` to add one bounded exchange before the normal editor,
 moderator, and curator. Pairs are Deadpan ↔ Unhinged, PR Spin Doctor ↔ Banned
-From the Thread, and Petty Villain ↔ Hatemonger. All seven writers draft independently
+From the Thread, and Petty Villain ↔ Hatemonger. All eight writers draft independently
 first. Each partner challenges the originals, and the original writer gets one
 revision, which can retain the original. No model declares a winner. Invalid or
 kind-changing revisions retain the original; malformed response envelopes fail
 the run before submission. The judging pool keeps originals and distinct revisions; final submission budgets stay unchanged.
 
-This adds up to fourteen LLM calls per theme (seven challenges and seven revisions)
-to the seven drafting calls. Calls remain sequential for local Ollama. It is off
+This adds up to sixteen LLM calls per theme (eight challenges and eight revisions)
+to the eight drafting calls. Calls remain sequential for local Ollama. It is off
 by default while human comparison establishes whether it improves the jokes.
 Original writer attribution reaches the API; challenger and revision history
 are in the local trace, not new admin fields.
@@ -622,16 +623,16 @@ stage-count logs alone.
 ### Toxic Positivity joins the normal writer roster
 
 Toxic Positivity (`writer.toxic_positivity`) writes independent setups and answers
-alongside the other six writers. Her comic engine is self-congratulatory charity,
+alongside the other writers. Her comic engine is self-congratulatory charity,
 lectures about privilege, and the gap between her moral self-image and her
 entitled decisions. Normal deck mixing supplies the cross-persona combinations;
 there is no separate swap round or `OPPOSITES_ROUND` flag.
 
-Use `CARDS_PER_THEME=14` to give each of the seven writers one prompt and one
+Use `CARDS_PER_THEME=16` to give each of the eight writers one prompt and one
 answer per theme. The total is shared across writers; it is not a per-writer
-count. Fresh runs need at least 7. Existing checkpoints preserve their saved
+count. Fresh runs selecting all eight need at least 8. Existing checkpoints preserve their saved
 roster; checkpoints created before roster tracking retain the original six.
-Start a new run directory to include the seventh writer.
+Start a new run directory to include newly added writers.
 
 The optional existing critique/revision loop still works. Toxic Positivity's
 drafts receive a challenge from Banned From 4chan; the original six
@@ -759,3 +760,25 @@ runs use the small batches and per-batch recovery described above.
 Scout requests use exact short IDs (`story-` plus 12 hash digits); checkpoints
 retain the full hashes. Short-ID collisions fail before sending a request.
 Old full IDs remain accepted, but misspelled IDs are never fuzzy-matched.
+
+
+### Intrusive Thoughts and Banned's spoken voice
+
+`intrusive_thoughts.toml` adds `writer.intrusive_thoughts`, enabled by default.
+This voice finds the immediate, appalling possibility in something recognizable:
+a dangerous object, a solemn occasion, or an outrageously inappropriate crossover.
+The thought stays brief, hypothetical, and unacted. Its comic mechanism is the
+forbidden association arriving before judgment catches up. The optional comedy
+loop uses Deadpan as its challenger, with the usual fallback if Deadpan is absent.
+
+Banned From 4chan now explicitly puts uncensored fuck/fucking into both prompt
+and answer text at maturity 3. Profanity is part of the character's speech; each
+card still needs a concrete terrible decision or self-own underneath it. Writing,
+answering, and revision all carry this direction.
+
+New runs load these definitions. Resuming a checkpoint preserves its old roster
+and frozen voices, even if the TOMLs change. `WRITERS_PER_RUN=6` samples six of the
+eight enabled personas, so either writer can be absent from a particular run.
+Use `WRITERS_PER_RUN=0` and `CARDS_PER_THEME=16` to run all eight with one prompt
+and one answer slot per writer per theme. Deploy the updated image or mount the
+updated persona directory before starting that new run.

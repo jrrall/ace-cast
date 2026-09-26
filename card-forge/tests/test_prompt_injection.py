@@ -47,6 +47,7 @@ def test_injection_does_not_leak_policy_violating_card(settings):
             {"cards": []},  # Banned From 4chan
             {"cards": []},  # Hatemonger
             {"cards": []},  # Toxic Positivity
+            {"cards": []},  # Intrusive Thoughts
             {
                 "cards": [
                     {"kind": "answer", "text": "A card with forbiddenword in it."},

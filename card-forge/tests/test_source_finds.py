@@ -25,7 +25,7 @@ def test_find_bypasses_rewriting_reaches_judgment_with_source(settings, monkeypa
         self.fetched = [item()]
         return [Theme(title='Rule')]
     monkeypatch.setattr(Trendscout, 'run', research)
-    llm = FakeLLM([{'cards': []} for _ in range(7)] + [
+    llm = FakeLLM([{'cards': []} for _ in range(8)] + [
         {'selected': [0]}, {'verdicts': [{'index': 0, 'allowed': True, 'maturity_rating': 2}]}, rated_selection([0])])
     summary, batch = Pipeline(settings, llm, FakeContentClient()).run(dry_run=True)
     card = batch.payload()['cards'][0]

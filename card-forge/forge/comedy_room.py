@@ -15,6 +15,7 @@ PAIRS = (("writer.deadpan", "writer.unhinged"),
          ("writer.petty_villain", "writer.hatemonger"))
 PARTNERS = {a: b for pair in PAIRS for a, b in (pair, pair[::-1])}
 PARTNERS['writer.toxic_positivity'] = 'writer.banned_from_4chan'
+PARTNERS['writer.intrusive_thoughts'] = 'writer.deadpan'
 FORMAT = ('Prompts have exactly one ____ accepting an unrelated noun phrase. '
           'Answers are short standalone acts, objects, or situations with no blank. '
           'Preserve each source card kind. Return JSON only. ')
