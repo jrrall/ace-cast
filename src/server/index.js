@@ -30,6 +30,7 @@ const DeckService = require('../content/DeckService');
 const CardStatsRepository = require('../content/CardStatsRepository');
 const CardEventsRepository = require('../content/CardEventsRepository');
 const bots = require('./bots');
+const tvCopy = require('./tv-copy.json');
 const landingCopy = require('./landing-copy.json');
 const CardFlagRepository = require('../content/CardFlagRepository');
 const CardRepository = require('../content/CardRepository');
@@ -181,6 +182,7 @@ app.get('/tv/:roomCode', async (req, res) => {
 
   return res.render('tv/index', {
     title: 'omfg.cards — TV',
+    copy: tvCopy[Math.floor(Math.random() * tvCopy.length)],
     roomCode,
     joinUrl,
     qrCode,
