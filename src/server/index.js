@@ -628,6 +628,7 @@ app.get('/api/content/cards', requireContentScope('content:read'), async (req, r
     });
     return res.json({
       cards: list,
+      exposure_tracking: await CardStatsRepository.exposureTracking(),
       next_before: list.length === limit ? list[list.length - 1].id : null,
     });
   } catch (error) {
@@ -799,22 +800,40 @@ app.get('/api/room/:roomCode/status', (req, res) => {
 const spectatorRoom = (roomCode) => `${roomCode}::spectators`;
 
 // Push game state out: public state to spectators, private state to each player.
-function broadcastGameState(room) {
+async function broadcastGameState(room) {
   if (!room || !room.gameEngine) return;
-
-  const publicState = room.gameEngine.getPublicState
-    ? room.gameEngine.getPublicState()
-    : room.gameEngine.getInitialState();
-  io.to(spectatorRoom(room.code)).emit('game-update', { gameState: publicState });
-
-  room.getAllPlayers().forEach((player) => {
-    if (player.socket && player.isActive) {
-      const view = room.gameEngine.getStateForPlayer
-        ? room.gameEngine.getStateForPlayer(player.id)
-        : publicState;
-      player.socket.emit('game-update', { gameState: view });
+  const engine = room.gameEngine;
+  const publicState = engine.getPublicState
+    ? engine.getPublicState() : engine.getInitialState();
+  const views = room.getAllPlayers().filter((player) => player.socket && player.isActive)
+    .map((player) => ({
+      socket: player.socket,
+      view: engine.getStateForPlayer ? engine.getStateForPlayer(player.id) : publicState,
+    }));
+  room.broadcastVersion = (room.broadcastVersion || 0) + 1;
+  const { broadcastVersion } = room;
+  // Commit deliveries and their hands before publishing them. A failed write
+  // leaves the pending events intact for the next snapshot/broadcast retry.
+  // eslint-disable-next-line no-use-before-define
+  const saved = await writeSnapshot(room);
+  if (room.gameEngine !== engine) return;
+  if (!saved) {
+    if (!room.exposureRetryTimer) {
+      room.exposureRetryTimer = setTimeout(() => {
+        room.exposureRetryTimer = null;
+        broadcastGameState(room);
+      }, 1000);
+      room.exposureRetryTimer.unref();
     }
-  });
+    return;
+  }
+  if (room.exposureRetryTimer) {
+    clearTimeout(room.exposureRetryTimer);
+    room.exposureRetryTimer = null;
+  }
+  if (room.broadcastVersion !== broadcastVersion) return;
+  io.to(spectatorRoom(room.code)).emit('game-update', { gameState: publicState });
+  views.forEach(({ socket, view }) => socket.emit('game-update', { gameState: view }));
 }
 
 // Persist per-card play/win counts (F1) after a round is resolved. Best-effort
@@ -852,33 +871,57 @@ async function recordCardOutcome(room, actionData) {
 }
 
 // --- S1 persistent & resumable sessions -----------------------------------
-// All DB access lives here in the server layer (never in the engine). Every
-// path is best-effort and fully out-of-band: like recordCardOutcome it swallows
-// + logs errors so a failed write can never block or crash the round loop.
-// Gated behind config.session.persist (OFF under test, ON in dev/prod).
+// All DB access lives here in the server layer (never in the engine).
+// Snapshot failures retain pending exposures. Broadcasts wait for the commit
+// before revealing new hands; engine actions remain synchronous. Exposure
+// recording also runs when resumable sessions are explicitly disabled.
 
 // Debounce per room so a burst of moves coalesces into a single write.
 const snapshotTimers = new Map(); // roomCode -> timeout
 const SNAPSHOT_DEBOUNCE_MS = 200;
+const pendingSnapshots = new Set();
 
-// Write a snapshot of a live, resumable engine (status 'active'). No-op when
-// persistence is off, the room isn't running, or the engine can't serialize.
-async function writeSnapshot(room) {
+function writeSnapshot(room) {
+  // eslint-disable-next-line no-use-before-define
+  const pending = persistSnapshot(room);
+  pendingSnapshots.add(pending);
+  pending.then(() => pendingSnapshots.delete(pending));
+  return pending;
+}
+
+async function flushSnapshots() {
+  await Promise.all([...pendingSnapshots]);
+}
+
+// Write a snapshot and its exposures atomically. With session persistence off,
+// only exposures are stored (there is no saved game to resume).
+async function persistSnapshot(room) {
   try {
-    if (!config.session.persist) return;
-    if (!room || !room.isGameActive || !room.gameEngine) return;
+    if (!room || !room.isGameActive || !room.gameEngine) return true;
     const engine = room.gameEngine;
-    if (!isResumable(engine.constructor) || typeof engine.serialize !== 'function') return;
+    if (!isResumable(engine.constructor) || typeof engine.serialize !== 'function') return true;
+    // Deep-copy before awaiting: the engine continues accepting actions while
+    // the database writes, so a snapshot must not retain live state references.
+    const serializedState = JSON.parse(JSON.stringify(engine.serialize()));
+    const events = serializedState.exposureEvents || [];
+    if (!config.session.persist) {
+      await CardStatsRepository.recordExposureEvents(events);
+      if (engine.acknowledgeExposures) engine.acknowledgeExposures(events);
+      return true;
+    }
     room.stateVersion = (room.stateVersion || 0) + 1;
     await SessionRepository.snapshot({
       roomCode: room.code,
       gameType: room.gameType,
       stateVersion: room.stateVersion,
-      serializedState: engine.serialize(),
+      serializedState,
       status: 'active',
     });
+    if (engine.acknowledgeExposures) engine.acknowledgeExposures(events);
+    return true;
   } catch (error) {
     console.error('Failed to snapshot session:', error);
+    return false;
   }
 }
 
@@ -963,15 +1006,14 @@ async function rehydrateRoom(code) {
     Object.values(seats).forEach((p) => {
       if (!p || !p.id) return;
       if (p.isBot) {
-        if (typeof engine.handlePlayerLeave === 'function') engine.handlePlayerLeave(p.id);
+        if (typeof engine.handlePlayerLeave === 'function') engine.handlePlayerLeave(p.id, { reflow: false });
         return;
       }
       const held = room.addPlayer(p.id, p.name, null, false);
       held.connected = false;
       held.isActive = false;
-      if (typeof engine.handlePlayerDisconnect === 'function') {
-        engine.handlePlayerDisconnect(p.id);
-      }
+      // Restoring a held seat is not a gameplay departure or a new round.
+      if (engine.state?.players?.[p.id]) engine.state.players[p.id].isActive = false;
     });
 
     room.gameState = typeof engine.getPublicState === 'function'
@@ -1543,6 +1585,7 @@ function shutdown(signal) {
   io.close();
   server.close(async () => {
     try {
+      await flushSnapshots();
       await dbmod.close();
     } catch {
       // ignore — we're exiting anyway
@@ -1564,4 +1607,6 @@ module.exports = {
   rehydrateRoom,
   sweepSessions,
   writeSnapshot,
+  broadcastGameState,
+  flushSnapshots,
 };

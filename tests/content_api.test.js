@@ -89,6 +89,24 @@ describe('Content API (/api/content/cards)', () => {
     });
   });
 
+  test('serializes numeric exposure/outcome totals with attribution and tracking start', async () => {
+    const created = await postBatch([{
+      ...validAnswer('Exposure API fixture'), writer: 'writer.test', generation_route: 'writer',
+    }]);
+    const [id] = created.body.created;
+    await db.db()('card_stats').insert({ card_id: id, deals: 7, prompt_exposures: 0, plays: 3, wins: 1 });
+    const res = await request(app).get('/api/content/cards').set('X-Api-Token', CONTENT_TOKEN);
+    expect(res.status).toBe(200);
+    expect(res.body.cards.find((card) => card.id === id)).toMatchObject({
+      deals: 7, prompt_exposures: 0, plays: 3, wins: 1,
+      writer: 'writer.test', generation_route: 'writer',
+    });
+    expect(res.body.exposure_tracking).toMatchObject({ historical_counts_known: false });
+    expect(res.body.exposure_tracking.started_at).toBeTruthy();
+    const zero = res.body.cards.find((card) => card.id !== id);
+    expect(zero).toMatchObject({ deals: 0, prompt_exposures: 0, plays: 0, wins: 0 });
+  });
+
   describe('auth separation (S2 — prevents auto-publish)', () => {
     let cardId;
 
