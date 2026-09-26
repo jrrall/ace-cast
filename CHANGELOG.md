@@ -1,3 +1,7 @@
+## 1.30.0 (2026-09-26)
+
+* feat: rebrand as omfg.cards and simplify mobile onboarding (#80) ([79e5045](https://github.com/jrrall/ace-cast/commit/79e5045)), closes [#80](https://github.com/jrrall/ace-cast/issues/80)
+
 ## <small>1.29.1 (2026-09-26)</small>
 
 * fix(card-forge): publish immutable release images (#78) ([c3817c5](https://github.com/jrrall/ace-cast/commit/c3817c5)), closes [#78](https://github.com/jrrall/ace-cast/issues/78)
