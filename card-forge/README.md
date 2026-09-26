@@ -49,13 +49,13 @@ Then `client.py` POSTs the batch; the server re-validates, dedupes on
 
 ## Editorial direction
 
-The chain targets adult Gen Z humor: deadpan absurdity, surreal escalation,
-ironic overconfidence, and online behavior colliding with real consequences.
-News supplies the contradiction or comic premise; cards should work without
-recognizing the headline. Avoid millennial-burnout filler and forced slang.
-Writer, Editor, and Curator share this direction with Trendscout. Prompts must
-have exactly one blank that accepts an unrelated answer card.
-The local smoke test uses explicitly fictional sample headlines in this vein.
+Humor, tone, subject preferences, and comic mechanisms come from each persona's
+TOML voice and phase instructions. Shared prompts handle card format, counts,
+source provenance, maturity ceilings, and review mechanics. Editor and Curator
+preserve and assess the supplied cards without a separate house comedy voice.
+Maturity is an upper bound, not a requirement to make every persona equally extreme.
+Fictional research seeds and smoke inputs describe neutral settings and details;
+the selected persona supplies their comic interpretation.
 
 ## Why the OpenAI SDK (not pydantic-ai)
 
@@ -147,8 +147,8 @@ full list. Key secrets:
   legacy shared `CONTENT_API_TOKEN` also still works.
 - `FEED_ALLOWLIST` — comma-separated feed URLs.
 - `PACK_SLUG` / `MATURITY_MAX` — target pack and generator maturity ceiling (default 3).
-  At 3, writing and review explicitly target extreme adult comedy while the
-  moderator independently rates each card. Lower ceilings remain configurable.
+  This is an upper bound on content, not a shared humor style or intensity target.
+  Personas supply creative direction; the moderator independently rates each card.
   The content API accepts ratings 0–3 regardless of pack metadata; it does not
   impose a pack maturity ceiling. Cards still require approval, and gameplay
   continues to respect the room's maturity filter. Redeploy the game before
@@ -169,8 +169,8 @@ Headlines are interleaved by source before the 60-headline research limit, with
 identical headlines removed. A long feed cannot crowd out all the later feeds.
 Unavailable feeds are logged and skipped; the run fails if none return items.
 History entries include a short article excerpt and source link. Each run also
-samples three fictional everyday situations and three off-the-cuff premises
-from local banks. Set `INSPIRATION_PER_LANE=0` to disable those, or 1–8 to
+samples three neutral fictional situations and three setting/detail pairs
+from local banks; they do not prescribe a joke or complication. Set `INSPIRATION_PER_LANE=0` to disable those, or 1–8 to
 adjust each bank. These are labeled fictional, not reported events. This is
 one research pass with no recursive browsing. Themes carry only their selected
 source context; unrelated headlines are not appended to every writer request.
@@ -781,3 +781,8 @@ eight enabled personas, so either writer can be absent from a particular run.
 Use `WRITERS_PER_RUN=0` and `CARDS_PER_THEME=16` to run all eight with one prompt
 and one answer slot per writer per theme. Deploy the updated image or mount the
 updated persona directory before starting that new run.
+
+
+Shared prompt changes require the updated code/image as well as persona files.
+Start a fresh run to use neutral research seeds and the new review instructions;
+existing checkpoints retain their saved source material and persona snapshots.

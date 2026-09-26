@@ -18,9 +18,8 @@ def find_cards(llm, items, limit=6):
     if not pool or limit == 0:
         return []
     data = llm.complete_json(
-        system=('Pick short found phrases that already work as funny standalone answer cards. '
-                'Puns, rude name mashups, and stupid concrete images are valid jokes; they do '
-                'not need an elaborate reversal or social commentary. Select up to the limit '
+        system=('Select short source phrases that work as standalone answer cards. '
+                'Assess card format without imposing a humor style. Select up to the limit '
                 'or none. Do not rewrite or complete a phrase. Return {"selected":[0,1]} '
                 'using the supplied zero-based indexes. ' + INJECTION_NOTICE),
         user=f'Limit: {limit}\n' + wrap_feed_data(json.dumps(pool, ensure_ascii=False)), temperature=0.3)

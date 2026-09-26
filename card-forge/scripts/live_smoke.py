@@ -40,11 +40,12 @@ from forge.personas import Trendscout, writing_team  # noqa: E402
 
 # Fictional sample headlines, not claims about actual news events.
 CANNED_FEED = [
-    FeedItem(title="Fictional: influencer's apology video includes a sponsor discount code", source="fictional"),
-    FeedItem(title="Fictional: babysitting startup replaces background checks with follower counts", source="fictional"),
-    FeedItem(title="Fictional: dating app sells a subscription to explain why someone left you on read", source="fictional"),
-    FeedItem(title="Fictional: luxury survival retreat charges extra for drinking water", source="fictional"),
+    FeedItem(title="Fictional: a community center publishes its event schedule", source="fictional"),
+    FeedItem(title="Fictional: a family completes a babysitter's contact form", source="fictional"),
+    FeedItem(title="Fictional: two adults arrange a first date", source="fictional"),
+    FeedItem(title="Fictional: a campground opens its visitor registration desk", source="fictional"),
 ]
+
 
 
 class _StubContentClient:

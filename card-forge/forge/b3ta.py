@@ -98,7 +98,6 @@ def collect(html: str, base: str, client: httpx.Client, *, rng=random) -> list[d
                          for p in source_posts for line in p["text"].splitlines()
                          if 2 <= len(line.strip()) <= 100 and 1 <= len(line.split()) <= 8
                          and "____" not in line][:40]
-        post["text"] = ("Unverified forum humor, not factual reporting. Extract the comic device "
-                        "and invent fresh examples; do not copy punchlines.\n" + post["text"])[:5000]
+        post["text"] = ("Unverified forum humor, not factual reporting.\n" + post["text"])[:5000]
     LOG.info("feed.b3ta_sample", extra={"extra_fields": {"url": base, "posts": len(sampled)}})
     return sampled
