@@ -152,7 +152,7 @@ def test_curator_repairs_cached_invalid_schema_without_repeating_valid_call(sett
 
 def test_old_checkpoint_retains_six_writer_roster(settings, tmp_path):
     with Checkpoint(tmp_path, settings) as cp:
-        assert len(cp.writer_names) == 7
+        assert len(cp.writer_names) == 8
         manifest = cp.read('manifest')
         manifest.pop('writer_names')
         manifest['settings'].update(opposites_round=False, opposites_setups=2, opposites_answers=2)
