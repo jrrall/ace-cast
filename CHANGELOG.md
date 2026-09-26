@@ -1,3 +1,7 @@
+## 1.25.0 (2026-09-26)
+
+* feat(card-forge): add Intrusive Thoughts and sharpen Banned voice (#74) ([1f99145](https://github.com/jrrall/ace-cast/commit/1f99145)), closes [#74](https://github.com/jrrall/ace-cast/issues/74)
+
 ## 1.24.0 (2026-09-26)
 
 * feat(card-forge): checkpoint small persona scout batches (#72) ([5c96bba](https://github.com/jrrall/ace-cast/commit/5c96bba)), closes [#72](https://github.com/jrrall/ace-cast/issues/72)
