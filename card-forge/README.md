@@ -268,16 +268,54 @@ inputs and are excluded from the image.
 
 ### Pull on another machine
 
-The Card Forge workflow builds both Linux AMD64 and ARM64 images and publishes
-them to GitHub Container Registry. Feature-branch builds use the `card-forge`
-tag; builds from `main` use `latest`. Every build also gets its full commit SHA
-as an immutable tag.
+Each semantic release publishes a Linux AMD64 + ARM64 image at
+`ghcr.io/jrrall/ace-cast/card-forge:X.Y.Z`, built from the exact `vX.Y.Z`
+tagged commit. The same manifest is also tagged with the full commit SHA;
+revision/version labels identify the source. Use an explicit published version:
 
 ```bash
-docker pull ghcr.io/jrrall/ace-cast/card-forge:card-forge
+# Set this to a version whose Card Forge image publication has succeeded.
+VERSION=1.22.1
+docker pull "ghcr.io/jrrall/ace-cast/card-forge:$VERSION"
 docker run --rm --env-file card-forge.env \
-  ghcr.io/jrrall/ace-cast/card-forge:card-forge --dry-run
+  "ghcr.io/jrrall/ace-cast/card-forge:$VERSION" --dry-run
 ```
+
+`1.22.1` is an example historical release that requires the manual backfill below.
+The GitHub release alone does not prove its container publication succeeded.
+Card Forge is the `/card-forge` image; it is separate from the game server
+(which the Linode compose deployment builds locally as `ace-cast:latest`).
+Do not use the repository-root image path to run Card Forge. Moving Card Forge
+`latest` and `card-forge` aliases are no longer published or updated; old aliases
+may still exist but are stale.
+
+The Release workflow calls the image workflow directly after semantic-release
+reports a new release. A no-release run skips image publication. It does not
+rely on another workflow being triggered by a `GITHUB_TOKEN` tag push.
+PR and branch validation only build/test; they have no GHCR write permission.
+
+To backfill an existing published release, run the current workflow from `main`
+and supply the historical tag (do not run the old workflow at that tag):
+
+```bash
+gh workflow run card-forge-release.yml --ref main -f tag=v1.22.1
+gh run list --workflow card-forge-release.yml
+```
+
+The workflow verifies the GitHub release, resolves its tag to a commit, tests
+that checkout, and builds both architectures from it. It never relabels an
+unverified moving image. Run-specific `build-<run>-<arch>` staging tags
+support assembly. The final version and SHA tags are checked before either is
+written: identical manifests are left alone; a different manifest fails the
+run. Registry/authentication errors also fail closed. Publication is serialized
+per release across automatic and manual runs. These guards cover this workflow;
+registry administrators must also avoid changing release tags externally.
+
+If a rerun rebuilds different bytes (for example after a base-image update), it
+will refuse to replace an existing release image even when its commit matches.
+Keep the existing image and publish a new release for changed artifacts. Inspect
+the workflow failure before retrying; never delete a version tag to bypass the
+guard. Use a manifest digest when an independent content-addressed pin is needed.
 
 Create `card-forge.env` on that machine with:
 
@@ -405,8 +443,9 @@ JSON parse location without dumping model content. Format retries can add one
 LLM timeout per attempt; they never retry the submission POST.
 
 If you build `card-forge:dev`, run that same tag to use your local changes.
-Running `ghcr.io/jrrall/ace-cast/card-forge:latest` uses the separately pulled
-registry image instead.
+Running an explicit registry version such as
+`ghcr.io/jrrall/ace-cast/card-forge:1.22.1` uses that separately pulled release
+image instead.
 
 ### Writer attribution
 

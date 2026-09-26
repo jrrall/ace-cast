@@ -4,13 +4,14 @@ on:
   pull_request:
     paths:
       - 'card-forge/**'
-      - '.github/workflows/card-forge.yml'
+      - '.github/workflows/card-forge*.yml'
+      - 'scripts/release/**'
   push:
     branches: [main, feat/card-forge]
     paths:
       - 'card-forge/**'
-      - '.github/workflows/card-forge.yml'
-  workflow_dispatch:
+      - '.github/workflows/card-forge*.yml'
+      - 'scripts/release/**'
 
 permissions:
   contents: read
@@ -38,45 +39,9 @@ jobs:
     runs-on: ${{ matrix.runner }}
     permissions:
       contents: read
-      packages: write
     steps:
       - uses: actions/checkout@v4
       - name: Build and check image with Docker
         run: |
           docker build -t card-forge:test card-forge
           docker run --rm card-forge:test --help
-      - name: Publish architecture image
-        if: github.event_name != 'pull_request'
-        env:
-          REGISTRY_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          REGISTRY_USER: ${{ github.actor }}
-          REPOSITORY: ${{ github.repository }}
-          COMMIT: ${{ github.sha }}
-          ARCH: ${{ matrix.arch }}
-        run: |
-          image="ghcr.io/${REPOSITORY,,}/card-forge"
-          printf '%s' "$REGISTRY_TOKEN" | docker login ghcr.io -u "$REGISTRY_USER" --password-stdin
-          docker tag card-forge:test "$image:$COMMIT-$ARCH"
-          docker push "$image:$COMMIT-$ARCH"
-
-  publish:
-    if: github.event_name != 'pull_request'
-    needs: image
-    runs-on: ubuntu-24.04
-    permissions:
-      packages: write
-    steps:
-      - name: Publish multi-platform manifest with Docker
-        env:
-          REGISTRY_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          REGISTRY_USER: ${{ github.actor }}
-          REPOSITORY: ${{ github.repository }}
-          COMMIT: ${{ github.sha }}
-          BRANCH: ${{ github.ref_name }}
-        run: |
-          image="ghcr.io/${REPOSITORY,,}/card-forge"
-          printf '%s' "$REGISTRY_TOKEN" | docker login ghcr.io -u "$REGISTRY_USER" --password-stdin
-          docker buildx imagetools create --tag "$image:$COMMIT" \
-            "$image:$COMMIT-amd64" "$image:$COMMIT-arm64"
-          if [ "$BRANCH" = main ]; then tag=latest; else tag=card-forge; fi
-          docker buildx imagetools create --tag "$image:$tag" "$image:$COMMIT"
