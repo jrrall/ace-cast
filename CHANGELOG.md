@@ -1,3 +1,7 @@
+## 1.29.0 (2026-09-26)
+
+* feat(audio): add layered SuperCollider game sounds (#79) ([7c5d0f1](https://github.com/jrrall/ace-cast/commit/7c5d0f1)), closes [#79](https://github.com/jrrall/ace-cast/issues/79)
+
 ## 1.28.0 (2026-09-26)
 
 * feat: add manual admin cards and prevent silent moderation loss (#77) ([fe8ee95](https://github.com/jrrall/ace-cast/commit/fe8ee95)), closes [#77](https://github.com/jrrall/ace-cast/issues/77)
