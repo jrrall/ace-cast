@@ -77,6 +77,7 @@ def test_format_retry_regenerates_complete_response(first_content, finish):
     assert llm.last_call_source == 'generation'
     assert llm.last_call_stats == {'model_attempts': 2, 'format_retries': 1}
     assert len(requests) == 2
+    assert requests[1]['max_tokens'] == (8192 if finish == 'length' else 4096)
     assert requests[1]['temperature'] == 0
     assert requests[1]['messages'][1] == requests[0]['messages'][1]
     assert 'previous response' in requests[1]['messages'][0]['content']

@@ -34,6 +34,10 @@ class _JSONResponseError(LLMError):
     """Only invalid or truncated JSON is eligible for a format retry."""
 
 
+class _TruncatedResponseError(_JSONResponseError):
+    """A response exhausted its output budget."""
+
+
 def _extract_json(text: str) -> Any:
     """Best-effort extraction of a JSON value from a model response.
 
@@ -94,13 +98,14 @@ class LLMClient:
         """
         self.last_call_source = 'generation'
         self.last_call_stats = {'model_attempts': 0, 'format_retries': 0}
+        max_tokens = CALL_CONTEXT.get().get("max_tokens", 4096)
         format_attempt = timeout_attempt = 0
         while True:
             self.last_call_stats['model_attempts'] += 1
             try:
                 return self._complete_json_once(
                     system=system, user=user, temperature=temperature if format_attempt == 0 else 0.0,
-                    format_retry=format_attempt > 0,
+                    format_retry=format_attempt > 0, max_tokens=max_tokens,
                 )
             except _TimeoutResponseError:
                 if self.settings.llm_max_retries or timeout_attempt >= self.settings.llm_timeout_retries:
@@ -114,15 +119,18 @@ class LLMClient:
             except _JSONResponseError as exc:
                 if format_attempt >= self.settings.llm_json_retries:
                     raise LLMError(f"LLM JSON failed after {format_attempt + 1} attempts: {exc}") from exc
+                if isinstance(exc, _TruncatedResponseError):
+                    max_tokens = min(16384, max_tokens * 2)
                 format_attempt += 1
                 self.last_call_stats['format_retries'] += 1
                 LOG.warning("llm.json_retry", extra={"extra_fields": {
                     **CALL_CONTEXT.get(), "model": self.model, "attempt": format_attempt, "error": str(exc),
+                    "next_max_tokens": max_tokens,
                 }})
 
     def _complete_json_once(self, *, system: str, user: str, temperature: float,
-                            format_retry: bool) -> Any:
-        context = {"phase": "unspecified", "max_tokens": 4096, **CALL_CONTEXT.get()}
+                            format_retry: bool, max_tokens: int) -> Any:
+        context = {"phase": "unspecified", "max_tokens": 4096, **CALL_CONTEXT.get(), "max_tokens": max_tokens}
         kwargs: dict[str, Any] = {"max_tokens": context["max_tokens"]}
         if self.settings.llm_reasoning_effort:
             kwargs["reasoning_effort"] = self.settings.llm_reasoning_effort
@@ -169,6 +177,7 @@ class LLMClient:
                 **context, "model": self.model,
                 "prompt_tokens": getattr(getattr(resp, "usage", None), "prompt_tokens", None),
                 "completion_tokens": getattr(getattr(resp, "usage", None), "completion_tokens", None),
+                "reasoning_chars": len(getattr(resp.choices[0].message, "reasoning", None) or getattr(resp.choices[0].message, "reasoning_content", None) or "") if resp.choices else 0,
                 "elapsed_s": round(time.monotonic() - started, 1),
                 "finish_reason": resp.choices[0].finish_reason if resp.choices else None,
             }},
@@ -179,7 +188,7 @@ class LLMClient:
         except (AttributeError, IndexError) as exc:
             raise LLMError(f"malformed LLM response: {exc}") from exc
         if choice.finish_reason == "length":
-            raise _JSONResponseError("LLM output truncated (finish_reason=length)")
+            raise _TruncatedResponseError("LLM output truncated (finish_reason=length)")
         if choice.finish_reason != "stop":
             raise LLMError(f"LLM completion did not finish normally: {choice.finish_reason}")
         try:

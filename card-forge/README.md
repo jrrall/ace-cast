@@ -895,7 +895,12 @@ headroom plus 160 per written card, 256 per scout theme or curator evaluation,
 192 per edited/shortened card, 128 per moderation verdict, 320 per critique,
 160 per revision, 64 per repaired group label, or 16 per source selection.
 Every request is capped at 16,384 output tokens; unclassified calls use 4,096.
-Truncated output remains invalid and gets only the configured JSON-format retries.
+Truncated output remains invalid; each configured JSON-format retry doubles its
+output allowance up to the 16,384-token ceiling. Other format failures retain their allowance.
+For Qwen thinking models on Ollama, set `LLM_REASONING_EFFORT=none` for these
+short structured tasks. An empty value leaves the server default in effect, which
+can spend the output budget on reasoning. Logs report reasoning character counts
+when the server supplies a separate reasoning field.
 These are initial budgets, not measured latency guarantees.
 
 `LLM_TIMEOUT_RETRIES=1` retries a timed-out request once after two seconds, across
