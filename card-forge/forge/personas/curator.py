@@ -62,7 +62,7 @@ class Curator:
         return {normalize_text(c.get("text", "")) for c in corpus if c.get("text")}
 
     def run(self, moderated: list[ModeratedCard]) -> SubmitBatch:
-        pack = self.settings.pack_slug
+        pack = (self.checkpoint.pack_slug if self.checkpoint else None) or self.settings.pack_slug
         if not moderated:
             return SubmitBatch(cards=[], pack=pack)
 
@@ -144,7 +144,8 @@ class Curator:
                 groups.add(group)
                 chosen.append(pool[idx])
         cards = [SubmitCard.from_moderated(c, pack) for c in chosen]
-        return SubmitBatch(cards=cards, pack=pack)
+        return SubmitBatch(cards=cards, pack=pack,
+                           base_pack=self.settings.pack_slug if self.checkpoint and self.checkpoint.pack_slug else None)
 
     def _score_chunk(self, user, start, end):
         system = SYSTEM + maturity_direction(self.settings.maturity_max)

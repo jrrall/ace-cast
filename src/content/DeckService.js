@@ -31,6 +31,8 @@ async function buildDeck({ gameId, packIds = [], maturityMax = 3 }) {
     const generated = await PackRepository.getBySlug(`${gameId}-generated`);
     if (generated && generated.id !== fallback.id) {
       ids.push(generated.id);
+      const runs = await PackRepository.listRunPacks(generated.id);
+      ids.push(...runs.map((pack) => pack.id));
     }
   }
 

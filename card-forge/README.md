@@ -918,3 +918,24 @@ and rubric match, even if prompt wording changed. Changed cards or batch sizes
 cause affected scoring to run again. API corpus deduplication and final ranking
 still run on resume. Older runs gain these batch checkpoints as scoring completes;
 previous successful calls can still be reused through the existing response cache.
+
+
+### Packs named after runs
+
+With `--run-dir`, the final folder name becomes the submitted pack slug and display
+name: `/output/qwen35-20260926-134926` creates `qwen35-20260926-134926`.
+Use lowercase letters, digits, hyphens, or underscores (up to 128 characters).
+Future themed runs can use names such as `sportsball-qwen35-20260926-134926`;
+this naming change does not implement a sports research chain.
+
+`PACK_SLUG` identifies the existing base generated pack (`madlad-generated`), which
+supplies the game identity. Without checkpoints it remains the direct destination.
+The API creates run packs only from a valid generated base, leaves their cards
+pending, and includes approved run-pack cards in the default deck. Explicit pack
+selection still selects only the requested packs.
+
+The checkpoint freezes the pack name, even if its directory is later moved.
+Unsubmitted legacy checkpoints adopt their folder name on resume; checkpoints
+with a submission record preserve their original destination and submission guard.
+Deploy the server and its run-pack migration before using this Forge change to
+submit: older servers reject unknown pack names. Dry runs do not create packs.

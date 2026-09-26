@@ -114,6 +114,39 @@ describe('Content API (/api/content/cards)', () => {
     });
   });
 
+  test('creates a named run pack, preserves pending review, and reuses it', async () => {
+    const slug = 'qwen35-20260926-134926';
+    const payload = { run_pack: { slug, base_pack: 'madlad-generated' },
+      cards: [{ ...validAnswer('Run-specific fixture'), pack: slug }] };
+    const send = () => request(app).post('/api/content/cards')
+      .set('Authorization', `Bearer ${CONTENT_TOKEN}`).send(payload);
+    const first = await send();
+    expect(first.status).toBe(201);
+    expect(first.body.created).toHaveLength(1);
+    const pack = await PackRepository.getBySlug(slug);
+    expect(pack.name).toBe(slug);
+    expect(pack.generated_from_pack_id).toBe(genPackId);
+    const card = await db.db()('cards').where({ id: first.body.created[0] }).first();
+    expect(card.status).toBe('pending');
+    expect(card.pack_id).toBe(pack.id);
+    const second = await send();
+    expect(second.body.skipped).toBe(1);
+    expect(second.body.created).toEqual([]);
+  });
+
+  test.each([
+    ['../invalid', 'madlad-generated'],
+    ['valid-run', 'missing-base'],
+    ['valid-run', 'madlad-core'],
+    ['madlad-core', 'madlad-generated'],
+  ])('rejects invalid or colliding run packs %s / %s', async (slug, basePack) => {
+    const result = await request(app).post('/api/content/cards')
+      .set('Authorization', `Bearer ${CONTENT_TOKEN}`)
+      .send({ run_pack: { slug, base_pack: basePack },
+        cards: [{ ...validAnswer('Run validation fixture'), pack: slug }] });
+    expect(result.status).toBe(400);
+  });
+
   describe('POST validation + ingestion', () => {
     test('valid batch → 201, pending rows retrievable via GET', async () => {
       const res = await postBatch([

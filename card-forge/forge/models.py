@@ -163,11 +163,13 @@ class SubmitBatch(BaseModel):
 
     cards: list[SubmitCard] = Field(default_factory=list)
     pack: str = "madlad-generated"
+    base_pack: str | None = None
     generated_at: datetime = Field(default_factory=_utcnow)
 
     def payload(self) -> dict:
         """JSON body for ``POST /api/content/cards``."""
         return {
+            **({"run_pack": {"slug": self.pack, "base_pack": self.base_pack}} if self.base_pack else {}),
             "cards": [
                 {
                     "kind": c.kind,

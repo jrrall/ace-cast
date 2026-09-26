@@ -5,6 +5,7 @@ import fcntl
 import hashlib
 import json
 import os
+import re
 from pathlib import Path
 
 from .logging_setup import get_logger
@@ -65,6 +66,13 @@ class Checkpoint:
             ])
             self.scout_protocol = manifest.get('scout_protocol', 'legacy')
             self.persona_scout = manifest.get('persona_scout', False)
+            self.pack_slug = manifest.get('run_pack')
+            if self.pack_slug is None and self.read('submission') is None:
+                self.pack_slug = self.path.resolve().name
+                if not re.fullmatch(r'[a-z0-9][a-z0-9_-]{0,127}', self.pack_slug):
+                    raise ValueError('Run directory name must be a lowercase pack slug (letters, digits, hyphens, underscores; max 128)')
+                manifest['run_pack'] = self.pack_slug
+                self.write('manifest', manifest)
             from .persona_registry import Persona, select_personas
             if 'personas' in manifest and 'writer_names' in manifest:
                 self.personas = [Persona.model_validate(p) for p in manifest['personas']]
