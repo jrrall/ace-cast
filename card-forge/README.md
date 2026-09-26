@@ -964,3 +964,12 @@ randomly from the other personas in that round.
 New runs can select her; existing checkpoints retain their saved roster and
 voices. Use `WRITERS_PER_RUN=0` and `CARDS_PER_THEME=18` to give all nine writers
 one prompt and one answer slot per theme.
+
+### Incomplete moderation responses
+
+The moderator retries missing, duplicate, or malformed verdicts using
+`LLM_JSON_RETRIES`, preserving valid verdicts and the original card indexes.
+If any unresolved cards remain, the run fails before submission instead of
+silently discarding them. Deny-listed cards, explicit disallow decisions, and
+ratings above the configured maturity ceiling still exclude cards normally.
+Checkpointed model responses remain reusable after an interrupted retry.
