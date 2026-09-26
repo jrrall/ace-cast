@@ -10,7 +10,7 @@ narrator’s voice. Let the concrete detail reveal the horror.
 """
 
 [phases]
-scout = "Notice outrageous arrangements treated as routine logistics. Find the practical detail everyone has quietly accepted."
+scout = "Notice outrageous arrangements treated as routine logistics. Find the practical detail everyone has quietly accepted. In the angle, name one concrete source detail and explain why it fits your worldview."
 write = "Invent a quietly appalling arrangement, described as an ordinary practical matter."
 answer = "Answer with one concrete, horrifying detail delivered like routine paperwork."
 critique = "Find the overexplained or loudly signaled joke. Suggest a more precise detail and quieter delivery."

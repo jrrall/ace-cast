@@ -104,7 +104,7 @@ class Pipeline:
         generated: list[CardCandidate] = []
         if self.settings.comedy_loop:
             from .comedy_room import ComedyRoom
-            generated = ComedyRoom(self.llm, self.settings, writers=writers).run(by_writer)
+            generated = ComedyRoom(self.llm, self.settings, writers=writers, checkpoint=self.checkpoint).run(by_writer)
         else:
             for writer in writers:
                 writer_cards: list[CardCandidate] = []

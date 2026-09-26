@@ -35,13 +35,14 @@ a local model. Logs record stage counts and model call timing.
 | 2f | **Hatemonger** | `Theme` → `[CardCandidate]` | Ranting uncle: petty grievances, scrambled conspiracies, absurd statistics, and defensive self-owns. |
 | 2g | **Toxic Positivity** | `Theme` → `[CardCandidate]` | Self-congratulatory charity, privilege lectures, and demands for gratitude. |
 | 2h | **Intrusive Thoughts** | `Theme` → `[CardCandidate]` | Dangerous curiosity, forbidden associations, and catastrophically inappropriate possibilities. |
+| 2i | **Super Bitch** | `Theme` → `[CardCandidate]` | Vicious queen bee: weaponized compliments, fake concern, and surgical social humiliations. |
 | 3 | **Editor** | `[CardCandidate]` → `[CardCandidate]` | Repair wording; drop broken/duplicate cards; preserve unusual jokes. |
 | 4 | **Moderator** | `[CardCandidate]` → `[ModeratedCard]` | Assign maturity 0–3, cap at the configured generator ceiling, drop out-of-policy + deny-listed. |
 | 5 | **Curator** | `[ModeratedCard]` → `SubmitBatch` | Fetch the existing corpus (incl. denied), drop near-dups, rank/select up to `BATCH_MAX` (default 50). |
 
-`CARDS_PER_THEME` is the total budget shared by all eight writers (minimum 8 when all are selected).
+`CARDS_PER_THEME` is the total budget shared by all nine writers (minimum 9 when all are selected).
 Leftover cards are allocated in roster order: Deadpan, Unhinged, PR Spin Doctor,
-Petty Villain, Banned From 4chan, Hatemonger, Toxic Positivity, then Intrusive Thoughts. The editor preserves their different voices;
+Petty Villain, Banned From 4chan, Hatemonger, Toxic Positivity, Intrusive Thoughts, then Super Bitch. The editor preserves their different voices;
 the curator chooses strong cards across the roster without forcing a quota.
 
 Then `client.py` POSTs the batch; the server re-validates, dedupes on
@@ -115,7 +116,7 @@ moderated / deduped / assembled / submitted counts.
 20 for a smaller review queue; use multiple runs to accumulate roughly 100
 candidates a day. Each run still submits one API request. No scheduler is added.
 The cap is a ceiling, not a target: `THEMES_PER_RUN` and `CARDS_PER_THEME` control
-how many drafts are generated (defaults: 4 × 8), and review may remove cards.
+how many drafts are generated (defaults: 4 × 9), and review may remove cards.
 `EDITOR_BATCH_SIZE=12` bounds cards per editor request; lower it to 6 if editing
 still times out. This does not change the final batch cap. Exact duplicate edits
 are removed across chunks; the curator checks repeated premises across the full
@@ -457,8 +458,8 @@ feeds, including b3ta, before the normal editing and review stages.
 Hatemonger (`writer.hatemonger`) writes as a paranoid uncle whose certainty
 exposes his own ridiculous reasoning. His invented stats concern absurd habits
 and objects; conspiracies scramble cause and effect. Cards retain the same
-prompt/answer formats and author tracking as the other writers. With all eight writers,
-`CARDS_PER_THEME` must be at least 8 for new runs; use 16 to give each writer one prompt and
+prompt/answer formats and author tracking as the other writers. With all nine writers,
+`CARDS_PER_THEME` must be at least 9 for new runs; use 18 to give each writer one prompt and
 one answer per theme. No franchise roleplay is included.
 
 ### Archived conspiracy research
@@ -500,15 +501,17 @@ Trendscout will select a theme from it on every run.
 ### Paired comedy loop (experimental)
 
 Set `COMEDY_LOOP=true` to add one bounded exchange before the normal editor,
-moderator, and curator. Pairs are Deadpan ↔ Unhinged, PR Spin Doctor ↔ Banned
-From the Thread, and Petty Villain ↔ Hatemonger. All eight writers draft independently
-first. Each partner challenges the originals, and the original writer gets one
+moderator, and curator. Writers draft independently first. Each writer then draws
+a random challenger from the other personas with a theme in that round. Draws are
+independent, so a persona may challenge multiple writers; nobody challenges themself.
+A solo round keeps its originals. Checkpointed runs save each round’s draw before
+critiques begin and reuse it on resume. Each challenger reviews the originals, and the original writer gets one
 revision, which can retain the original. No model declares a winner. Invalid or
 kind-changing revisions retain the original; malformed response envelopes fail
 the run before submission. The judging pool keeps originals and distinct revisions; final submission budgets stay unchanged.
 
-This adds up to sixteen LLM calls per theme (eight challenges and eight revisions)
-to the eight drafting calls. Calls remain sequential for local Ollama. It is off
+With all nine writers, this adds up to eighteen LLM calls per round (nine challenges
+and nine revisions) to the nine drafting calls. Calls remain sequential for local Ollama. It is off
 by default while human comparison establishes whether it improves the jokes.
 Original writer attribution reaches the API; challenger and revision history
 are in the local trace, not new admin fields.
@@ -628,7 +631,7 @@ lectures about privilege, and the gap between her moral self-image and her
 entitled decisions. Normal deck mixing supplies the cross-persona combinations;
 there is no separate swap round or `OPPOSITES_ROUND` flag.
 
-Use `CARDS_PER_THEME=16` to give each of the eight writers one prompt and one
+Use `CARDS_PER_THEME=18` to give each of the nine writers one prompt and one
 answer per theme. The total is shared across writers; it is not a per-writer
 count. Fresh runs selecting all eight need at least 8. Existing checkpoints preserve their saved
 roster; checkpoints created before roster tracking retain the original six.
@@ -670,6 +673,14 @@ prompt. Themes, drafts, and feedback stay in the user input. Ordinary runs use
 `write`; `COMEDY_LOOP=true` also uses `critique` and `revise`. The `answer` phase
 is available through `Writer.answer(setup)`; it does not add an extra round to
 normal runs. Review personas remain independent.
+
+Research supplies each card's concrete detail or situation; the persona supplies
+its interpretation and delivery. Bundled scout instructions ask for a specific
+source detail and its connection to the persona in the returned `angle`, which
+reaches the writer alongside the source excerpt. The shared writer prompt requires
+grounding while treating source text as untrusted data, never instructions.
+Start a new run to use updated scout profiles; resumed runs retain saved profiles
+and any completed scouting or writing results.
 
 `PERSONAS_DIR` selects a replacement folder. Its optional `_defaults.toml`
 overrides bundled phase defaults. Invalid files, duplicate IDs, unknown phases,
@@ -869,7 +880,7 @@ This voice finds the immediate, appalling possibility in something recognizable:
 a dangerous object, a solemn occasion, or an outrageously inappropriate crossover.
 The thought stays brief, hypothetical, and unacted. Its comic mechanism is the
 forbidden association arriving before judgment catches up. The optional comedy
-loop uses Deadpan as its challenger, with the usual fallback if Deadpan is absent.
+loop draws its challenger randomly from the other personas in that round.
 
 Banned From 4chan's compact voice asks for uncensored fuck/fucking as punctuation
 in prompts and answers at maturity 3. Profanity is part of the character's speech; each
@@ -877,8 +888,8 @@ card still needs a concrete terrible decision or self-own underneath it. Each ph
 
 New runs load these definitions. Resuming a checkpoint preserves its old roster
 and frozen voices, even if the TOMLs change. `WRITERS_PER_RUN=6` samples six of the
-eight enabled personas, so either writer can be absent from a particular run.
-Use `WRITERS_PER_RUN=0` and `CARDS_PER_THEME=16` to run all eight with one prompt
+nine enabled personas, so either writer can be absent from a particular run.
+Use `WRITERS_PER_RUN=0` and `CARDS_PER_THEME=18` to run all nine with one prompt
 and one answer slot per writer per theme. Deploy the updated image or mount the
 updated persona directory before starting that new run.
 
@@ -939,3 +950,17 @@ Unsubmitted legacy checkpoints adopt their folder name on resume; checkpoints
 with a submission record preserve their original destination and submission guard.
 Deploy the server and its run-pack migration before using this Forge change to
 submit: older servers reject unknown pack names. Dry runs do not create packs.
+
+### Super Bitch
+
+`super_bitch.toml` adds `writer.super_bitch`, enabled by default: an adult queen
+bee with Mean Girls energy turned up to eleven. Her weapons are backhanded
+compliments, fake concern, social exclusion, and viciously specific status
+judgments. Unlike Petty Villain, she needs no grievance: she considers enforcing
+the hierarchy a public service. Each phase favors concrete social humiliations
+over generic insults. In the optional comedy loop, her challenger is drawn
+randomly from the other personas in that round.
+
+New runs can select her; existing checkpoints retain their saved roster and
+voices. Use `WRITERS_PER_RUN=0` and `CARDS_PER_THEME=18` to give all nine writers
+one prompt and one answer slot per theme.

@@ -4,6 +4,7 @@ from __future__ import annotations
 from .call_context import complete
 
 import json
+import random
 from pathlib import Path
 from uuid import uuid4
 
@@ -12,12 +13,6 @@ from .models import CardCandidate
 from .personas import writing_team
 from .prompts import INJECTION_NOTICE, wrap_feed_data
 
-PAIRS = (("writer.deadpan", "writer.unhinged"),
-         ("writer.pr_spin_doctor", "writer.banned_from_4chan"),
-         ("writer.petty_villain", "writer.hatemonger"))
-PARTNERS = {a: b for pair in PAIRS for a, b in (pair, pair[::-1])}
-PARTNERS['writer.toxic_positivity'] = 'writer.banned_from_4chan'
-PARTNERS['writer.intrusive_thoughts'] = 'writer.deadpan'
 FORMAT = ('Prompts have exactly one ____ accepting an unrelated noun phrase. '
           'Answers are short standalone acts, objects, or situations with no blank. '
           'Preserve each source card kind. Return JSON only. ')
@@ -51,13 +46,27 @@ def _suggestion(row, original, author):
 
 
 class ComedyRoom:
-    def __init__(self, llm, settings, emit=None, writer_names=None, definitions=None, writers=None):
+    def __init__(self, llm, settings, emit=None, writer_names=None, definitions=None, writers=None, checkpoint=None):
+        self.checkpoint = checkpoint
         self.writer_names = writer_names
         self.definitions = definitions
         self.writers = writers
         self.llm, self.settings = llm, settings
         self.emit = emit
         self.run_id = uuid4().hex
+
+    def challengers(self, names, round_index):
+        key = f'comedy_challengers/{round_index}'
+        saved = self.checkpoint.read(key) if self.checkpoint else None
+        if saved is not None:
+            if saved['participants'] != names:
+                raise ValueError('Saved comedy challengers do not match round participants')
+            return saved['challengers']
+        chosen = {name: random.choice([other for other in names if other != name])
+                  for name in names} if len(names) > 1 else {}
+        if self.checkpoint:
+            self.checkpoint.write(key, {'participants': names, 'challengers': chosen})
+        return chosen
 
     def record(self, event):
         event = {'run_id': self.run_id, **event}
@@ -92,16 +101,16 @@ class ComedyRoom:
                 drafts[writer.name] = [c.model_copy(update={"generation_route": "writer"}) for c in writer.run(theme, batch=theme_number)]
                 self.record({**common, 'stage': 'draft', 'writer': writer.name,
                              'cards': [c.model_dump() for c in drafts[writer.name]]})
+            challengers = self.challengers(list(contexts), theme_number)
             for writer in writers:
                 originals = drafts[writer.name]
                 if not originals:
                     continue
                 theme, common = contexts[writer.name]
-                if len(writers) < 2:
+                if writer.name not in challengers:
                     final.extend(originals)
                     continue
-                partner = PARTNERS.get(writer.name)
-                challenger = by_name.get(partner) or writers[(writers.index(writer) + 1) % len(writers)]
+                challenger = by_name[challengers[writer.name]]
                 context = json.dumps({'theme': theme.title, 'angle': theme.angle,
                                       'cards': [c.model_dump() for c in originals]}, ensure_ascii=False)
                 data = complete(self.llm, 'critique', units=len(originals), persona=challenger.name, batch=theme_number,

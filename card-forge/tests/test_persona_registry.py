@@ -87,15 +87,15 @@ def test_custom_roster_uses_phase_overrides_in_comedy_loop(settings, tmp_path, s
     assert 'Critique as alpha.' in llm.calls[4]['system']
 
 
-def test_saved_seven_writer_run_does_not_gain_new_persona(settings, tmp_path):
+def test_saved_eight_writer_run_does_not_gain_new_persona(settings, tmp_path):
     with Checkpoint(tmp_path/'run', settings) as cp:
         manifest = cp.read('manifest')
-        manifest['personas'] = [p for p in manifest['personas'] if p['id'] != 'intrusive_thoughts']
-        manifest['writer_names'].remove('writer.intrusive_thoughts')
-        manifest['persona_versions'].pop('writer.intrusive_thoughts')
+        manifest['personas'] = [p for p in manifest['personas'] if p['id'] != 'super_bitch']
+        manifest['writer_names'].remove('writer.super_bitch')
+        manifest['persona_versions'].pop('writer.super_bitch')
         cp.write('manifest', manifest)
     with Checkpoint(tmp_path/'run', settings, resume=True) as cp:
         writers = writing_team(FakeLLM([]), settings, definitions=cp.personas)
-        assert len(writers) == 7
-        assert all(w.name != 'writer.intrusive_thoughts' for w in writers)
-    assert 'writer.intrusive_thoughts' in {p.writer_name for p in select_personas(settings)}
+        assert len(writers) == 8
+        assert all(w.name != 'writer.super_bitch' for w in writers)
+    assert 'writer.super_bitch' in {p.writer_name for p in select_personas(settings)}

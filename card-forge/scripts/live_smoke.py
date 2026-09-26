@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Light LIVE smoke test of the agent chain against the configured OpenAI-compatible server.
 
-Runs the full chain (Trendscout -> eight writers -> Editor -> Moderator ->
+Runs the full chain (Trendscout -> nine writers -> Editor -> Moderator ->
 Curator) making REAL calls to the configured LLM server, but WITHOUT needing the
 ace-cast game server:
   * the content corpus (Curator's dedupe source) is stubbed to empty, and
