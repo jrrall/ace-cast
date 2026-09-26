@@ -31,10 +31,12 @@ SYSTEM = (
     + RUBRIC
     + "Assign the same premise_group to variations of the same situation and payoff; "
     "shared topics, sources, or personas alone do not make a group.\n"
-    'Return only JSON: "selected" (ranked zero-based global indexes), "evaluations" (one per selected index). '
-    'Each evaluation: index, quality: {playability, comic_turn, specificity, economy, originality}, '
-    'premise_group (short label), reason (at most 12 words). Omit style scores and card text. '
-    'Use {"selected": [], "evaluations": []} if none qualify.'
+    'Return only {"selected":[0],"evaluations":[{"index":0,"quality":'
+    '{"playability":3,"comic_turn":3,"specificity":3,"economy":3,"originality":3},'
+    '"premise_group":"short_label"}]}. Example scores are illustrative. '
+    'Both selected and evaluations must be arrays; use ranked zero-based global indexes '
+    'and one evaluation per selected index. Optional reason: at most 12 words. '
+    'Omit style scores and card text. Use empty arrays if none qualify.'
 )
 
 
@@ -132,6 +134,7 @@ class Curator:
             data = self.llm.complete_json(
                 system=system, user=request, temperature=0.3 if attempt == 0 else 0.0,
             )
+            data = self._normalize_response(data)
             data = self._trim_complete_chunk(data, start, end)
             try:
                 return self._validate_response(data, start, end)
@@ -217,6 +220,26 @@ class Curator:
             if row["index"] in groups:
                 row["premise_group"] = groups[row["index"]]
         return repaired
+
+    @staticmethod
+    def _normalize_response(data):
+        """Repair known lossless formatting variants; never infer scores or identity."""
+        if not isinstance(data, dict):
+            return data
+        result = deepcopy(data)
+        rows = result.get("evaluations")
+        if isinstance(rows, dict):
+            # Accept a keyed container only when every key confirms its row's ID.
+            if not all(isinstance(row, dict) and type(row.get("index")) is int
+                       and str(row["index"]) == key for key, row in rows.items()):
+                return data
+            rows = list(rows.values())
+            result["evaluations"] = rows
+        if isinstance(rows, list):
+            for row in rows:
+                if isinstance(row, dict) and "preme_group" in row and "premise_group" not in row:
+                    row["premise_group"] = row.pop("preme_group")
+        return result
 
     @staticmethod
     def _trim_complete_chunk(data, start, end):

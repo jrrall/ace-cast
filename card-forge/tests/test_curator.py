@@ -333,3 +333,32 @@ def test_curator_separates_prior_context_and_repairs_out_of_range_index(settings
     assert 'invalid card index 1; expected 2 through 2' in retry
     assert 'Allowed indexes for selected and evaluations: [2]' in retry
     assert 'quality MUST' not in retry
+
+
+def test_curator_normalizes_keyed_evaluations_and_known_group_typo_without_retry(settings, sample_moderated):
+    from copy import deepcopy
+    response = rated_selection([0, 1, 2])
+    response['evaluations'][2]['preme_group'] = response['evaluations'][2].pop('premise_group')
+    response['evaluations'] = {str(row['index']): row for row in response['evaluations']}
+    original = deepcopy(response)
+    llm = FakeLLM([response])
+    assert len(Curator(llm, FakeContentClient(), settings).run(sample_moderated).cards) == 3
+    assert len(llm.calls) == 1
+    assert response == original
+
+
+def test_curator_format_normalization_rejects_conflicts_and_invalid_scores():
+    import pytest
+    for variant in ('key', 'group', 'score', 'unknown'):
+        response = rated_selection([0])
+        row = response['evaluations'][0]
+        if variant == 'key':
+            response['evaluations'] = {'1': row}
+        elif variant == 'group':
+            row['preme_group'] = 'conflicting_label'
+        elif variant == 'score':
+            row['quality']['playability'] = 99
+        else:
+            row['unexpected'] = True
+        with pytest.raises(ValueError):
+            Curator._validate_response(Curator._normalize_response(response), 0, 1)
