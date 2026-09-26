@@ -1,3 +1,8 @@
+## 1.23.0 (2026-09-26)
+
+* fix(card-forge): cap excess scouting themes without retrying (#66) ([ff12362](https://github.com/jrrall/ace-cast/commit/ff12362)), closes [#66](https://github.com/jrrall/ace-cast/issues/66)
+* feat(card-forge): scout structured stories with stable source IDs (#71) ([be4c115](https://github.com/jrrall/ace-cast/commit/be4c115)), closes [#71](https://github.com/jrrall/ace-cast/issues/71)
+
 ## <small>1.22.1 (2026-09-24)</small>
 
 * fix(card-forge): make persona scouting preferences deterministic (#65) ([f8f7ed8](https://github.com/jrrall/ace-cast/commit/f8f7ed8)), closes [#65](https://github.com/jrrall/ace-cast/issues/65)
