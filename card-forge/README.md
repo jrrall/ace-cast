@@ -725,3 +725,25 @@ a new run. The writer-only smoke script follows this setting unless an explicit
 
 `banned_from_4chan.toml` replaces `banned_from_the_thread.toml`; its display name is
 Banned From 4chan. Saved persona snapshots keep their original identities on resume.
+
+### Structured research stories (#67)
+
+New persona-scout runs save individual stories in `research.json`: content-based
+`id`, `source`, `title`, `url`, and full `excerpt`. Exact records are deduplicated;
+different articles/posts sharing a title stay separate. IDs are deterministic
+for identical full records (a changed excerpt produces a new ID).
+
+Scout user messages contain JSON `stories`, `max_themes`, and
+`tabloid_preference_percent`. Titles are capped at 300 characters, source labels
+at 160, and excerpts at `SCOUT_EXCERPT_CHARS` (default 800, range 100–4000).
+URLs and full text stay in the checkpoint. Scouts return `themes` with
+`story_id`, `title`, and `angle`; only IDs in the submitted stories are accepted.
+Original source metadata is attached in code, never taken from the model.
+
+Older checkpoints retain numbered-source scouting for resume compatibility.
+This is the structured-input foundation: the current call still receives the
+sampled pool. Small per-persona batches and per-batch recovery are tracked in #68.
+
+Scout requests use exact short IDs (`story-` plus 12 hash digits); checkpoints
+retain the full hashes. Short-ID collisions fail before sending a request.
+Old full IDs remain accepted, but misspelled IDs are never fuzzy-matched.
