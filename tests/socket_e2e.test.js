@@ -140,3 +140,55 @@ test('plays a full MadLad round through real sockets', async () => {
   expect(tv.last.winnerName).toBeTruthy();
   expect(tv.last.lastWinner.playerName).toBeTruthy();
 }, 30000);
+
+test('bot controls change visible seats without accumulating hidden clicks', async () => {
+  const { body: { roomCode } } = await request(app).post('/api/create-room');
+  const host = connect();
+  await waitConnect(host);
+  const roster = new Map();
+  host.on('player-joined', (p) => roster.set(p.playerId, p));
+  host.on('player-left', (p) => roster.delete(p.playerId));
+  const joined = once(host, 'room-state');
+  host.emit('join-room', { roomCode, deviceType: 'host' });
+  await joined;
+  const held = once(host, 'autostart-state');
+  host.emit('set-autostart', { on: false });
+  await held;
+  const click = async (event) => {
+    const updated = once(host, 'bot-controls');
+    host.emit(event);
+    return updated;
+  };
+  for (let i = 0; i < 12; i += 1) {
+    expect(await click('add-bot')).toMatchObject({ botCount: 0, canAdd: false });
+  }
+  for (let i = 0; i < 2; i += 1) {
+    const player = connect();
+    await waitConnect(player);
+    const ready = once(player, 'room-state');
+    const updated = once(host, 'bot-controls');
+    player.emit('join-room', { roomCode, playerName: `BotTester${i}`, deviceType: 'player' });
+    await ready;
+    expect(await updated).toMatchObject({ botCount: 0, humanCount: i + 1 });
+  }
+  expect(roster.size).toBe(2);
+  expect(await click('remove-bot')).toMatchObject({ botCount: 0, canRemove: false });
+  expect(await click('add-bot')).toMatchObject({ botCount: 1, canRemove: true });
+  expect(roster.size).toBe(3);
+  expect([...roster.values()].filter((p) => p.isBot)).toHaveLength(1);
+  expect(await click('remove-bot')).toMatchObject({ botCount: 0, canRemove: false });
+  expect(roster.size).toBe(2);
+  let state;
+  do {
+    const before = roster.size;
+    state = await click('add-bot');
+    expect(roster.size).toBe(before + 1);
+    expect(state.botCount).toBe(roster.size - 2);
+  } while (state.canAdd);
+  const fullSize = roster.size;
+  expect(await click('add-bot')).toEqual(state);
+  expect(roster.size).toBe(fullSize);
+  const refreshed = once(host, 'room-state');
+  host.emit('join-room', { roomCode, deviceType: 'host' });
+  expect((await refreshed).players).toHaveLength(fullSize);
+}, 30000);

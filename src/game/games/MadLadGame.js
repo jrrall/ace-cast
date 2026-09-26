@@ -323,6 +323,8 @@ class MadLadGame extends BaseGame {
       playerId: submission.playerId,
       playerName: winner ? winner.name : 'Someone',
       text: submission.text,
+      cardId: submission.card?.id ?? null,
+      writer: submission.card?.writer || null,
     };
 
     // Retire the submitted cards back to the discard pile.
@@ -541,6 +543,8 @@ class MadLadGame extends BaseGame {
         // Card DB id, exposed so the client can flag it (F2). Carries no
         // authorship, so it's safe during anonymous judging. Null for blanks.
         cardId: s.card && s.card.id != null ? s.card.id : null,
+        // The content writer is card metadata, never the submitting player.
+        writer: s.card?.writer || null,
         playerName: revealAuthors ? this.state.players[s.playerId]?.name : undefined,
         isWinner: revealAuthors && this.state.lastWinner
           ? s.playerId === this.state.lastWinner.playerId
@@ -607,7 +611,9 @@ class MadLadGame extends BaseGame {
         canDiscard,
         score: player.score,
       },
-      hand: player.hand.map((card, index) => ({ index, text: card.text, cardId: card.id })),
+      hand: player.hand.map((card, index) => ({
+        index, text: card.text, cardId: card.id, writer: card.writer || null,
+      })),
       availableActions,
     };
   }
