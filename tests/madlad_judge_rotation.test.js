@@ -26,7 +26,7 @@ const makeDeck = () => ({
 
 const makeGame = (n, opts = {}) => new MadLadGame(
   makeRoom(makePlayers(n)),
-  { deck: makeDeck(), ...opts },
+  { deck: makeDeck(), targetScore: 100, ...opts },
 );
 
 /** Play one full round to completion, leaving the game in the next round. */
@@ -174,12 +174,74 @@ describe('MadLad Card Czar rotation (#49)', () => {
         { id: 'p2', name: 'Human 2', isActive: true },
         { id: 'b2', name: 'Bot 2', isActive: true, isBot: true },
       ]);
-      const game = new MadLadGame(room, { deck: makeDeck() });
+      const game = new MadLadGame(room, { deck: makeDeck(), targetScore: 100 });
 
       const seen = judgeSequence(game, 6);
       expect(seen).toEqual(['p1', 'p2', 'p1', 'p2', 'p1', 'p2']);
       expect(seen).not.toContain('b1');
       expect(seen).not.toContain('b2');
+    });
+  });
+
+  describe('permanent departures and persistence', () => {
+    test.each([
+      ['p1', ['p3', 'p4', 'p5', 'p2']],
+      ['p3', ['p4', 'p5', 'p1', 'p2']],
+      ['p5', ['p3', 'p4', 'p1', 'p2']],
+    ])('leaving seat %s preserves every remaining turn', (departingId, expected) => {
+      const game = makeGame(5);
+      playRound(game);
+      playRound(game);
+      expect(game.state.judgeId).toBe('p3');
+
+      game.handlePlayerLeave(departingId);
+
+      expect(game.state.players[departingId].hand).toEqual([]);
+      expect(judgeSequence(game, 8)).toEqual([...expected, ...expected]);
+    });
+
+    test('a judge leaving during judging passes to the next seat', () => {
+      const game = makeGame(5);
+      playRound(game);
+      game.getActiveNonJudgeIds().forEach((id) => {
+        game.handlePlayerAction(id, { action: 'submit-card', data: { cardIndex: 0 } });
+      });
+      expect(game.state.phase).toBe('judging');
+
+      game.handlePlayerLeave('p2');
+
+      expect(game.state.phase).toBe('answering');
+      expect(judgeSequence(game, 4)).toEqual(['p3', 'p4', 'p5', 'p1']);
+    });
+
+    test('a judge leaving during results does not skip their successor', () => {
+      const game = makeGame(5);
+      playRound(game);
+      game.getActiveNonJudgeIds().forEach((id) => {
+        game.handlePlayerAction(id, { action: 'submit-card', data: { cardIndex: 0 } });
+      });
+      game.handlePlayerAction('p2', {
+        action: 'pick-winner', data: { submissionId: game.state.submissions[0].id },
+      });
+      expect(game.state.phase).toBe('results');
+
+      game.handlePlayerLeave('p2');
+      game.handlePlayerAction('p3', { action: 'next-round' });
+
+      expect(judgeSequence(game, 4)).toEqual(['p3', 'p4', 'p5', 'p1']);
+    });
+
+    test('restoring a legacy snapshot uses the judge id despite a stale pointer', () => {
+      const game = makeGame(5);
+      playRound(game);
+      playRound(game);
+      const snapshot = JSON.parse(JSON.stringify(game.serialize()));
+      snapshot.state.judgePointer = 2;
+      const restored = MadLadGame.restore(makeRoom(makePlayers(5)), snapshot);
+
+      restored.handlePlayerLeave('p1');
+
+      expect(judgeSequence(restored, 4)).toEqual(['p3', 'p4', 'p5', 'p2']);
     });
   });
 });
