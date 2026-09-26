@@ -699,29 +699,41 @@ the same image when resuming. No model automatically rewrites persona files.
 
 New runs default to `PERSONA_SCOUT=true`. Research collection fetches once, mixes
 in fictional seeds, deduplicates, and samples up to 60 items across sources.
-Each selected persona gets the same pool, then makes one scouting call using its
-voice and `[phases].scout` instructions. The model chooses source indexes and
-angles; code attaches the original source labels, URLs, and excerpts. Bad indexes
-or malformed choices trigger a bounded schema retry instead of fabricated provenance.
-Each writer receives only its own chosen themes. The optional comedy loop also
-preserves each author's research context when another persona challenges a card.
+Each selected persona receives up to `THEMES_PER_RUN` small batches, with at most
+`SCOUT_BATCH_SIZE=6` stories each. Source-interleaved assignments share one anchor
+per batch across personas and deterministically rotate the remaining stories by
+roster position. Stories never repeat within a persona. Short pools produce
+smaller/fewer batches; empty pools produce no scout calls. Nothing pads or expands
+the pool after a null result.
+
+Each call uses the persona's voice and `[phases].scout` instructions, returning
+one `theme` with `story_id`, `title`, and `angle`, or `theme: null`. User messages
+contain only bounded story JSON and request metadata. Invalid selections trigger
+a bounded retry of that batch. Code attaches original provenance. Each writer
+receives only its own chosen themes; the optional comedy loop preserves each
+author's research context when another persona challenges a card.
 
 Every bundled persona explicitly defines `scout`, `write`, `answer`, `critique`,
 and `revise`. Custom files can still omit phases to inherit `_defaults.toml`.
-`THEMES_PER_RUN` now limits themes **per selected persona**; the run summary counts
-all chosen persona themes. Card budgets are still divided across the roster, so
-six writers, one theme each, and `CARDS_PER_THEME=12` target up to 12 initial drafts.
-`TABLOID_PERCENT` is a scouting preference rather than forced preset angles on
-this route. Scouting adds one call per selected writer, replacing the single
-shared scouting call (six writers = six scouting calls, five more than before).
+`THEMES_PER_RUN` limits batches **per selected persona**; the run summary counts
+chosen themes. Card budgets are still divided across the roster. Six writers,
+two batches each, and `CARDS_PER_THEME=12` mean up to 12 initial scout calls and
+24 initial drafts, before optional critique/revision and review. Schema/transport
+retries can add calls. `TABLOID_PERCENT` remains a soft scouting preference.
 
 With a run directory, `research.json` freezes the full sampled pool and
-`scouts/writer.<id>.json` saves each persona's chosen angles, sources, and definition
-hash. Completed scouts are reused on resume, including after a later scout times
-out. Old checkpoints retain their shared-scout mode; use a fresh run directory
-to enable the new flow. `PERSONA_SCOUT=false` explicitly selects the old flow for
-a new run. The writer-only smoke script follows this setting unless an explicit
-`--theme` supplies the theme directly.
+`scout_plan.json` saves every persona's batch membership before scouting begins.
+`scout_batches/writer.<id>/<index>.json` immediately saves each completed batch,
+including null results, story IDs, selection, resolved theme, and persona version.
+Resume reuses that plan, pool, roster, definitions, and completed selections;
+changing `SCOUT_BATCH_SIZE` requires a new run directory.
+
+New checkpoints use `batches-v1`. Older `stories-v1` checkpoints keep their full-pool
+structured requests, and legacy checkpoints keep their original scouting route.
+`PERSONA_SCOUT=false` explicitly selects the old shared-scout flow for a new run.
+The writer-only smoke script uses the same batch scheduler unless an explicit
+`--theme` supplies the theme directly. No extra model ranking stage is involved.
+Runtime and card-quality comparison against full-pool scouting remains #69.
 
 `banned_from_4chan.toml` replaces `banned_from_the_thread.toml`; its display name is
 Banned From 4chan. Saved persona snapshots keep their original identities on resume.
@@ -736,13 +748,13 @@ for identical full records (a changed excerpt produces a new ID).
 Scout user messages contain JSON `stories`, `max_themes`, and
 `tabloid_preference_percent`. Titles are capped at 300 characters, source labels
 at 160, and excerpts at `SCOUT_EXCERPT_CHARS` (default 800, range 100–4000).
-URLs and full text stay in the checkpoint. Scouts return `themes` with
+URLs and full text stay in the checkpoint. The older `stories-v1` protocol returns `themes` with
 `story_id`, `title`, and `angle`; only IDs in the submitted stories are accepted.
 Original source metadata is attached in code, never taken from the model.
 
-Older checkpoints retain numbered-source scouting for resume compatibility.
-This is the structured-input foundation: the current call still receives the
-sampled pool. Small per-persona batches and per-batch recovery are tracked in #68.
+Legacy checkpoints retain numbered-source scouting for resume compatibility.
+The `stories-v1` protocol sends the sampled pool in each call; new `batches-v1`
+runs use the small batches and per-batch recovery described above.
 
 Scout requests use exact short IDs (`story-` plus 12 hash digits); checkpoints
 retain the full hashes. Short-ID collisions fail before sending a request.

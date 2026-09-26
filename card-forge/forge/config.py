@@ -45,6 +45,7 @@ class Settings(BaseSettings):
 
     source_finds_max: int = Field(default=6, ge=0, le=12, alias="SOURCE_FINDS_MAX")
     scout_excerpt_chars: int = Field(default=800, ge=100, le=4000, alias="SCOUT_EXCERPT_CHARS")
+    scout_batch_size: int = Field(default=6, ge=1, le=60, alias="SCOUT_BATCH_SIZE")
     persona_scout: bool = Field(default=True, alias="PERSONA_SCOUT")
     personas_dir: str = Field(default="", alias="PERSONAS_DIR")
     writers_per_run: int = Field(default=0, ge=0, alias="WRITERS_PER_RUN")

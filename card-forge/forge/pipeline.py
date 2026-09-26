@@ -45,7 +45,7 @@ class Pipeline:
         writers = writing_team(self.llm, self.settings, names=self.writer_names, definitions=self.personas)
         persona_scout = self.checkpoint.persona_scout if self.checkpoint else self.settings.persona_scout
         research = self.checkpoint.read("research") if self.checkpoint else None
-        structured = not self.checkpoint or self.checkpoint.scout_protocol == "stories-v1"
+        structured = not self.checkpoint or self.checkpoint.scout_protocol in ("stories-v1", "batches-v1")
         if persona_scout:
             if research is None:
                 items = scout.collect(distinct_stories=structured)
@@ -62,21 +62,25 @@ class Pipeline:
                 scout.fetched = [FeedItem(**item) for item in research["fetched"]]
             if research is not None and structured:
                 stories = research["stories"]
-            by_writer = {}
-            for writer in writers:
-                key = "scouts/" + writer.name
-                saved = self.checkpoint.read(key) if self.checkpoint else None
-                if saved is None:
-                    themes = (scout.for_stories(writer, stories) if structured
-                              else scout.for_writer(writer, items))
-                    if self.checkpoint:
-                        self.checkpoint.write(key, {
-                            "writer": writer.name, "persona_version": writer.definition.version,
-                            "themes": [t.model_dump(mode="json") for t in themes],
-                        })
-                else:
-                    themes = [Theme.model_validate(t) for t in saved["themes"]]
-                by_writer[writer.name] = themes
+            if not self.checkpoint or self.checkpoint.scout_protocol == "batches-v1":
+                from .scout_batches import scout_team
+                by_writer = scout_team(self.llm, self.settings, writers, stories, self.checkpoint)
+            else:
+                by_writer = {}
+                for writer in writers:
+                    key = "scouts/" + writer.name
+                    saved = self.checkpoint.read(key) if self.checkpoint else None
+                    if saved is None:
+                        themes = (scout.for_stories(writer, stories) if structured
+                                  else scout.for_writer(writer, items))
+                        if self.checkpoint:
+                            self.checkpoint.write(key, {
+                                "writer": writer.name, "persona_version": writer.definition.version,
+                                "themes": [t.model_dump(mode="json") for t in themes],
+                            })
+                    else:
+                        themes = [Theme.model_validate(t) for t in saved["themes"]]
+                    by_writer[writer.name] = themes
             summary.themes = sum(len(themes) for themes in by_writer.values())
         else:
             # Explicit legacy mode, also retained by older checkpoints.
