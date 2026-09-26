@@ -19,6 +19,8 @@ from ..prompts import maturity_direction
 SYSTEM = (
     "Copy-edit party cards. Preserve each persona's premise, voice, and intentional wording; "
     "fix wording and format without adding jokes or a house style.\n"
+    "Cut research attribution, planning commentary, and explanations of the joke. "
+    "Keep the concrete premise in one compact setup or phrase that stands alone.\n"
     "Keep distinct playable drafts for human review regardless of taste. Drop only "
     "irreparably unplayable cards or duplicates sharing both situation and payoff.\n"
     f"Prompts: exactly one {BLANK_MARKER!r} accepting unrelated noun phrases. "
