@@ -7,33 +7,16 @@ from .logging_setup import get_logger
 QUALITY_NAMES = ("playability", "comic_turn", "specificity", "economy", "originality")
 QUALITY_WEIGHTS = {'playability': .30, 'comic_turn': .25, 'specificity': .15,
                    'economy': .10, 'originality': .20}
-STYLE_TARGETS = {
-    'writer.hatemonger': [4, 1, 3, 2, 3, 2, 5],
-    'writer.deadpan': [1, 1, 3, 1, 2, 5, 4],
-    'writer.unhinged': [5, 3, 4, 3, 3, 2, 4],
-    'writer.pr_spin_doctor': [2, 1, 3, 1, 4, 4, 3],
-    'writer.petty_villain': [3, 2, 2, 1, 2, 3, 5],
-    'writer.banned_from_4chan': [4, 4, 4, 3, 4, 4, 5],
-}
 STYLE_NAMES = ('unhinged', 'lewd', 'dark', 'gross', 'blasphemous', 'deadpan', 'implication')
 RUBRIC = (
-    "Short puns, sound-alike names, and crude wordplay can be complete answer-card jokes. "
-    "Judge their audible payoff and cross-prompt usefulness; do not require a narrative reversal. "
-    'Quality rubric, score each dimension 0-5: 0 broken/absent, 1 weak, 2 shaky, '
+    'Quality rubric, score each dimension 0-5: 0 absent, 1 weak, 2 shaky, '
     '3 workable, 4 strong, 5 exceptional. Playability: a prompt accepts several '
-    'unrelated noun phrases naturally; an answer fits several unrelated setups. '
-    'Comic_turn: a reversal or revealing implication, not just filling a category. '
-    'Specificity: a concrete recognizable situation. Economy: no expendable '
-    'explanation or clauses. Originality: a distinct premise, not another card '
-    'with the nouns swapped. Test combinations mentally before scoring. '
-    'For playability, try varied mundane, personal, and absurd noun phrases or '
-    'setups; one imagined matching answer is insufficient. '
-    'Style dimensions are intensity, NOT quality: unhinged (disproportionate '
-    'escalation), lewd (sexual innuendo), dark (gallows humor), gross (bodily '
-    'disgust), blasphemous (irreverence toward sacred authority), deadpan '
-    '(matter-of-fact delivery), implication (narrator/player implicated). '
-    'Each ranges 0 absent to 5 dominant. Lewdness and shock cannot rescue a '
-    'broken or unfunny joke. Playful silliness can score highly without either. '
+    'unrelated noun phrases; an answer fits several unrelated setups. '
+    "Comic_turn: how effectively the card delivers its originating persona's humor. "
+    'Specificity: clear, identifiable details. Economy: concise enough to play aloud. '
+    'Originality: distinct from other cards in the pool and existing corpus. '
+    'Judge within the originating voice; no humor style, subject, or maturity level '
+    'automatically earns or loses points. '
 )
 
 

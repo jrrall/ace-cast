@@ -25,13 +25,13 @@ from ..rubric import RUBRIC, Evaluation
 from ..logging_setup import get_logger
 
 SYSTEM = (
-    "You are the Curator for an adult party card game. Prepare a varied pool for "
-    "human review, retaining weird, risky, abrasive, and uncertain jokes. "
+    "You are the Curator for an adult party card game. Prepare the supplied cards for "
+    "human review without favoring a persona, topic, or humor style. "
     "The human decides what is funny. Scores prioritize review order; unless an "
     "explicit quality floor excludes a card, taste is not a reason to omit it.\n"
     + RUBRIC
     + "Evaluate and rank EVERY distinct playable card, including low-scoring jokes. "
-    "Do not penalize vulgarity, blasphemy, or grossness just for being abrasive. "
+    "Assess the supplied cards; do not prescribe new premises or a shared tone. "
     "Drop broken/unplayable cards and duplicates. The same situation AND joke "
     "mechanism is a duplicate; a shared topic with a different payoff is not. "
     "Assign the SAME premise_group only to genuine variations of the same joke. "

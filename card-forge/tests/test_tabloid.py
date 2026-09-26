@@ -50,4 +50,5 @@ def test_scout_reserves_tabloid_share_without_extra_llm_call(settings):
     settings.tabloid_percent = 100
     themes = Trendscout(FakeLLM([]), settings, fetch_fn=lambda _: [story]).run()
     assert len(themes) == 4
-    assert len({t.angle for t in themes}) == 4
+    assert all("interpret through your persona" in t.angle for t in themes)
+    assert not any("domestic jealousy" in t.angle for t in themes)
