@@ -241,6 +241,7 @@ class TVController {
     }
 
     handleGameStarted(data) {
+        this._lastSoundSig = null;
         console.log('Game started:', data);
 
         this.gameStartTime = new Date();
@@ -348,9 +349,13 @@ class TVController {
         const sig = `${state.round}:${state.phase}`;
         if (sig === this._lastSoundSig) return;
         this._lastSoundSig = sig;
-        if (state.phase === 'judging') {
+        if (state.phase === 'answering') {
+            window.SoundFX.playNewRound();
+        } else if (state.phase === 'judging') {
             window.SoundFX.playFlip();
-        } else if ((state.phase === 'results' || state.phase === 'gameover') && state.lastWinner) {
+        } else if (state.phase === 'gameover' && state.lastWinner) {
+            window.SoundFX.playGameWin();
+        } else if (state.phase === 'results' && state.lastWinner) {
             window.SoundFX.playWin();
         }
     }
