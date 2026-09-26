@@ -73,7 +73,12 @@ def scout_batches(llm, settings, writer, batches, checkpoint=None, *, batch_offs
                 except ValueError as exc:
                     if attempt == settings.llm_json_retries:
                         raise ValueError(f'{writer.name} batch {index} scout response invalid: {exc}') from exc
-                    payload['repair'] = str(exc)[:300]
+                    payload['repair'] = (
+                        f'{str(exc)[:200]}. '
+                        'Copy an allowed_story_ids value exactly, or return {"theme":null}.'
+                    )[:300]
+                    payload['allowed_story_ids'] = [story['id'] for story in payload['stories']]
+                    payload['repair_attempt'] = attempt + 1
             if checkpoint:
                 checkpoint.write(key, {'story_ids': story_ids,
                                        'persona_version': writer.definition.version,

@@ -28,6 +28,7 @@ class Settings(BaseSettings):
     llm_model: str = Field(default="huihui_ai/qwen3-abliterated:8b", alias="LLM_MODEL")
     llm_timeout: float = Field(default=115.0, gt=0, alias="LLM_TIMEOUT")
     llm_max_retries: int = Field(default=0, ge=0, alias="LLM_MAX_RETRIES")
+    llm_timeout_retries: int = Field(default=1, ge=0, le=1, alias="LLM_TIMEOUT_RETRIES")
     llm_json_retries: int = Field(default=1, ge=0, le=2, alias="LLM_JSON_RETRIES")
     # Omit vendor-specific reasoning settings unless explicitly configured.
     llm_reasoning_effort: str = Field(default="", alias="LLM_REASONING_EFFORT")

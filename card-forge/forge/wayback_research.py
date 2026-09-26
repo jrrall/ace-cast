@@ -111,8 +111,7 @@ def collect(client, *, rng=random, today=None):
             LOG.warning('feed.archive_article_failed', extra={'extra_fields': {'url': archived, 'error': str(exc)}})
         result.append({'title': title, 'url': archived if text else homepage,
                        'excerpt': f'Archived conspiracy claims, not verified facts. Snapshot {stamp[:8]}. '
-                       'Use rhetorical patterns (paranoia, false causality, exaggerated certainty) '
-                       'for new fictional absurdity; do not repeat allegations as facts.\n'
+                       'Do not repeat allegations as facts.\n'
                        + (text or 'Headline only; article body unavailable.')})
     if not result:
         raise ValueError('archive page contained no usable article links')

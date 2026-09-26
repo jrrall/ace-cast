@@ -128,4 +128,20 @@ describe('DeckService', () => {
     const afterUnretire = await DeckService.buildDeck({ gameId: 'madlad' });
     expect(afterUnretire.answers).toHaveLength(before.answers.length);
   });
+  test('approved run-pack cards join the default deck only after review', async () => {
+    const base = await PackRepository.getBySlug('madlad-generated');
+    const run = await PackRepository.ensureRunPack('sportsball-20260926-140000', base);
+    const [id] = await db.db()('cards').insert({
+      game_id: 'madlad', kind: 'answer', text: 'Run pack deck fixture', blanks: 0,
+      maturity_rating: 2, pack_id: run.id, status: 'pending', source: 'generated',
+    });
+    expect((await DeckService.buildDeck({ gameId: 'madlad' })).answers.some((c) => c.id === id)).toBe(false);
+    await db.db()('cards').where({ id }).update({ status: 'approved' });
+    expect((await DeckService.buildDeck({ gameId: 'madlad' })).answers.some((c) => c.id === id)).toBe(true);
+    const core = await PackRepository.getDefault('madlad');
+    expect((await DeckService.buildDeck({ gameId: 'madlad', packIds: [core.id] })).answers.some((c) => c.id === id)).toBe(false);
+    await db.db()('cards').where({ id }).del();
+    await db.db()('packs').where({ id: run.id }).del();
+  });
+
 });

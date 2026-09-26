@@ -196,3 +196,31 @@ def test_six_personas_two_batches_have_twelve_calls_and_twenty_four_card_budget(
     assert len(llm.calls) == 12
     assert sum(writer.card_limit * len(result[writer.name]) for writer in writers) == 24
     assert scout_team(FakeLLM([]), settings, writers, []) == {writer.name: [] for writer in writers}
+
+
+def test_story_id_typo_retry_lists_exact_ids_and_preserves_provenance(settings, tmp_path):
+    configure(settings, tmp_path)
+    stories = pool(2)
+    def typo(call):
+        response = selected(call)
+        response['theme']['story_id'] = 'story-9b35c16d5548'
+        return response
+    def repaired(call):
+        request = json.loads(call['user'])
+        assert 'story-9b35c16d5548' in request['repair']
+        assert request['allowed_story_ids'] == [s['id'] for s in request['stories']]
+        assert request['repair_attempt'] == 1
+        return selected(call)
+    llm = FakeLLM([typo, repaired])
+    result = scout_batches(llm, settings, writing_team(llm, settings)[0], [stories])
+    assert result[0].url == stories[0]['url']
+    assert result[0].raw_excerpt.endswith(stories[0]['excerpt'])
+
+
+def test_repeated_invalid_scout_responses_get_distinct_retry_requests(settings, tmp_path):
+    configure(settings, tmp_path)
+    settings.llm_json_retries = 2
+    llm = FakeLLM([{'theme': {'story_id': 'wrong'}}] * 3)
+    with pytest.raises(ValueError, match='batch 0'):
+        scout_batches(llm, settings, writing_team(llm, settings)[0], [pool(1)])
+    assert len({call['user'] for call in llm.calls}) == 3

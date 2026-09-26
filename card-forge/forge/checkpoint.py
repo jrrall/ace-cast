@@ -5,9 +5,11 @@ import fcntl
 import hashlib
 import json
 import os
+import re
 from pathlib import Path
 
 from .logging_setup import get_logger
+from .call_context import CALL_CONTEXT
 
 
 class Checkpoint:
@@ -26,7 +28,7 @@ class Checkpoint:
             # on resume, but model, generation and review settings must match.
             config = self.settings.model_dump(mode='json', exclude={
                 'llm_api_key', 'content_api_token', 'llm_timeout', 'llm_max_retries',
-                'llm_json_retries', 'content_api_timeout', 'feed_timeout', 'comedy_trace_path',
+                'llm_json_retries', 'llm_timeout_retries', 'content_api_timeout', 'feed_timeout', 'comedy_trace_path',
                 'moderator_batch_size', 'curator_batch_size', 'personas_dir', 'persona_scout',
             })
             manifest = self.read('manifest')
@@ -34,7 +36,7 @@ class Checkpoint:
                 if manifest is None or manifest.get('version') != 1:
                     raise ValueError('No supported checkpoint found; start a new run directory')
                 saved_config = {k: v for k, v in manifest['settings'].items()
-                                if k not in ('moderator_batch_size', 'curator_batch_size', 'personas_dir', 'persona_scout')}
+                                if k not in ('llm_timeout_retries', 'moderator_batch_size', 'curator_batch_size', 'personas_dir', 'persona_scout')}
                 if manifest.get('scout_protocol') != 'batches-v1':
                     saved_config.pop('scout_batch_size', None)
                     config.pop('scout_batch_size', None)
@@ -64,6 +66,13 @@ class Checkpoint:
             ])
             self.scout_protocol = manifest.get('scout_protocol', 'legacy')
             self.persona_scout = manifest.get('persona_scout', False)
+            self.pack_slug = manifest.get('run_pack')
+            if self.pack_slug is None and self.read('submission') is None:
+                self.pack_slug = self.path.resolve().name
+                if not re.fullmatch(r'[a-z0-9][a-z0-9_-]{0,127}', self.pack_slug):
+                    raise ValueError('Run directory name must be a lowercase pack slug (letters, digits, hyphens, underscores; max 128)')
+                manifest['run_pack'] = self.pack_slug
+                self.write('manifest', manifest)
             from .persona_registry import Persona, select_personas
             if 'personas' in manifest and 'writer_names' in manifest:
                 self.personas = [Persona.model_validate(p) for p in manifest['personas']]
@@ -123,7 +132,7 @@ class CheckpointLLM:
         name = f'calls/{digest}'
         cached = self.checkpoint.read(name)
         if cached is not None:
-            get_logger().info('checkpoint.call_reused', extra={'extra_fields': {'call': digest}})
+            get_logger().info('checkpoint.call_reused', extra={'extra_fields': {'call': digest, **CALL_CONTEXT.get()}})
             return cached['response']
         self.last_call_source = 'generation'
         try:

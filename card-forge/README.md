@@ -49,13 +49,13 @@ Then `client.py` POSTs the batch; the server re-validates, dedupes on
 
 ## Editorial direction
 
-The chain targets adult Gen Z humor: deadpan absurdity, surreal escalation,
-ironic overconfidence, and online behavior colliding with real consequences.
-News supplies the contradiction or comic premise; cards should work without
-recognizing the headline. Avoid millennial-burnout filler and forced slang.
-Writer, Editor, and Curator share this direction with Trendscout. Prompts must
-have exactly one blank that accepts an unrelated answer card.
-The local smoke test uses explicitly fictional sample headlines in this vein.
+Humor, tone, subject preferences, and comic mechanisms come from each persona's
+TOML voice and phase instructions. Shared prompts handle card format, counts,
+source provenance, maturity ceilings, and review mechanics. Editor and Curator
+preserve and assess the supplied cards without a separate house comedy voice.
+Maturity is an upper bound, not a requirement to make every persona equally extreme.
+Fictional research seeds and smoke inputs describe neutral settings and details;
+the selected persona supplies their comic interpretation.
 
 ## Why the OpenAI SDK (not pydantic-ai)
 
@@ -147,8 +147,8 @@ full list. Key secrets:
   legacy shared `CONTENT_API_TOKEN` also still works.
 - `FEED_ALLOWLIST` — comma-separated feed URLs.
 - `PACK_SLUG` / `MATURITY_MAX` — target pack and generator maturity ceiling (default 3).
-  At 3, writing and review explicitly target extreme adult comedy while the
-  moderator independently rates each card. Lower ceilings remain configurable.
+  This is an upper bound on content, not a shared humor style or intensity target.
+  Personas supply creative direction; the moderator independently rates each card.
   The content API accepts ratings 0–3 regardless of pack metadata; it does not
   impose a pack maturity ceiling. Cards still require approval, and gameplay
   continues to respect the room's maturity filter. Redeploy the game before
@@ -169,8 +169,8 @@ Headlines are interleaved by source before the 60-headline research limit, with
 identical headlines removed. A long feed cannot crowd out all the later feeds.
 Unavailable feeds are logged and skipped; the run fails if none return items.
 History entries include a short article excerpt and source link. Each run also
-samples three fictional everyday situations and three off-the-cuff premises
-from local banks. Set `INSPIRATION_PER_LANE=0` to disable those, or 1–8 to
+samples three neutral fictional situations and three setting/detail pairs
+from local banks; they do not prescribe a joke or complication. Set `INSPIRATION_PER_LANE=0` to disable those, or 1–8 to
 adjust each bank. These are labeled fictional, not reported events. This is
 one research pass with no recursive browsing. Themes carry only their selected
 source context; unrelated headlines are not appended to every writer request.
@@ -881,3 +881,61 @@ eight enabled personas, so either writer can be absent from a particular run.
 Use `WRITERS_PER_RUN=0` and `CARDS_PER_THEME=16` to run all eight with one prompt
 and one answer slot per writer per theme. Deploy the updated image or mount the
 updated persona directory before starting that new run.
+
+
+Shared prompt changes require the updated code/image as well as persona files.
+Start a fresh run to use neutral research seeds and the new review instructions;
+existing checkpoints retain their saved source material and persona snapshots.
+
+
+### Bounded calls and curator recovery
+
+Fresh model requests have phase-specific output-token limits: 256 tokens of JSON
+headroom plus 160 per written card, 256 per scout theme or curator evaluation,
+192 per edited/shortened card, 128 per moderation verdict, 320 per critique,
+160 per revision, 64 per repaired group label, or 16 per source selection.
+Every request is capped at 16,384 output tokens; unclassified calls use 4,096.
+Truncated output remains invalid; each configured JSON-format retry doubles its
+output allowance up to the 16,384-token ceiling. Other format failures retain their allowance.
+For Qwen thinking models on Ollama, set `LLM_REASONING_EFFORT=none` for these
+short structured tasks. An empty value leaves the server default in effect, which
+can spend the output budget on reasoning. Logs report reasoning character counts
+when the server supplies a separate reasoning field.
+These are initial budgets, not measured latency guarantees.
+
+`LLM_TIMEOUT_RETRIES=1` retries a timed-out request once after two seconds, across
+all JSON-format attempts for that call. Set it to `0` to fail immediately.
+It does not stack with nonzero `LLM_MAX_RETRIES` (SDK retries); comparisons disable
+transport retries to preserve their time budget. A backend stall can still time out.
+
+Call logs include phase, persona and batch where applicable, input characters,
+output-token limit, and returned prompt/completion token usage. No extra diagnostic
+model requests run. Existing successful response-cache entries remain reusable.
+
+Validated curator batches are saved under `curator_batches/`. Resume reuses them
+when the exact card pool, batch boundaries, prior group context, model, maturity,
+and rubric match, even if prompt wording changed. Changed cards or batch sizes
+cause affected scoring to run again. API corpus deduplication and final ranking
+still run on resume. Older runs gain these batch checkpoints as scoring completes;
+previous successful calls can still be reused through the existing response cache.
+
+
+### Packs named after runs
+
+With `--run-dir`, the final folder name becomes the submitted pack slug and display
+name: `/output/qwen35-20260926-134926` creates `qwen35-20260926-134926`.
+Use lowercase letters, digits, hyphens, or underscores (up to 128 characters).
+Future themed runs can use names such as `sportsball-qwen35-20260926-134926`;
+this naming change does not implement a sports research chain.
+
+`PACK_SLUG` identifies the existing base generated pack (`madlad-generated`), which
+supplies the game identity. Without checkpoints it remains the direct destination.
+The API creates run packs only from a valid generated base, leaves their cards
+pending, and includes approved run-pack cards in the default deck. Explicit pack
+selection still selects only the requested packs.
+
+The checkpoint freezes the pack name, even if its directory is later moved.
+Unsubmitted legacy checkpoints adopt their folder name on resume; checkpoints
+with a submission record preserve their original destination and submission guard.
+Deploy the server and its run-pack migration before using this Forge change to
+submit: older servers reject unknown pack names. Dry runs do not create packs.

@@ -1,4 +1,6 @@
 """Scout attempt telemetry, separate from model and checkpoint replay timing."""
+from .call_context import complete
+
 import json
 import time
 
@@ -13,7 +15,7 @@ def scout_attempt(llm, writer, *, protocol, batch, stories, payload, system, att
     started = time.monotonic()
     validation_failed, error_type, selected_count = False, None, None
     try:
-        data = llm.complete_json(system=system, user=user)
+        data = complete(llm, 'scout', units=payload['max_themes'], persona=writer.name, batch=batch, system=system, user=user)
         try:
             result = validate(data)
         except ValueError:

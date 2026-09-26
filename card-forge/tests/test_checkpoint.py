@@ -160,3 +160,27 @@ def test_old_checkpoint_retains_six_writer_roster(settings, tmp_path):
     with Checkpoint(tmp_path, settings, resume=True) as cp:
         assert len(cp.writer_names) == 6
         assert 'writer.toxic_positivity' not in cp.writer_names
+
+
+def test_run_directory_names_pack_and_survives_directory_move(settings, tmp_path):
+    path = tmp_path/'qwen35-20260926-134926'
+    with Checkpoint(path, settings) as cp:
+        _, batch = Pipeline(settings, _scripted_llm(), FakeContentClient(),
+                            fetch_fn=lambda _: _feed(), checkpoint=cp).run(dry_run=True)
+        assert batch.pack == path.name
+        assert all(c.pack == path.name for c in batch.cards)
+        assert batch.payload()['run_pack'] == {'slug': path.name, 'base_pack': settings.pack_slug}
+    moved = tmp_path/'renamed-folder'
+    path.rename(moved)
+    with Checkpoint(moved, settings, resume=True) as cp:
+        assert cp.pack_slug == path.name
+
+
+def test_legacy_submitted_checkpoint_keeps_original_pack(settings, tmp_path):
+    with Checkpoint(tmp_path, settings) as cp:
+        manifest = cp.read('manifest')
+        manifest.pop('run_pack')
+        cp.write('manifest', manifest)
+        cp.write('submission', {'status': 'started', 'batch': {'pack': settings.pack_slug}})
+    with Checkpoint(tmp_path, settings, resume=True) as cp:
+        assert cp.pack_slug is None

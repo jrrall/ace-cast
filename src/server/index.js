@@ -478,6 +478,24 @@ app.post('/api/content/cards', requireContentScope('content:write'), async (req,
   }
 
   try {
+    const runPack = req.body.run_pack;
+    let runBase = null;
+    if (runPack != null) {
+      if (typeof runPack !== 'object' || typeof runPack.slug !== 'string'
+          || !/^[a-z0-9][a-z0-9_-]{0,127}$/.test(runPack.slug)
+          || typeof runPack.base_pack !== 'string'
+          || cards.some((card) => !card || card.pack !== runPack.slug)) {
+        return res.status(400).json({ error: 'invalid run_pack' });
+      }
+      runBase = await PackRepository.getBySlug(runPack.base_pack);
+      if (!runBase || runBase.slug !== `${runBase.game_id}-generated`) {
+        return res.status(400).json({ error: 'invalid run_pack base' });
+      }
+      const existing = await PackRepository.getBySlug(runPack.slug);
+      if (existing && existing.generated_from_pack_id !== runBase.id) {
+        return res.status(400).json({ error: 'run pack slug already belongs to another pack' });
+      }
+    }
     const packCache = new Map(); // slug -> pack row | null (miss)
     const existingCache = new Map(); // pack_id -> Set(normalized text)
     const rejected = [];
@@ -496,7 +514,23 @@ app.post('/api/content/cards', requireContentScope('content:write'), async (req,
       const card = cards[i];
       const slug = card && card.pack;
       // eslint-disable-next-line no-await-in-loop
-      const pack = await resolvePack(slug);
+      let pack;
+      if (runBase) {
+        const preview = validateCandidate(card, runBase);
+        if (!preview.ok) {
+          rejected.push({ index: i, reason: preview.reason });
+          // eslint-disable-next-line no-continue
+          continue;
+        }
+        if (!packCache.has(slug)) {
+          // eslint-disable-next-line no-await-in-loop
+          packCache.set(slug, await PackRepository.ensureRunPack(slug, runBase));
+        }
+        pack = packCache.get(slug);
+      } else {
+        // eslint-disable-next-line no-await-in-loop
+        pack = await resolvePack(slug);
+      }
       if (!pack) {
         rejected.push({ index: i, reason: 'unknown pack' });
         // eslint-disable-next-line no-continue

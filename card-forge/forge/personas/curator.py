@@ -11,7 +11,10 @@ the review queue.
 
 from __future__ import annotations
 
+from ..call_context import complete
+
 import json
+import hashlib
 from copy import deepcopy
 
 from ..balance import type_budget
@@ -25,26 +28,18 @@ from ..rubric import RUBRIC, Evaluation
 from ..logging_setup import get_logger
 
 SYSTEM = (
-    "You are the Curator for an adult party card game. Prepare a varied pool for "
-    "human review, retaining weird, risky, abrasive, and uncertain jokes. "
-    "The human decides what is funny. Scores prioritize review order; unless an "
-    "explicit quality floor excludes a card, taste is not a reason to omit it.\n"
+    "Score and rank every distinct playable card for human review, including weak jokes. "
+    "Drop only broken cards and duplicates sharing both situation and payoff. "
+    "Do not rewrite cards. Code applies quality floors and selection caps.\n"
     + RUBRIC
-    + "Evaluate and rank EVERY distinct playable card, including low-scoring jokes. "
-    "Do not penalize vulgarity, blasphemy, or grossness just for being abrasive. "
-    "Drop broken/unplayable cards and duplicates. The same situation AND joke "
-    "mechanism is a duplicate; a shared topic with a different payoff is not. "
-    "Assign the SAME premise_group only to genuine variations of the same joke. "
-    "Do not collapse distinct jokes merely because they share research or a persona. "
-    "Do not impose your own shortlist size or demand a strong comic-turn score. "
-    "The configured cap is applied after ranking.\n"
-    'Return ONLY JSON with "selected" (ranked zero-based indexes) and '
-    '"evaluations" (one per selected index). Each evaluation contains index, '
-    'quality: {playability, comic_turn, specificity, economy, originality}, '
-    'premise_group (a short label), and reason (at most 12 words). '
-    'Omit style scores and card text from the response. '
-    'All dimension scores are integers 0-5. '
-    'Use {"selected": [], "evaluations": []} when no playable, distinct cards remain.'
+    + "Assign the same premise_group to variations of the same situation and payoff; "
+    "shared topics, sources, or personas alone do not make a group.\n"
+    'Return only {"selected":[0],"evaluations":[{"index":0,"quality":'
+    '{"playability":3,"comic_turn":3,"specificity":3,"economy":3,"originality":3},'
+    '"premise_group":"short_label"}]}. Example scores are illustrative. '
+    'Both selected and evaluations must be arrays; use ranked zero-based global indexes '
+    'and one evaluation per selected index. Optional reason: at most 12 words. '
+    'Omit style scores and card text. Use empty arrays if none qualify.'
 )
 
 
@@ -54,11 +49,12 @@ class Curator:
     name = "curator"
 
     def __init__(
-        self, llm: LLMClient, content: ContentClient, settings: Settings
+        self, llm: LLMClient, content: ContentClient, settings: Settings, checkpoint=None
     ) -> None:
         self.llm = llm
         self.content = content
         self.settings = settings
+        self.checkpoint = checkpoint
 
     def _existing_norms(self) -> set[str]:
         # ALL statuses (incl. denied) so denied text is treated as a duplicate
@@ -66,7 +62,7 @@ class Curator:
         return {normalize_text(c.get("text", "")) for c in corpus if c.get("text")}
 
     def run(self, moderated: list[ModeratedCard]) -> SubmitBatch:
-        pack = self.settings.pack_slug
+        pack = (self.checkpoint.pack_slug if self.checkpoint else None) or self.settings.pack_slug
         if not moderated:
             return SubmitBatch(cards=[], pack=pack)
 
@@ -87,31 +83,40 @@ class Curator:
         order: list[int] = []
         evaluations = {}
         size = self.settings.curator_batch_size
-        # Keep full-pool context for cross-chunk premise grouping, but bound the
-        # expensive structured output to one chunk. Selection caps apply once.
-        listing = "\n".join(f'{i}. [{c.kind}] {c.text}' for i, c in enumerate(pool))
+        # Only current candidates are numbered; earlier cards are duplicate context.
+        # Selection caps still apply once, after all chunks are scored.
         for start in range(0, len(pool), size):
             end = min(start + size, len(pool))
-            groups = [{"index": i, "premise_group": e.premise_group}
-                      for i, e in evaluations.items()]
+            listing = "\n".join(f'{i}. [{pool[i].kind}] {pool[i].text}' for i in range(start, end))
+            groups = [{"text": pool[i].text, "kind": pool[i].kind,
+                       "premise_group": e.premise_group} for i, e in evaluations.items()]
             user = (
-                f"Full pool for context only:\n{listing}\n\n"
+                f"Cards to evaluate:\n{listing}\n\n"
                 f"Evaluate ONLY indexes {start} through {end - 1}, inclusive. "
                 "Use these global indexes, not chunk-local numbering. "
-                "Return every playable card in this range, even when it shares a "
-                "premise with a previous chunk: code keeps the strongest globally. "
-                "Reuse prior premise_group labels for the same situation AND joke "
-                "mechanism. Distinct payoffs need distinct groups. "
-                "Do not select or evaluate indexes outside this range. "
-                "Do not apply a per-chunk quota. "
-                f"Quality floor is {self.settings.quality_min}/100, using weights "
-                f"{self.settings.quality_weights}. "
-                f"Prior group assignments: {json.dumps(groups)}"
+                "Return all playable cards in range, including prior-group variations; "
+                "reuse matching premise_group labels. Code selects the strongest globally. "
+                f"Prior cards for duplicate context only (not candidates): {json.dumps(groups)}"
             )
             get_logger().info("curator.batch_started", extra={"extra_fields": {
                 "offset": start, "cards": end - start, "total": len(pool),
             }})
-            chunk_order, chunk_evaluations = self._score_chunk(user, start, end)
+            # Include all scoring inputs, not prompt wording. Version when scoring semantics change.
+            identity = {"version": 1, "pool": [c.model_dump(mode="json") for c in pool],
+                        "start": start, "end": end, "groups": groups,
+                        "model": self.settings.llm_model, "maturity": self.settings.maturity_max,
+                        "weights": self.settings.quality_weights, "rubric": RUBRIC}
+            digest = hashlib.sha256(json.dumps(identity, sort_keys=True).encode()).hexdigest()
+            key = f"curator_batches/{digest}"
+            saved = self.checkpoint.read(key) if self.checkpoint else None
+            if saved is not None:
+                chunk_order, chunk_evaluations = self._validate_response(saved, start, end)
+                get_logger().info("curator.batch_reused", extra={"extra_fields": {"offset": start}})
+            else:
+                chunk_order, chunk_evaluations = self._score_chunk(user, start, end)
+                if self.checkpoint:
+                    self.checkpoint.write(key, {"selected": chunk_order, "evaluations": [
+                        e.model_dump(exclude_none=True) for e in chunk_evaluations.values()]})
             order.extend(chunk_order)
             evaluations.update(chunk_evaluations)
             get_logger().info("curator.batch_completed", extra={"extra_fields": {
@@ -139,15 +144,17 @@ class Curator:
                 groups.add(group)
                 chosen.append(pool[idx])
         cards = [SubmitCard.from_moderated(c, pack) for c in chosen]
-        return SubmitBatch(cards=cards, pack=pack)
+        return SubmitBatch(cards=cards, pack=pack,
+                           base_pack=self.settings.pack_slug if self.checkpoint and self.checkpoint.pack_slug else None)
 
     def _score_chunk(self, user, start, end):
         system = SYSTEM + maturity_direction(self.settings.maturity_max)
         request = user
         for attempt in range(self.settings.llm_json_retries + 1):
-            data = self.llm.complete_json(
+            data = complete(self.llm, 'curator', units=end-start, batch=start,
                 system=system, user=request, temperature=0.3 if attempt == 0 else 0.0,
             )
+            data = self._normalize_response(data)
             data = self._trim_complete_chunk(data, start, end)
             try:
                 return self._validate_response(data, start, end)
@@ -160,6 +167,14 @@ class Curator:
                 }})
                 # New request key preserves valid cached chunks and allows a
                 # malformed cached response to be repaired on resume.
+                if "index" in str(exc):
+                    request = user + (
+                        f"\nRetry {attempt + 1}: {exc}. "
+                        f"Allowed indexes for selected and evaluations: {list(range(start, end))}. "
+                        "Re-evaluate only those cards. Prior cards are context, never candidates. "
+                        "Return the complete JSON response using global indexes."
+                    )
+                    continue
                 request = user + (
                     "\nYour previous response did not match the required schema. "
                     "Re-evaluate this chunk and return the complete response again. "
@@ -197,7 +212,7 @@ class Curator:
         # Confirm all scores/indexes are valid before spending a call on labels.
         self._validate_response(repaired, start, end)
         get_logger().warning("curator.group_repair", extra={"extra_fields": {"indexes": missing}})
-        response = self.llm.complete_json(
+        response = complete(self.llm, 'group_repair', units=len(missing), batch=start,
             system=("Assign duplicate-premise labels only. Cards with the same situation "
                     "AND payoff share a label; shared topics alone are not duplicates. "
                     "Reuse existing labels when appropriate. Return ONLY JSON "
@@ -225,6 +240,26 @@ class Curator:
             if row["index"] in groups:
                 row["premise_group"] = groups[row["index"]]
         return repaired
+
+    @staticmethod
+    def _normalize_response(data):
+        """Repair known lossless formatting variants; never infer scores or identity."""
+        if not isinstance(data, dict):
+            return data
+        result = deepcopy(data)
+        rows = result.get("evaluations")
+        if isinstance(rows, dict):
+            # Accept a keyed container only when every key confirms its row's ID.
+            if not all(isinstance(row, dict) and type(row.get("index")) is int
+                       and str(row["index"]) == key for key, row in rows.items()):
+                return data
+            rows = list(rows.values())
+            result["evaluations"] = rows
+        if isinstance(rows, list):
+            for row in rows:
+                if isinstance(row, dict) and "preme_group" in row and "premise_group" not in row:
+                    row["premise_group"] = row.pop("preme_group")
+        return result
 
     @staticmethod
     def _trim_complete_chunk(data, start, end):
@@ -264,7 +299,7 @@ class Curator:
         order: list[int] = []
         for idx in raw:
             if type(idx) is not int or not start <= idx < end:
-                raise ValueError("curator returned an invalid card index")
+                raise ValueError(f"curator returned an invalid card index {idx!r}; expected {start} through {end - 1}")
             if idx not in order:
                 order.append(idx)
 

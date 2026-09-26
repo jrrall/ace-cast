@@ -316,3 +316,74 @@ def test_partial_chunk_spillover_still_fails(settings, sample_moderated):
     settings.curator_batch_size = 2
     with pytest.raises(ValueError, match='invalid card index'):
         Curator(FakeLLM([rated_selection([0, 2])]), FakeContentClient(), settings).run(sample_moderated)
+
+
+def test_curator_separates_prior_context_and_repairs_out_of_range_index(settings, sample_moderated):
+    settings.curator_batch_size = 2
+    llm = FakeLLM([rated_selection([0, 1]), rated_selection([1]), rated_selection([2])])
+    batch = Curator(llm, FakeContentClient(), settings).run(sample_moderated)
+    assert len(batch.cards) == 3
+    request = llm.calls[1]['user']
+    candidates, context = request.split('Prior cards for duplicate context only (not candidates): ')
+    assert '2. [' in candidates
+    assert '0. [' not in candidates and '1. [' not in candidates
+    assert sample_moderated[0].text in context
+    assert '"index"' not in context
+    retry = llm.calls[2]['user']
+    assert 'invalid card index 1; expected 2 through 2' in retry
+    assert 'Allowed indexes for selected and evaluations: [2]' in retry
+    assert 'quality MUST' not in retry
+
+
+def test_curator_normalizes_keyed_evaluations_and_known_group_typo_without_retry(settings, sample_moderated):
+    from copy import deepcopy
+    response = rated_selection([0, 1, 2])
+    response['evaluations'][2]['preme_group'] = response['evaluations'][2].pop('premise_group')
+    response['evaluations'] = {str(row['index']): row for row in response['evaluations']}
+    original = deepcopy(response)
+    llm = FakeLLM([response])
+    assert len(Curator(llm, FakeContentClient(), settings).run(sample_moderated).cards) == 3
+    assert len(llm.calls) == 1
+    assert response == original
+
+
+def test_curator_format_normalization_rejects_conflicts_and_invalid_scores():
+    import pytest
+    for variant in ('key', 'group', 'score', 'unknown'):
+        response = rated_selection([0])
+        row = response['evaluations'][0]
+        if variant == 'key':
+            response['evaluations'] = {'1': row}
+        elif variant == 'group':
+            row['preme_group'] = 'conflicting_label'
+        elif variant == 'score':
+            row['quality']['playability'] = 99
+        else:
+            row['unexpected'] = True
+        with pytest.raises(ValueError):
+            Curator._validate_response(Curator._normalize_response(response), 0, 1)
+
+
+def test_curator_checkpoint_reuses_scored_batches_after_failure(settings, sample_moderated, tmp_path, monkeypatch):
+    import pytest
+    from forge.checkpoint import Checkpoint
+    from forge.llm import LLMError
+    settings.curator_batch_size = 2
+    def timeout(_):
+        raise LLMError('timeout')
+    with Checkpoint(tmp_path/'run', settings) as cp:
+        with pytest.raises(LLMError):
+            Curator(FakeLLM([rated_selection([0, 1]), timeout]), FakeContentClient(),
+                    settings, checkpoint=cp).run(sample_moderated)
+        assert len(list((cp.path/'curator_batches').glob('*.json'))) == 1
+    # Editorial prompt text can change without discarding valid scoring work.
+    monkeypatch.setattr('forge.personas.curator.SYSTEM', 'Updated format wording')
+    with Checkpoint(tmp_path/'run', settings, resume=True) as cp:
+        llm = FakeLLM([rated_selection([2])])
+        result = Curator(llm, FakeContentClient(), settings, checkpoint=cp).run(sample_moderated)
+        assert len(llm.calls) == 1 and len(result.cards) == 3
+        assert '2. [' in llm.calls[0]['user']
+        changed = [sample_moderated[0].model_copy(update={'text': 'Changed ____.'}), *sample_moderated[1:]]
+        fresh = FakeLLM([rated_selection([0, 1]), rated_selection([2])])
+        Curator(fresh, FakeContentClient(), settings, checkpoint=cp).run(changed)
+        assert len(fresh.calls) == 2
