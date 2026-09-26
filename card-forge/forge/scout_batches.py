@@ -1,9 +1,9 @@
 """Deterministic persona batches and independently resumable scout selections."""
-import json
 from collections import defaultdict
 from itertools import zip_longest
 
 from .models import Theme
+from .scout_metrics import scout_attempt, scout_reused
 from .stories import request_payload, resolve_themes
 
 SYSTEM = '''Choose one story and an open comic angle through your persona's worldview.
@@ -47,9 +47,9 @@ def validate(data, stories):
     return resolve_themes({'themes': [data['theme']]}, stories, 1)[0]
 
 
-def scout_batches(llm, settings, writer, batches, checkpoint=None):
+def scout_batches(llm, settings, writer, batches, checkpoint=None, *, batch_offset=0):
     themes = []
-    for index, stories in enumerate(batches):
+    for index, stories in enumerate(batches, start=batch_offset):
         key = f'scout_batches/{writer.name}/{index}'
         story_ids = [s['id'] for s in stories]
         saved = checkpoint.read(key) if checkpoint else None
@@ -58,15 +58,17 @@ def scout_batches(llm, settings, writer, batches, checkpoint=None):
                 raise ValueError('Saved scouting batch does not match research/persona')
             validate({'theme': saved['selection']}, stories)
             theme = Theme.model_validate(saved['theme']) if saved['theme'] is not None else None
+            scout_reused(writer, index, stories, theme)
         else:
             payload = request_payload(stories, max_themes=1,
                                       excerpt_chars=settings.scout_excerpt_chars,
                                       tabloid_percent=settings.tabloid_percent)
             for attempt in range(settings.llm_json_retries + 1):
-                data = llm.complete_json(system=writer.phase_system('scout', format_rules=SYSTEM),
-                                         user=json.dumps(payload, ensure_ascii=False))
                 try:
-                    theme = validate(data, stories)
+                    data, theme = scout_attempt(
+                        llm, writer, protocol='batches-v1', batch=index, stories=stories,
+                        payload=payload, system=writer.phase_system('scout', format_rules=SYSTEM),
+                        attempt=attempt + 1, validate=lambda data: validate(data, stories))
                     break
                 except ValueError as exc:
                     if attempt == settings.llm_json_retries:

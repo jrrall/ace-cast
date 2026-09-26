@@ -116,6 +116,8 @@ class CheckpointLLM:
         self.checkpoint = checkpoint
 
     def complete_json(self, *, system, user, temperature=0.8):
+        self.last_call_source = 'cache'
+        self.last_call_stats = {'model_attempts': 0, 'format_retries': 0}
         request = {'system': system, 'user': user, 'temperature': temperature}
         digest = hashlib.sha256(json.dumps(request, sort_keys=True).encode()).hexdigest()
         name = f'calls/{digest}'
@@ -123,6 +125,10 @@ class CheckpointLLM:
         if cached is not None:
             get_logger().info('checkpoint.call_reused', extra={'extra_fields': {'call': digest}})
             return cached['response']
-        response = self.llm.complete_json(**request)
+        self.last_call_source = 'generation'
+        try:
+            response = self.llm.complete_json(**request)
+        finally:
+            self.last_call_stats = getattr(self.llm, 'last_call_stats', {'model_attempts': 1, 'format_retries': 0}).copy()
         self.checkpoint.write(name, {'request': request, 'response': response})
         return response
