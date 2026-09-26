@@ -134,7 +134,7 @@ app.get('/healthz', async (req, res) => {
 
 // Routes
 app.get('/', (req, res) => {
-  res.render('host/index', { title: 'unholy.cards — Host', games: registry.listGames() });
+  res.render('host/index', { title: 'omfg.cards — Host', games: registry.listGames() });
 });
 
 // Public list of playable games (for the host UI / future clients).
@@ -145,14 +145,14 @@ app.get('/api/games', (req, res) => {
 app.get('/player/:roomCode', (req, res) => {
   const { roomCode } = req.params;
   res.render('player/index', {
-    title: 'unholy.cards — Play',
+    title: 'omfg.cards — Play',
     roomCode: roomCode || '',
   });
 });
 
 app.get('/player', (req, res) => {
   res.render('player/index', {
-    title: 'unholy.cards — Play',
+    title: 'omfg.cards — Play',
     roomCode: '',
   });
 });
@@ -178,7 +178,7 @@ app.get('/tv/:roomCode', async (req, res) => {
   }
 
   return res.render('tv/index', {
-    title: 'unholy.cards — TV',
+    title: 'omfg.cards — TV',
     roomCode,
     joinUrl,
     qrCode,
@@ -223,7 +223,7 @@ function requireAdmin(req, res, next) {
 app.get('/admin', requireAdmin, async (req, res) => {
   try {
     res.render('admin/index', {
-      title: 'unholy.cards — Admin',
+      title: 'omfg.cards — Admin',
       adminToken: typeof req.query.token === 'string' ? req.query.token : '',
       counts: await AdminCardRepository.overview(),
     });
@@ -236,7 +236,7 @@ app.get('/admin', requireAdmin, async (req, res) => {
 app.get('/admin/cards', requireAdmin, async (req, res) => {
   try {
     res.render('admin/cards', {
-      title: 'unholy.cards — Card Library',
+      title: 'omfg.cards — Card Library',
       adminToken: typeof req.query.token === 'string' ? req.query.token : '',
       ...await AdminCardRepository.library(req.query),
     });
@@ -256,7 +256,7 @@ app.get('/admin/feedback', requireAdmin, async (req, res) => {
       thresholds: config.feedback,
     });
     res.render('admin/feedback', {
-      title: 'unholy.cards — Feedback',
+      title: 'omfg.cards — Feedback',
       adminToken: typeof req.query.token === 'string' ? req.query.token : '',
       ...dashboard,
     });
@@ -706,7 +706,7 @@ app.get('/admin/content', requireAdmin, async (req, res) => {
     ]);
 
     res.render('admin/content', {
-      title: 'unholy.cards — Content Review',
+      title: 'omfg.cards — Content Review',
       adminToken: typeof req.query.token === 'string' ? req.query.token : '',
       cards,
       counts: { pending: pendingCount, approvedToday, deniedToday },
@@ -1131,6 +1131,17 @@ function maybeStartCountdown(room) {
   if (room.startCountdownTimer.unref) room.startCountdownTimer.unref();
 }
 
+function broadcastBotControls(room) {
+  const humanCount = room.getHumanPlayers().length;
+  const botCount = room.getBotPlayers().length;
+  io.to(room.code).emit('bot-controls', {
+    humanCount,
+    botCount,
+    canAdd: humanCount >= 2 && room.players.size < config.room.maxPlayers,
+    canRemove: botCount > 0,
+  });
+}
+
 // Fill (or trim) bot seats toward room.botTarget once >= 2 humans are present.
 // Humans are always preferred; bots only fill the remaining seats. Emits
 // join/leave so the host + TV update. Safe to call on any join/leave (a no-op
@@ -1162,6 +1173,8 @@ function reconcileBots(room) {
     broadcastGameState(room);
     bots.scheduleBotActions(room, afterBotAction);
   }
+
+  broadcastBotControls(room);
 
   // Any join/leave/bot change re-evaluates the auto-start countdown (self-guards
   // when a game is active or the table isn't ready yet).
@@ -1323,13 +1336,16 @@ io.on('connection', (socket) => {
     }
   });
 
-  // Host nudges the bot fill target up/down. Bots only actually appear once
-  // there are >= 2 humans (see reconcileBots / desiredBotCount).
+  // Each host click changes one actual seat; never queue invisible bot additions.
   socket.on('add-bot', () => {
     if (socket.deviceType !== 'host') return;
     const room = gameManager.getRoom(socket.roomCode);
     if (!room) return;
-    room.botTarget = Math.min(config.room.maxPlayers, room.botTarget + 1);
+    if (room.getHumanPlayers().length < 2 || room.players.size >= config.room.maxPlayers) {
+      broadcastBotControls(room);
+      return;
+    }
+    room.botTarget = room.players.size + 1;
     reconcileBots(room);
   });
 
@@ -1337,7 +1353,11 @@ io.on('connection', (socket) => {
     if (socket.deviceType !== 'host') return;
     const room = gameManager.getRoom(socket.roomCode);
     if (!room) return;
-    room.botTarget = Math.max(0, room.botTarget - 1);
+    if (room.getBotPlayers().length === 0) {
+      broadcastBotControls(room);
+      return;
+    }
+    room.botTarget = room.players.size - 1;
     reconcileBots(room);
   });
 
@@ -1482,7 +1502,7 @@ if (sweepTimer.unref) sweepTimer.unref();
 
 function logStartupBanner() {
   const port = server.address() ? server.address().port : PORT;
-  console.log(`🃏 unholy.cards server running on port ${port}`);
+  console.log(`🃏 omfg.cards server running on port ${port}`);
   if (config.server.publicUrl) {
     console.log(`🌍 Public URL: ${config.server.publicUrl}`);
   }

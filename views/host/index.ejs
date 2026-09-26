@@ -1,8 +1,12 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+    <link rel="icon" href="/favicon.ico" sizes="any">
+    <link rel="icon" type="image/png" sizes="32x32" href="/images/brand/favicon-32.png">
+    <link rel="apple-touch-icon" href="/images/brand/apple-touch-icon.png">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="AI-generated insanity. Human-approved bad decisions. A fill-in-the-blank party game with unhinged AI-written cards. Grab your friends and play on your phones.">
     <title><%= title %></title>
     <link rel="stylesheet" href="/css/theme.css">
     <link rel="stylesheet" href="/css/host.css">
@@ -10,65 +14,71 @@
 <body>
     <div class="container">
         <header>
-            <h1>🃏 unholy.cards</h1>
-            <p>Summon your crew. Cast to the TV, play from your phone.</p>
+            <h1 class="wordmark"><img class="brand-logo" src="/images/brand/omfg-logo.png" alt="omfg.cards" width="870" height="290"></h1>
+            <p>Good company. Terrible answers.</p>
         </header>
 
         <main>
             <div id="setup-screen" class="screen active">
                 <div class="setup-card">
-                    <h2>Start Your Game</h2>
-                    <button id="create-room-btn" class="primary-btn">Create Room</button>
-                    <p class="help-text">This will create a room code for players to join</p>
+                    <p class="eyebrow">AI writes the cards. You cross the line.</p>
+                    <h2>AI-generated insanity.<br>Human-approved bad decisions.</h2>
+                    <p class="setup-description">A fill-in-the-blank party game powered by unhinged AI-written cards. Play the most outrageous answer from your hand. Your friends decide who went too far—in the best way.</p>
+                    <button id="create-room-btn" class="primary-btn">Create a game →</button>
+                    <p class="help-text">2+ people · Phones only · TV optional</p>
+                    <a class="join-existing" href="/player">Have a room code? Join a game</a>
                 </div>
             </div>
 
             <div id="room-screen" class="screen">
                 <div class="room-info">
-                    <h2>Room Created!</h2>
+                    <p class="eyebrow">Your table is ready</p>
+                    <h2>Let’s get you playing.</h2>
+                    <p class="room-next-step">Join on this phone, then invite a friend with the code or QR.</p>
                     <div class="room-code-display">
-                        <span class="label">Room Code:</span>
+                        <span class="label">Room code</span>
                         <span id="room-code" class="room-code"></span>
                     </div>
                     
                     <div class="qr-section">
-                        <h3>Players can scan to join:</h3>
+                        <h3>Scan to take a seat</h3>
                         <div id="qr-code-container"></div>
-                        <a id="join-play-link" href="#" class="play-link">Play on this phone →</a>
+                        <a id="join-play-link" href="#" class="play-link">Join &amp; play →</a>
                         <p class="join-url">Or visit: <a id="join-url" href="#"></a></p>
                     </div>
 
                     <div class="tv-section">
-                        <h3>Cast to TV:</h3>
-                        <a id="tv-url" href="#" target="_blank" class="tv-link">Open TV Display</a>
-                        <p class="help-text">Open this link on your Chromecast or TV browser</p>
+                        <h3>Make it a big-screen night</h3>
+                        <a id="tv-url" href="#" target="_blank" rel="noopener" class="tv-link">Open TV Display</a>
+                        <p class="help-text">Optional: open the display on your TV browser.</p>
                     </div>
                 </div>
 
                 <div class="players-section">
                     <h3>At the table (<span id="player-count">0</span>)</h3>
                     <div class="bot-controls">
-                        <button id="remove-bot-btn" class="secondary-btn" type="button">− Bot</button>
-                        <span id="bot-hint" class="help-text">Bots fill the table once 2 people join — they play cards, humans are the Czar.</span>
-                        <button id="add-bot-btn" class="secondary-btn" type="button">+ Bot</button>
+                        <button id="remove-bot-btn" disabled class="secondary-btn" type="button">− Bot</button>
+                        <span id="bot-hint" class="help-text">Join with 2 people to add bots. People take turns judging.</span>
+                        <button id="add-bot-btn" disabled class="secondary-btn" type="button">+ Bot</button>
                     </div>
                     <ul id="players-list"></ul>
                 </div>
 
                 <div class="game-controls">
-                    <h3>Game Options</h3>
+                    <h3>Ready when you are</h3>
+                    <p class="help-text">The game starts automatically when the table is ready. With 2 people, bots fill the extra seats.</p>
                     <p class="help-text" id="countdown-status"></p>
                     <div class="start-controls">
                         <button id="start-game-btn" class="primary-btn" disabled>Start now</button>
-                        <button id="autostart-toggle-btn" class="secondary-btn" type="button">Hold</button>
+                        <button id="autostart-toggle-btn" class="secondary-btn" type="button">Pause auto-start</button>
                     </div>
                     <button id="end-game-btn" class="secondary-btn" style="display: none;">End Game</button>
                 </div>
 
                 <div class="game-status">
-                    <h3>Game Status</h3>
+                    <h3>Table status</h3>
                     <div id="game-status-content">
-                        <p>Waiting for players to join...</p>
+                        <p>Join the game yourself, then invite a friend.</p>
                     </div>
                 </div>
             </div>

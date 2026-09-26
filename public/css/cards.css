@@ -1,5 +1,5 @@
 /* ==========================================================================
-   unholy.cards — card design system ("Unholy Ritual")
+   omfg.cards — card design system ("Unholy Ritual")
    Shared by the TV (tv.js) and phone (player.js) via card-render.js.
    Prompt = a void tablet edged in blood; Answer = aged bone parchment.
    Tokens come from theme.css.
@@ -29,9 +29,6 @@
     position: relative;
     z-index: 1;
 }
-
-/* Reserved for future per-card sprite art (E3). */
-.card__sprite-slot { display: none; }
 
 .card__text {
     white-space: pre-wrap;
@@ -69,7 +66,7 @@
     opacity: 0.9;
 }
 .card--prompt::after {
-    content: "\271D"; /* dagger cross */
+    content: "\2726"; /* shared brand sparkle */
     position: absolute;
     top: 10px;
     right: 14px;
@@ -81,8 +78,7 @@
 
 /* ---- Answer (white) card: aged bone parchment --------------------------- */
 .card--answer {
-    background:
-        linear-gradient(180deg, #f6efe0 0%, var(--bone) 55%, var(--bone-shade) 100%);
+    background: var(--bone);
     color: #17110c;
     font-weight: 600;
     border: 1px solid rgba(90, 18, 32, 0.22);

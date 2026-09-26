@@ -245,6 +245,27 @@ describe('MadLadGame', () => {
     });
   });
 
+  describe('content writer metadata', () => {
+    test('survives the hand, snapshot, anonymous judging and winning card', () => {
+      const deck = makeDeck();
+      deck.answers.forEach((card) => { card.writer = 'writer.banned_from_4chan'; });
+      const room = makeRoom(makePlayers(3));
+      let game = new MadLadGame(room, { deck });
+      const handCard = game.getStateForPlayer('p2').hand[0];
+      expect(handCard.writer).toBe('writer.banned_from_4chan');
+      game = MadLadGame.restore(room, game.serialize());
+      everyoneSubmits(game);
+      const submission = game.getPublicState().submissions.find((card) => card.cardId === handCard.cardId);
+      expect(submission.writer).toBe(handCard.writer);
+      expect(submission.playerName).toBeUndefined();
+      expect(submission.playerId).toBeUndefined();
+      game.handlePlayerAction('p1', { action: 'pick-winner', data: { submissionId: submission.id } });
+      expect(game.getPublicState().lastWinner).toMatchObject({
+        cardId: handCard.cardId, writer: handCard.writer, text: handCard.text,
+      });
+    });
+  });
+
   describe('state privacy', () => {
     test('public state hides hands and keeps submissions anonymous while judging', () => {
       const game = makeGame(3);
