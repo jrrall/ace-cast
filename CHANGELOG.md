@@ -1,3 +1,8 @@
+## 1.31.0 (2026-09-26)
+
+* feat: track durable card deals and prompt exposures (#82) ([eae7b79](https://github.com/jrrall/ace-cast/commit/eae7b79)), closes [#82](https://github.com/jrrall/ace-cast/issues/82)
+* feat(tv): refresh OMFG display and gate forge image publishing (#81) ([34c09c1](https://github.com/jrrall/ace-cast/commit/34c09c1)), closes [#81](https://github.com/jrrall/ace-cast/issues/81)
+
 ## 1.30.0 (2026-09-26)
 
 * feat: rebrand as omfg.cards and simplify mobile onboarding (#80) ([79e5045](https://github.com/jrrall/ace-cast/commit/79e5045)), closes [#80](https://github.com/jrrall/ace-cast/issues/80)
