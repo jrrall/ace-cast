@@ -8,6 +8,7 @@
  * most one session row that is rewritten in place as the game progresses.
  */
 const { db } = require('../db');
+const CardStatsRepository = require('./CardStatsRepository');
 
 const RESUMABLE = ['active', 'paused'];
 const STATUSES = ['active', 'paused', 'completed', 'abandoned'];
@@ -43,10 +44,19 @@ async function snapshot({
     last_activity: Date.now(),
   };
 
-  await db()('sessions')
-    .insert({ ...row, created_at: now })
-    .onConflict('room_code')
-    .merge(row);
+  await db().transaction(async (trx) => {
+    const saved = await trx('sessions')
+      .insert({ ...row, created_at: now })
+      .onConflict('room_code')
+      .merge(row)
+      .where('sessions.state_version', '<', row.state_version)
+      .returning('room_code');
+    // An older concurrent snapshot must neither rewind hands nor count events
+    // from a state that will never be restored.
+    if (saved.length) {
+      await CardStatsRepository.recordExposureEvents(serializedState?.exposureEvents || [], trx);
+    }
+  });
 }
 
 /** Hydrate a row into a plain object with `serializedState` parsed back to JSON. */

@@ -2,10 +2,13 @@ const request = require('supertest');
 const { io: Client } = require('socket.io-client');
 const { useTestDb, cleanupTestDb } = require('./helpers/testDb');
 
+let gameManager;
+
 // End-to-end test: drives a full MadLad round through real
 // Socket.IO clients against the actual server, verifying the private-broadcast
 // wiring (players get hands, spectators never do) and start/submit/judge flow.
 
+let flushSnapshots;
 let app;
 let server;
 let ioServer;
@@ -67,6 +70,8 @@ beforeAll(async () => {
   db = useTestDb('e2e');
   // eslint-disable-next-line global-require
   const mod = require('../src/server/index');
+  gameManager = require('../src/game/GameManager');
+  flushSnapshots = mod.flushSnapshots;
   app = mod.app;
   server = mod.server;
   ioServer = mod.io;
@@ -78,6 +83,9 @@ afterAll(async () => {
   clients.forEach((c) => c.close());
   ioServer.close();
   await new Promise((resolve) => server.close(resolve));
+  // Stop room timers before closing the DB; disconnects can trigger snapshots.
+  [...gameManager.rooms.keys()].forEach((code) => gameManager.removeRoom(code));
+  await flushSnapshots();
   await db.close();
   cleanupTestDb();
 });

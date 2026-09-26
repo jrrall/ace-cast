@@ -18,11 +18,21 @@ describe('S1 session persistence', () => {
   let gameManager;
   let SessionRepository;
   let serverMod;
+  let CardStatsRepository;
 
   beforeAll(async () => {
     db = useTestDb('session-persist');
     await db.migrateToLatest();
     knex = db.db();
+    const [{ id: packId }] = await knex('packs').insert({
+      slug: 'persist-fixture', name: 'Persist fixture', game_id: 'madlad',
+    }).returning('id');
+    const deck = makeDeck();
+    await knex('cards').insert([
+      ...deck.prompts.map((card) => ({ ...card, kind: 'prompt', game_id: 'madlad', pack_id: packId })),
+      ...deck.answers.map((card) => ({ ...card, blanks: 0, kind: 'answer', game_id: 'madlad', pack_id: packId })),
+    ]);
+
 
     /* eslint-disable global-require */
     config = require('../src/utils/config');
@@ -30,6 +40,7 @@ describe('S1 session persistence', () => {
     config.session.resumableTtlMs = 60 * 1000;
     gameManager = require('../src/game/GameManager');
     SessionRepository = require('../src/content/SessionRepository');
+    CardStatsRepository = require('../src/content/CardStatsRepository');
     serverMod = require('../src/server/index'); // exports rehydrateRoom/sweepSessions/writeSnapshot
     /* eslint-enable global-require */
   });
@@ -57,6 +68,9 @@ describe('S1 session persistence', () => {
     expect(rec.gameType).toBe('madlad');
     expect(rec.serializedState.state.players.p2.score).toBe(3);
 
+    const originalPrompt = rec.serializedState.state.blackCard;
+    expect(await knex('card_exposure_events')).toHaveLength(25);
+
     // Drop the room from memory (simulates a restart / idle eviction).
     gameManager.removeRoom(code);
     expect(gameManager.getRoom(code)).toBeUndefined();
@@ -81,12 +95,32 @@ describe('S1 session persistence', () => {
     ['p1', 'p2', 'p3'].forEach((id) => revived.reconnectPlayer(id, global.createMockSocket()));
     expect(revived.gameEngine.getActiveIds().sort()).toEqual(['p1', 'p2', 'p3']);
     expect(revived.gameEngine.state.phase).toBe('answering');
+    expect(revived.gameEngine.state.blackCard).toEqual(originalPrompt);
+    await serverMod.writeSnapshot(revived);
+    expect(await knex('card_exposure_events')).toHaveLength(25);
     // Still playable: a non-judge can submit a card.
     const nonJudge = ['p1', 'p2', 'p3'].find((id) => id !== revived.gameEngine.state.judgeId);
     const result = revived.handlePlayerAction(nonJudge, { action: 'submit-card', data: { cardIndex: 0 } });
     expect(result).toEqual({ ok: true });
 
     gameManager.removeRoom(code);
+  });
+
+  test('broadcast commits hands first and retries failed delivery writes', async () => {
+    const room = gameManager.createRoom('SEND');
+    ['a', 'b', 'c'].forEach((id) => room.addPlayer(id, id, global.createMockSocket()));
+    room.startGame('madlad', { deck: makeDeck() });
+    const failure = jest.spyOn(CardStatsRepository, 'recordExposureEvents').mockRejectedValueOnce(new Error('database unavailable'));
+    await serverMod.broadcastGameState(room);
+    expect(await SessionRepository.getByRoomCode('SEND')).toBeNull();
+    expect(room.gameEngine.exposureEvents).toHaveLength(25);
+    expect(room.getPlayer('a').socket.emit).not.toHaveBeenCalledWith('game-update', expect.anything());
+    failure.mockRestore();
+    await serverMod.broadcastGameState(room);
+    expect((await SessionRepository.getByRoomCode('SEND')).serializedState.state.players.a.hand).toHaveLength(8);
+    expect(room.gameEngine.exposureEvents).toEqual([]);
+    expect(room.getPlayer('a').socket.emit).toHaveBeenCalledWith('game-update', expect.anything());
+    gameManager.removeRoom('SEND');
   });
 
   test('does not rehydrate a completed session', async () => {

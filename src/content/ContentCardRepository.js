@@ -75,12 +75,12 @@ async function insertPending(rows) {
  * @param {{ status?: string, kind?: string, limit?: number, before?: number }} [options]
  * @returns {Promise<Array<object>>}
  */
-function list({
+async function list({
   status, kind, limit = 100, before,
 } = {}) {
   const query = db()('cards')
     .select(
-      'id',
+      'cards.id',
       'game_id',
       'kind',
       'text',
@@ -95,14 +95,25 @@ function list({
       'reviewed_at',
       'reviewed_by',
       'denied_reason',
-      'created_at',
+      'cards.created_at',
     )
-    .orderBy('id', 'desc');
-  if (before) query.where('id', '<', before);
+    .orderBy('cards.id', 'desc');
+  query.leftJoin('card_stats as cs', 'cs.card_id', 'cards.id')
+    .select(...['plays', 'wins', 'deals', 'prompt_exposures'].map(
+      (name) => db().raw('COALESCE(??, 0) as ??', [`cs.${name}`, name]),
+    ));
+  if (before) query.where('cards.id', '<', before);
   if (status) query.where({ status });
   if (kind) query.where({ kind });
   query.limit(limit);
-  return query;
+  const rows = await query;
+  return rows.map((row) => ({
+    ...row,
+    plays: Number(row.plays),
+    wins: Number(row.wins),
+    deals: Number(row.deals),
+    prompt_exposures: Number(row.prompt_exposures),
+  }));
 }
 
 /**

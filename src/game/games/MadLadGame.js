@@ -1,3 +1,4 @@
+const { randomUUID } = require('crypto');
 const BaseGame = require('./BaseGame');
 
 const HAND_SIZE = 8;
@@ -33,6 +34,7 @@ class MadLadGame extends BaseGame {
   constructor(room, options = {}) {
     super(room, options);
     this.gameType = 'madlad';
+    this.exposureEvents = [];
 
     const deck = options.deck || { prompts: [], answers: [] };
     // Keep the full prompt list so the black pile can reshuffle when exhausted.
@@ -126,7 +128,9 @@ class MadLadGame extends BaseGame {
 
   refillHand(player) {
     while (player.hand.length < HAND_SIZE) {
-      player.hand.push(this.drawWhite());
+      const card = this.drawWhite();
+      player.hand.push(card);
+      this.trackExposure(card, 'answer_dealt');
     }
   }
 
@@ -167,6 +171,7 @@ class MadLadGame extends BaseGame {
     });
 
     this.state.blackCard = this.drawBlack();
+    this.trackExposure(this.state.blackCard, 'prompt_exposed');
     this.state.submissions = [];
     this.state.phase = 'answering';
 
@@ -367,6 +372,7 @@ class MadLadGame extends BaseGame {
 
     // A late joiner might complete an answering round they can't join,
     // or let a stalled round proceed.
+    if (this.resumeWithoutJudge()) return;
     if (this.state.phase === 'answering') {
       this.maybeAdvanceToJudging();
     } else if (this.state.phase === 'waiting') {
@@ -374,7 +380,7 @@ class MadLadGame extends BaseGame {
     }
   }
 
-  handlePlayerLeave(playerId) {
+  handlePlayerLeave(playerId, { reflow = true } = {}) {
     const player = this.state.players[playerId];
     if (!player) return;
     player.isActive = false;
@@ -383,7 +389,7 @@ class MadLadGame extends BaseGame {
     this.discardPile.push(...player.hand);
     player.hand = [];
 
-    this.reflowAfterDeparture(playerId);
+    if (reflow) this.reflowAfterDeparture(playerId);
   }
 
   /**
@@ -415,6 +421,7 @@ class MadLadGame extends BaseGame {
     const hasLiveSubmission = this.state.submissions.some((s) => s.playerId === playerId);
     if (!hasLiveSubmission) player.submittedCardId = null;
 
+    if (this.resumeWithoutJudge()) return;
     if (this.state.phase === 'waiting') {
       const activeIds = this.getActiveIds();
       if (activeIds.length >= MIN_PLAYERS) this.startRound(true);
@@ -422,6 +429,17 @@ class MadLadGame extends BaseGame {
       // Their return re-opens a slot; re-evaluate whether the round can proceed.
       this.maybeAdvanceToJudging();
     }
+  }
+
+  // Restored seats are held without simulating departures. If enough players
+  // actually return without the old judge, start a replacement round then.
+  resumeWithoutJudge() {
+    if (['answering', 'judging'].includes(this.state.phase)
+      && this.getActiveIds().length >= MIN_PLAYERS && !this.canJudge(this.state.judgeId)) {
+      this.startRound(true);
+      return true;
+    }
+    return false;
   }
 
   /**
@@ -484,6 +502,19 @@ class MadLadGame extends BaseGame {
     };
   }
 
+  // A UUID belongs to a delivery, not a card/round/player. Re-deals and prompt
+  // replacements in the same round are distinct; snapshot replay retains IDs.
+  trackExposure(card, kind) {
+    if (card && card.id != null) {
+      this.exposureEvents.push({ eventId: randomUUID(), cardId: card.id, kind });
+    }
+  }
+
+  acknowledgeExposures(events) {
+    const ids = new Set(events.map((event) => event.eventId));
+    this.exposureEvents = this.exposureEvents.filter((event) => !ids.has(event.eventId));
+  }
+
   // ---- Persistence (opt-in serialize / restore) --------------------------
 
   /** Plain-JSON snapshot of everything needed to rebuild this game. */
@@ -491,6 +522,7 @@ class MadLadGame extends BaseGame {
     return {
       version: 1,
       gameType: 'madlad',
+      exposureEvents: this.exposureEvents.slice(),
       state: this.state,
       seatOrder: this.seatOrder,
       drawPile: this.drawPile,
@@ -517,6 +549,7 @@ class MadLadGame extends BaseGame {
     game.blackPile = snapshot.blackPile || [];
     game.seatOrder = snapshot.seatOrder || [];
     game.state = snapshot.state;
+    game.exposureEvents = (snapshot.exposureEvents || []).map((event) => ({ ...event }));
     return game;
   }
 

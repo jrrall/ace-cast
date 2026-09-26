@@ -330,6 +330,35 @@ delete). A valid token missing the scope gets **403**; an unrecognised one gets
 `/admin/content` is gated separately by `ADMIN_TOKEN` — a service token cannot
 approve cards, which is what stops the agent publishing its own output.
 
+### Card deal and prompt exposure telemetry
+
+`GET /api/content/cards` includes numeric `plays`, `wins`, `deals`, and
+`prompt_exposures` on each card, alongside `writer` and `generation_route`.
+The endpoint keeps its existing access rules. `deals` counts each real answer
+inserted into a server-owned hand: initial hands (including the judge and bots),
+late joins, refills, and swap replacements. A reshuffled card dealt again is
+another delivery. `prompt_exposures` counts each activation as the round prompt,
+including a replacement prompt when the judge leaves mid-round. Neither metric
+measures whether someone actually looked at the card.
+
+Deck loading, shuffling, state reads/broadcasts, restoring a saved hand, taking
+back a submission, and null fallback cards do not create exposure events. A
+reconnect that genuinely needs new cards counts only those new deliveries.
+Each delivery has a UUID retained in snapshots. A durable event ledger dedupes
+retries, and its counter updates commit in the same transaction as the room
+snapshot. New hands are broadcast after that commit. Older concurrent snapshots
+cannot overwrite newer saved hands. With session persistence disabled, counters
+still persist, but games cannot resume after restart.
+
+The response also includes `exposure_tracking: { started_at,
+historical_counts_known: false }`. The timestamp is when the exposure migration
+ran on that database. Counts start at zero then; historical deals are unknown
+and are never reconstructed from plays. Lifetime `plays`/`wins` may predate
+tracking, so do not divide those lifetime totals by new deal totals for an old
+card. Compare increments over the same observation period (allowing for cards
+still held), or analyze cards introduced after tracking began. Group those
+observations by the returned writer/generation route as needed.
+
 ## 🚀 Deployment
 
 ### Local Network Deployment

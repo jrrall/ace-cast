@@ -6,6 +6,8 @@ const { useTestDb, cleanupTestDb } = require('./helpers/testDb');
 // down and auto-starts the default game. The host can Hold (pause) and resume.
 // Driven through real Socket.IO clients against the actual server.
 
+let gameManager;
+let flushSnapshots;
 let app;
 let server;
 let ioServer;
@@ -73,6 +75,8 @@ beforeAll(async () => {
   db = useTestDb('autostart');
   // eslint-disable-next-line global-require
   const mod = require('../src/server/index');
+  gameManager = require('../src/game/GameManager');
+  flushSnapshots = mod.flushSnapshots;
   app = mod.app;
   server = mod.server;
   ioServer = mod.io;
@@ -84,6 +88,8 @@ afterAll(async () => {
   clients.forEach((c) => c.close());
   ioServer.close();
   await new Promise((resolve) => server.close(resolve));
+  [...gameManager.rooms.keys()].forEach((code) => gameManager.removeRoom(code));
+  await flushSnapshots();
   await db.close();
   cleanupTestDb();
 });
