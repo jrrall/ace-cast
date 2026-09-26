@@ -30,6 +30,7 @@ const DeckService = require('../content/DeckService');
 const CardStatsRepository = require('../content/CardStatsRepository');
 const CardEventsRepository = require('../content/CardEventsRepository');
 const bots = require('./bots');
+const landingCopy = require('./landing-copy.json');
 const CardFlagRepository = require('../content/CardFlagRepository');
 const CardRepository = require('../content/CardRepository');
 const ContentCardRepository = require('../content/ContentCardRepository');
@@ -134,7 +135,8 @@ app.get('/healthz', async (req, res) => {
 
 // Routes
 app.get('/', (req, res) => {
-  res.render('host/index', { title: 'omfg.cards — Host', games: registry.listGames() });
+  const copy = landingCopy[Math.floor(Math.random() * landingCopy.length)];
+  res.render('host/index', { title: 'omfg.cards — Host', games: registry.listGames(), copy });
 });
 
 // Public list of playable games (for the host UI / future clients).

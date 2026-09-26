@@ -1,0 +1,107 @@
+[
+  {
+    "eyebrow": "Your next questionable game night",
+    "headline": [
+      "Great friends.",
+      "Awful answers."
+    ],
+    "description": "AI-generated cards. Deeply questionable combinations. Play your funniest answer and let your friends judge you."
+  },
+  {
+    "eyebrow": "A little less doomscrolling.",
+    "headline": [
+      "The future is bleak.",
+      "Your hand is worse."
+    ],
+    "description": "A fill-in-the-blank party game for laughing through it. AI writes the unhinged cards. You play your worst answer. Your friends pick the winner."
+  },
+  {
+    "eyebrow": "The machines have jokes.",
+    "headline": [
+      "Skynet wants you dead.",
+      "For now, it’ll settle for making you laugh."
+    ],
+    "description": "A fill-in-the-blank party game with unhinged AI-written cards. Play your funniest answer. Your friends pick the winner. Humanity survives another round."
+  },
+  {
+    "persona": "deadpan",
+    "eyebrow": "Please take a seat.",
+    "headline": [
+      "The machines wrote the cards.",
+      "Complaints go in the usual bin."
+    ],
+    "description": "An AI-written fill-in-the-blank party game. Submit your funniest answer. A friend picks the winner. Record any loss of dignity as normal wear and tear."
+  },
+  {
+    "persona": "unhinged",
+    "eyebrow": "We gave it one job.",
+    "headline": [
+      "AI planned game night.",
+      "The group chat is now evidence."
+    ],
+    "description": "Play outrageous AI-written answers to fill in the blank. Your friends judge the winner. Then immediately demand a recount, a tribunal, and custody of the snacks."
+  },
+  {
+    "persona": "pr_spin_doctor",
+    "eyebrow": "An exciting update for humanity.",
+    "headline": [
+      "The robot uprising now includes",
+      "a complimentary game night."
+    ],
+    "description": "Enjoy AI-written fill-in-the-blank cards while we finalize your replacement. Play your funniest answer. Your friends pick the winner. Participation looks great on your file."
+  },
+  {
+    "persona": "petty_villain",
+    "eyebrow": "Oh, you left me on read?",
+    "headline": [
+      "I invited everyone to game night.",
+      "Even your replacement in the group chat."
+    ],
+    "description": "AI writes the cards. You play the funniest answer. Your friends judge. I’ve prepared a seating chart that puts you just outside charger range."
+  },
+  {
+    "persona": "banned_from_4chan",
+    "eyebrow": "Apparently the forum has “standards.”",
+    "headline": [
+      "The AI stole my jokes.",
+      "Somehow I’m still the one banned."
+    ],
+    "description": "AI-written fill-in-the-blank cards for people who should log off. Play your funniest answer. Your friends pick the winner. I’m already drafting my fucking appeal."
+  },
+  {
+    "persona": "hatemonger",
+    "eyebrow": "Follow the crumbs.",
+    "headline": [
+      "The AI knows who took my snacks.",
+      "This goes all the way to the host."
+    ],
+    "description": "An AI-written fill-in-the-blank party game. Play your funniest answer and let your friends judge. I brought a separate bowl to preserve the evidence."
+  },
+  {
+    "persona": "toxic_positivity",
+    "eyebrow": "I’m making space for everyone.",
+    "headline": [
+      "Everyone gets a voice.",
+      "Please use yours to say I’m funny."
+    ],
+    "description": "Play your funniest AI-written card to fill in the blank. Your friends pick the winner. I’ll be celebrating every result that supports my journey."
+  },
+  {
+    "persona": "intrusive_thoughts",
+    "eyebrow": "Okay, but what if…",
+    "headline": [
+      "What if we let the AI",
+      "write the wedding toast?"
+    ],
+    "description": "Start with a fill-in-the-blank party game. Play your funniest AI-written answer. Your friends pick the winner. Keep the winning card away from the microphone."
+  },
+  {
+    "persona": "super_bitch",
+    "eyebrow": "Oh, you’re the funny friend?",
+    "headline": [
+      "AI wrote your jokes for you.",
+      "Honestly, babe. Huge improvement."
+    ],
+    "description": "A fill-in-the-blank party game with AI-written cards. Play your funniest answer. Your friends pick the winner. We’re all so excited for you to have material."
+  }
+]
