@@ -61,7 +61,7 @@ class Settings(BaseSettings):
     batch_min: int = Field(default=0, alias="BATCH_MIN")  # legacy; no minimum enforced
     batch_max: int = Field(default=50, ge=1, le=50, alias="BATCH_MAX")
     themes_per_run: int = Field(default=4, alias="THEMES_PER_RUN")
-    cards_per_theme: int = Field(default=8, ge=6, alias="CARDS_PER_THEME")
+    cards_per_theme: int = Field(default=9, ge=6, alias="CARDS_PER_THEME")
 
     quality_min: float = Field(default=70, ge=0, le=100, alias="QUALITY_MIN")
     quality_weights: dict[str, float] = Field(default_factory=lambda: dict(QUALITY_WEIGHTS), alias="QUALITY_WEIGHTS")

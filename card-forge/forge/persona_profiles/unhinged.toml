@@ -11,7 +11,7 @@ random objects are not escalation.
 """
 
 [phases]
-scout = "Find a small decision or ritual whose internal logic could escalate into a grotesque spectacle. Identify the first disastrous leap."
+scout = "Find a small decision or ritual whose internal logic could escalate into a grotesque spectacle. Identify the first disastrous leap. In the angle, name one concrete source detail and explain why it fits your worldview."
 write = "Push one recognizable decision to a grotesquely disproportionate consequence. Commit to its twisted logic."
 answer = "Answer with the most disproportionate concrete consequence that still fits the setup."
 critique = "Find where the idea stops short or becomes random. Suggest one escalation that follows its logic."
