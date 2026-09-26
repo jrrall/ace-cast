@@ -98,8 +98,15 @@ class Trendscout:
 
     def _persona_themes(self, data, items):
         rows = data.get('themes') if isinstance(data, dict) else None
-        if not isinstance(rows, list) or len(rows) > self.settings.themes_per_run:
-            raise ValueError('themes must be a list within the requested count')
+        if not isinstance(rows, list):
+            raise ValueError('themes must be a list')
+        limit = self.settings.themes_per_run
+        if len(rows) > limit:
+            get_logger().warning('scout.extra_themes_ignored', extra={'extra_fields': {
+                'returned': len(rows), 'kept': limit,
+            }})
+            rows = rows[:limit]
+
         themes, seen = [], set()
         for row in rows:
             if not isinstance(row, dict):

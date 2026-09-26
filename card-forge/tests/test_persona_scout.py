@@ -146,3 +146,25 @@ def test_tabloid_preference_is_identical_across_writers_and_fresh_scouts(setting
     assert len(set(requests)) == 1
     assert f'Fictional tabloid target: {percent}%' in requests[0]
     assert 'preference, not a quota' in requests[0]
+
+
+def test_scout_caps_extra_output_without_retry(settings, caplog):
+    settings.themes_per_run = 2
+    rows = [*choices(0, 'First')['themes'], *choices(1, 'Second')['themes'],
+            {'broken': 'unused extra'}, *choices(0, 'Duplicate extra')['themes']]
+    llm = FakeLLM([{'themes': rows}])
+    writer = writing_team(llm, settings)[0]
+    result = Trendscout(llm, settings).for_writer(writer, feed())
+    assert [t.title for t in result] == ['First', 'Second']
+    assert len(llm.calls) == 1
+    assert len(rows) == 4
+    assert 'scout.extra_themes_ignored' in caplog.text
+
+
+def test_scout_cap_still_validates_retained_rows(settings):
+    settings.themes_per_run = 1
+    settings.llm_json_retries = 0
+    llm = FakeLLM([{'themes': [*choices(99, 'Invalid')['themes'], *choices(0, 'Valid extra')['themes']]}])
+    writer = writing_team(llm, settings)[0]
+    with pytest.raises(ValueError, match='source_index'):
+        Trendscout(llm, settings).for_writer(writer, feed())
