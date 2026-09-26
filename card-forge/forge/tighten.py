@@ -21,9 +21,7 @@ def tighten_cards(llm, cards):
     replacements = {}
     if rewrite:
         data = llm.complete_json(
-            system=('You are the final card copy editor. Shorten only the supplied cards. '
-                    'Preserve the actual comic payoff, voice, profanity, and specific image. '
-                    "Remove redundant words without changing the author's intended effect or adding a shared style. "
+            system=('Shorten supplied cards; preserve payoff, voice, profanity, and specific image. '
                     'Prompts: at most 24 words and 160 characters, exactly one ____ accepting '
                     'an unrelated noun phrase. Answers: at most 12 words and 90 characters, '
                     'no blank; acts, objects, situations and puns are valid. Keep the kind. '

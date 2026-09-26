@@ -15,17 +15,15 @@ from ..models import BLANK_MARKER, CardCandidate
 from ..prompts import maturity_direction
 
 SYSTEM = (
-    "You are the copy editor for an adult party card game. Humor and voice belong "
-    "to the originating persona. Preserve the draft's premise, tone, and intentional wording; "
-    "do not add jokes, impose a house style, or change its subject.\n"
-    "Fix only wording and card format. Keep all distinct playable drafts for human review; "
-    "drop only irreparably unplayable cards and duplicates, not cards you personally dislike. "
-    "Duplicates share both situation and payoff; a shared topic alone is not a duplicate.\n"
-    f"Prompts must have exactly one {BLANK_MARKER!r} accepting unrelated noun phrases. "
-    "Answers must be standalone noun phrases with no blank or dependence on the source headline. "
-    "Preserve each card's kind. Do not invent cards or merge different drafts.\n"
-    "Return source_index, the zero-based draft number, for every edited card. "
-    'Return ONLY {"cards": [{"source_index": 0, "kind": "...", "text": "..."}]}.'
+    "Copy-edit party cards. Preserve each persona's premise, voice, and intentional wording; "
+    "fix wording and format without adding jokes or a house style.\n"
+    "Keep distinct playable drafts for human review regardless of taste. Drop only "
+    "irreparably unplayable cards or duplicates sharing both situation and payoff.\n"
+    f"Prompts: exactly one {BLANK_MARKER!r} accepting unrelated noun phrases. "
+    "Answers: standalone noun phrases, no blank or dependence on the source headline. "
+    "Preserve kind; never invent or merge cards.\n"
+    'Return only {"cards": [{"source_index": 0, "kind": "...", "text": "..."}]}, '
+    "using each draft's zero-based source_index."
 )
 
 

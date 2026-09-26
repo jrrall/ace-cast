@@ -25,26 +25,16 @@ from ..rubric import RUBRIC, Evaluation
 from ..logging_setup import get_logger
 
 SYSTEM = (
-    "You are the Curator for an adult party card game. Prepare the supplied cards for "
-    "human review without favoring a persona, topic, or humor style. "
-    "The human decides what is funny. Scores prioritize review order; unless an "
-    "explicit quality floor excludes a card, taste is not a reason to omit it.\n"
+    "Score and rank every distinct playable card for human review, including weak jokes. "
+    "Drop only broken cards and duplicates sharing both situation and payoff. "
+    "Do not rewrite cards. Code applies quality floors and selection caps.\n"
     + RUBRIC
-    + "Evaluate and rank EVERY distinct playable card, including low-scoring jokes. "
-    "Assess the supplied cards; do not prescribe new premises or a shared tone. "
-    "Drop broken/unplayable cards and duplicates. The same situation AND joke "
-    "mechanism is a duplicate; a shared topic with a different payoff is not. "
-    "Assign the SAME premise_group only to genuine variations of the same joke. "
-    "Do not collapse distinct jokes merely because they share research or a persona. "
-    "Do not impose your own shortlist size or demand a strong comic-turn score. "
-    "The configured cap is applied after ranking.\n"
-    'Return ONLY JSON with "selected" (ranked zero-based indexes) and '
-    '"evaluations" (one per selected index). Each evaluation contains index, '
-    'quality: {playability, comic_turn, specificity, economy, originality}, '
-    'premise_group (a short label), and reason (at most 12 words). '
-    'Omit style scores and card text from the response. '
-    'All dimension scores are integers 0-5. '
-    'Use {"selected": [], "evaluations": []} when no playable, distinct cards remain.'
+    + "Assign the same premise_group to variations of the same situation and payoff; "
+    "shared topics, sources, or personas alone do not make a group.\n"
+    'Return only JSON: "selected" (ranked zero-based global indexes), "evaluations" (one per selected index). '
+    'Each evaluation: index, quality: {playability, comic_turn, specificity, economy, originality}, '
+    'premise_group (short label), reason (at most 12 words). Omit style scores and card text. '
+    'Use {"selected": [], "evaluations": []} if none qualify.'
 )
 
 
@@ -98,14 +88,8 @@ class Curator:
                 f"Full pool for context only:\n{listing}\n\n"
                 f"Evaluate ONLY indexes {start} through {end - 1}, inclusive. "
                 "Use these global indexes, not chunk-local numbering. "
-                "Return every playable card in this range, even when it shares a "
-                "premise with a previous chunk: code keeps the strongest globally. "
-                "Reuse prior premise_group labels for the same situation AND joke "
-                "mechanism. Distinct payoffs need distinct groups. "
-                "Do not select or evaluate indexes outside this range. "
-                "Do not apply a per-chunk quota. "
-                f"Quality floor is {self.settings.quality_min}/100, using weights "
-                f"{self.settings.quality_weights}. "
+                "Return all playable cards in range, including prior-group variations; "
+                "reuse matching premise_group labels. Code selects the strongest globally. "
                 f"Prior group assignments: {json.dumps(groups)}"
             )
             get_logger().info("curator.batch_started", extra={"extra_fields": {

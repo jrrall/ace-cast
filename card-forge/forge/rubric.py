@@ -9,14 +9,13 @@ QUALITY_WEIGHTS = {'playability': .30, 'comic_turn': .25, 'specificity': .15,
                    'economy': .10, 'originality': .20}
 STYLE_NAMES = ('unhinged', 'lewd', 'dark', 'gross', 'blasphemous', 'deadpan', 'implication')
 RUBRIC = (
-    'Quality rubric, score each dimension 0-5: 0 absent, 1 weak, 2 shaky, '
+    'Score each dimension with an integer 0-5: 0 absent, 1 weak, 2 shaky, '
     '3 workable, 4 strong, 5 exceptional. Playability: a prompt accepts several '
     'unrelated noun phrases; an answer fits several unrelated setups. '
     "Comic_turn: how effectively the card delivers its originating persona's humor. "
     'Specificity: clear, identifiable details. Economy: concise enough to play aloud. '
     'Originality: distinct from other cards in the pool and existing corpus. '
-    'Judge within the originating voice; no humor style, subject, or maturity level '
-    'automatically earns or loses points. '
+    'Judge within the originating voice, without style, subject, or maturity bias. '
 )
 
 
