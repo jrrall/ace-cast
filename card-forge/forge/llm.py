@@ -187,6 +187,8 @@ class LLMClient:
             content = choice.message.content
         except (AttributeError, IndexError) as exc:
             raise LLMError(f"malformed LLM response: {exc}") from exc
+        if choice.finish_reason is None:
+            raise _JSONResponseError("LLM response missing completion finish reason")
         if choice.finish_reason == "length":
             raise _TruncatedResponseError("LLM output truncated (finish_reason=length)")
         if choice.finish_reason != "stop":

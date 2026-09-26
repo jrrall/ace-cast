@@ -58,6 +58,7 @@ def test_complete_json_wrappers_still_supported(text):
     ('{"cards": []', 'stop'),
     ('{"cards": []}', 'length'),
     (None, 'stop'),
+    (None, None),
 ])
 def test_format_retry_regenerates_complete_response(first_content, finish):
     requests = []
