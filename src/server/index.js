@@ -464,6 +464,43 @@ function validateCandidate(card, pack) {
   };
 }
 
+app.post('/api/admin/cards', requireAdmin, async (req, res) => {
+  const body = req.body || {};
+  const status = body.status || 'pending';
+  if (!['pending', 'approved'].includes(status)) {
+    return res.status(400).json({ error: 'status must be pending or approved' });
+  }
+  if (typeof body.pack !== 'string' || typeof body.text !== 'string' || body.text.length > 1000
+      || !Number.isInteger(body.maturity_rating)) {
+    return res.status(400).json({ error: 'Provide a pack, card text (up to 1000 characters), and maturity 0–3' });
+  }
+  try {
+    const pack = await PackRepository.getBySlug(body.pack);
+    if (!pack) return res.status(400).json({ error: 'Unknown pack' });
+    const text = body.text.trim();
+    const blanks = (text.match(/_{2,}/g) || []);
+    if (body.kind === 'prompt' && (blanks.length !== 1 || blanks[0] !== '____')) {
+      return res.status(400).json({ error: 'Prompts need exactly one ____ blank' });
+    }
+    if (body.kind === 'answer' && blanks.length) {
+      return res.status(400).json({ error: 'Answers must not contain blanks' });
+    }
+    const result = validateCandidate({
+      kind: body.kind, text, maturity_rating: body.maturity_rating, blanks: blanks.length,
+    }, pack);
+    if (!result.ok) return res.status(400).json({ error: result.reason });
+    const existing = await ContentCardRepository.existingTextsForPack(pack.id);
+    if (existing.has(ContentCardRepository.normalizeText(text))) {
+      return res.status(409).json({ error: 'This card already exists in the selected pack' });
+    }
+    const id = await AdminCardRepository.createManual(result.row, status);
+    return res.status(201).json({ id, status });
+  } catch (error) {
+    console.error('Failed to add manual card:', error);
+    return res.status(500).json({ error: 'Failed to add card' });
+  }
+});
+
 // POST — submit a batch of generated candidates. Each lands `pending` (a human
 // approves later). Per-item validation + dedupe: bad items are rejected, exact
 // (pack_id, text) duplicates (across ALL statuses incl. denied) are skipped, the

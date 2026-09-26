@@ -46,6 +46,54 @@ describe('GET /admin/content (admin gate + pending review)', () => {
     await db.db()('cards').where({ pack_id: genPackId }).del();
   });
 
+  test('manual cards require admin access and preserve manual provenance', async () => {
+    const card = { kind: 'answer', text: 'Urethra Franklin', maturity_rating: 2, pack: 'madlad-generated' };
+    expect((await request(app).post('/api/admin/cards').send(card)).status).toBe(404);
+    expect((await request(app).post('/api/admin/cards').set('X-Api-Token', CONTENT_TOKEN).send(card)).status).toBe(404);
+    const res = await request(app).post('/api/admin/cards').set('X-Admin-Token', ADMIN_TOKEN)
+      .send({ ...card, source: 'generated', writer: 'writer.deadpan' });
+    expect(res.status).toBe(201);
+    const stored = await db.db()('cards').where({ id: res.body.id }).first();
+    expect(stored).toMatchObject({ text: card.text, source: 'manual', status: 'pending', writer: null, blanks: 0 });
+    expect(stored.reviewed_at).toBeNull();
+    const duplicate = await request(app).post('/api/admin/cards').set('X-Admin-Token', ADMIN_TOKEN)
+      .send({ ...card, text: '  URETHRA   FRANKLIN  ' });
+    expect(duplicate.status).toBe(409);
+    const library = await request(app).get('/admin/cards').query({ token: ADMIN_TOKEN });
+    expect(library.text).toContain('id="add-card-form"');
+    expect(library.text).toContain('Urethra Franklin');
+  });
+
+  test('admin can explicitly approve a manual prompt', async () => {
+    const res = await request(app).post('/api/admin/cards').set('X-Admin-Token', ADMIN_TOKEN)
+      .send({ kind: 'prompt', text: 'My next act is ____.', maturity_rating: 2,
+        pack: 'madlad-generated', status: 'approved' });
+    expect(res.status).toBe(201);
+    const stored = await db.db()('cards').where({ id: res.body.id }).first();
+    expect(stored).toMatchObject({ status: 'approved', source: 'manual', blanks: 1, reviewed_by: 'admin' });
+    expect(stored.reviewed_at).not.toBeNull();
+  });
+
+  test.each([
+    { kind: 'prompt', text: 'No blank.' },
+    { kind: 'prompt', text: '____ and ____.' },
+    { kind: 'prompt', text: 'Too many _____.' },
+    { text: 'An answer with ____.' },
+    { text: ' ' },
+    { text: 'x'.repeat(1001) },
+    { maturity_rating: 4 },
+    { maturity_rating: null },
+    { pack: 'missing-pack' },
+    { status: 'denied' },
+    { kind: 'invalid' },
+  ])('manual card validation rejects %j', async (invalid) => {
+    const res = await request(app).post('/api/admin/cards').set('X-Admin-Token', ADMIN_TOKEN)
+      .send({ kind: 'answer', text: 'Valid answer', maturity_rating: 2,
+        pack: 'madlad-generated', ...invalid });
+    expect(res.status).toBe(400);
+    expect(await db.db()('cards').where({ pack_id: genPackId })).toHaveLength(0);
+  });
+
   test('source finds retain URL and route through storage and admin review', async () => {
     const sourceUrl = 'https://b3ta.com/questions/imagechallenge/post1';
     const res = await request(app).post('/api/content/cards').set('X-Api-Token', CONTENT_TOKEN)

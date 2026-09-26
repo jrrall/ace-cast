@@ -80,4 +80,19 @@ async function library(query = {}) {
   };
 }
 
-module.exports = { overview, library };
+async function createManual(row, status) {
+  const [{ id }] = await db()('cards').insert({
+    ...row,
+    source: 'manual',
+    status,
+    writer: null,
+    generation_route: null,
+    source_url: null,
+    reviewed_by: status === 'approved' ? 'admin' : null,
+    reviewed_at: status === 'approved' ? db().fn.now() : null,
+  })
+    .returning('id');
+  return id;
+}
+
+module.exports = { overview, library, createManual };

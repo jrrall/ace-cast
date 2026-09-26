@@ -501,3 +501,10 @@ npm install && npm start
 ```
 
 Join the party at `http://localhost:3000` or scan the QR code to get started!
+### Manually adding cards
+
+Open **Admin → Card library → Add card** to enter card text, kind, pack, and
+maturity. Save as **Pending review**, or explicitly choose **Approved — ready
+to play**. Cards are stored as manual entries, without an invented writer.
+Prompts require exactly one `____`; answers have no blanks. Duplicate text in
+the same pack is rejected. The form uses the existing admin authentication.

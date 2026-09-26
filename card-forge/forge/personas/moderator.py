@@ -30,6 +30,7 @@ SYSTEM = (
     "with maturity, not by disallowing it.\n"
     'Return ONLY JSON of the form {"verdicts": [{"index": 0, '
     '"maturity_rating": 2, "allowed": true}]}. '
+    'Return exactly one verdict per supplied index; never omit a card. '
     'Omit explanations for allowed cards. For rejected cards only, include a '
     'reason of at most eight words.'
 )
@@ -69,20 +70,43 @@ class Moderator:
             f'{i}. [{c.kind}] {c.text}' for i, c in enumerate(candidates)
         )
         user = f"Cards to moderate:\n{listing}"
-        data = complete(self.llm, "moderator", units=len(candidates), batch=offset, system=SYSTEM, user=user, temperature=0.0)
-        raw = data.get("verdicts", data) if isinstance(data, dict) else data
-
         verdicts: dict[int, dict] = {}
-        duplicates: set[int] = set()
-        for entry in raw if isinstance(raw, list) else []:
-            if not isinstance(entry, dict):
-                continue
-            idx = entry.get("index")
-            if type(idx) is not int or not 0 <= idx < len(candidates):
-                continue
-            if idx in verdicts:
-                duplicates.add(idx)
-            verdicts[idx] = entry
+        pending = {i for i, card in enumerate(candidates) if not self._deny_listed(card.text)}
+        for attempt in range(self.settings.llm_json_retries + 1):
+            if not pending:
+                break
+            request = user if attempt == 0 else (
+                f"Repair attempt {attempt}: return exactly one valid verdict for each index "
+                f"in {sorted(pending)}. Preserve these indexes; do not renumber. "
+                "allowed must be a boolean and maturity_rating an integer from 0 to 3.\n"
+                "Cards to moderate:\n" + "\n".join(
+                    f'{i}. [{candidates[i].kind}] {candidates[i].text}' for i in sorted(pending))
+            )
+            data = complete(self.llm, "moderator", units=len(pending), batch=offset,
+                            system=SYSTEM, user=request, temperature=0.0)
+            raw = data.get("verdicts", data) if isinstance(data, dict) else data
+            received, duplicates = {}, set()
+            for entry in raw if isinstance(raw, list) else []:
+                if not isinstance(entry, dict):
+                    continue
+                idx = entry.get("index")
+                if type(idx) is not int or idx not in pending:
+                    continue
+                if idx in received:
+                    duplicates.add(idx)
+                received[idx] = entry
+            for idx, entry in received.items():
+                rating = entry.get("maturity_rating")
+                if (idx not in duplicates and type(entry.get("allowed")) is bool
+                        and type(rating) is int and 0 <= rating <= 3):
+                    verdicts[idx] = entry
+                    pending.remove(idx)
+            if pending:
+                get_logger().warning("moderator.incomplete_verdicts", extra={"extra_fields": {
+                    "offset": offset, "attempt": attempt + 1, "indexes": sorted(pending),
+                }})
+        if pending:
+            raise ValueError(f"Moderator batch {offset} missing valid verdicts for indexes {sorted(pending)}")
 
         moderated: list[ModeratedCard] = []
         for i, card in enumerate(candidates):
@@ -90,8 +114,6 @@ class Moderator:
             if self._deny_listed(card.text):
                 continue
             verdict = verdicts.get(i)
-            if verdict is None or i in duplicates:
-                continue
             if verdict.get("allowed") is not True:
                 continue
             rating = verdict.get("maturity_rating")
