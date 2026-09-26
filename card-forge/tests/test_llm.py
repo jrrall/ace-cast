@@ -112,3 +112,52 @@ def test_transport_failures_do_not_trigger_json_retries():
         with pytest.raises(LLMError, match='LLM request failed'):
             llm.complete_json(system='Return JSON', user='source')
     assert len(requests) == 1
+
+
+def test_phase_budget_context_and_usage_reach_transport_and_logs(caplog):
+    from forge.call_context import complete, CALL_CONTEXT
+    requests = []
+    def respond(request):
+        requests.append(json.loads(request.content))
+        return httpx.Response(200, json={
+            'id': 'test', 'object': 'chat.completion', 'created': 0, 'model': 'test',
+            'usage': {'prompt_tokens': 90, 'completion_tokens': 20, 'total_tokens': 110},
+            'choices': [{'index': 0, 'message': {'role': 'assistant', 'content': '{"cards":[]}'},
+                         'finish_reason': 'stop'}]})
+    with httpx.Client(transport=httpx.MockTransport(respond)) as http:
+        sdk = OpenAI(api_key='test', base_url='http://test/v1', http_client=http, max_retries=0)
+        llm = LLMClient(Settings(_env_file=None), client=sdk)
+        complete(llm, 'write', units=2, persona='writer.test', batch=3, system='JSON', user='test')
+        complete(llm, 'curator', units=8, batch=8, system='JSON', user='test')
+    assert requests[0]['max_tokens'] == 576
+    assert requests[1]['max_tokens'] == 2304
+    events = [r.extra_fields for r in caplog.records if r.message == 'llm.call']
+    assert events[0]['phase'] == 'write' and events[0]['persona'] == 'writer.test'
+    assert events[0]['batch'] == 3 and events[0]['completion_tokens'] == 20
+    assert 'persona' not in events[1]
+    assert CALL_CONTEXT.get() == {}
+
+
+@pytest.mark.parametrize('recover,retries,expected', [(True, 1, 2), (False, 1, 2), (False, 0, 1)])
+def test_timeout_retry_is_bounded_and_not_a_json_retry(monkeypatch, recover, retries, expected):
+    calls, sleeps = [], []
+    monkeypatch.setattr('forge.llm.time.sleep', sleeps.append)
+    def respond(request):
+        calls.append(request)
+        if not recover or len(calls) == 1:
+            raise httpx.ReadTimeout('stalled', request=request)
+        return httpx.Response(200, json={
+            'id': 'test', 'object': 'chat.completion', 'created': 0, 'model': 'test',
+            'choices': [{'index': 0, 'message': {'role': 'assistant', 'content': '{}'},
+                         'finish_reason': 'stop'}]})
+    with httpx.Client(transport=httpx.MockTransport(respond)) as http:
+        sdk = OpenAI(api_key='test', base_url='http://test/v1', http_client=http, max_retries=0)
+        llm = LLMClient(Settings(_env_file=None, llm_timeout_retries=retries), client=sdk)
+        if recover:
+            assert llm.complete_json(system='JSON', user='test') == {}
+        else:
+            with pytest.raises(LLMError, match='timed out'):
+                llm.complete_json(system='JSON', user='test')
+    assert len(calls) == expected
+    assert sleeps == ([2] if retries else [])
+    assert llm.last_call_stats == {'model_attempts': expected, 'format_retries': 0}

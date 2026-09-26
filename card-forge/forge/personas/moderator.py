@@ -10,6 +10,8 @@ Then a deterministic, defence-in-depth pass:
 
 from __future__ import annotations
 
+from ..call_context import complete
+
 from ..config import Settings
 from ..llm import LLMClient
 from ..logging_setup import get_logger
@@ -56,18 +58,18 @@ class Moderator:
             get_logger().info("moderator.batch_started", extra={"extra_fields": {
                 "offset": start, "cards": len(chunk), "total": len(candidates),
             }})
-            moderated.extend(self._moderate_batch(chunk))
+            moderated.extend(self._moderate_batch(chunk, offset=start))
             get_logger().info("moderator.batch_completed", extra={"extra_fields": {
                 "offset": start, "moderated_so_far": len(moderated),
             }})
         return moderated
 
-    def _moderate_batch(self, candidates: list[CardCandidate]) -> list[ModeratedCard]:
+    def _moderate_batch(self, candidates: list[CardCandidate], *, offset=0) -> list[ModeratedCard]:
         listing = "\n".join(
             f'{i}. [{c.kind}] {c.text}' for i, c in enumerate(candidates)
         )
         user = f"Cards to moderate:\n{listing}"
-        data = self.llm.complete_json(system=SYSTEM, user=user, temperature=0.0)
+        data = complete(self.llm, "moderator", units=len(candidates), batch=offset, system=SYSTEM, user=user, temperature=0.0)
         raw = data.get("verdicts", data) if isinstance(data, dict) else data
 
         verdicts: dict[int, dict] = {}

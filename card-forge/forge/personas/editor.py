@@ -8,6 +8,8 @@ duplicates that survive are removed deterministically.
 
 from __future__ import annotations
 
+from ..call_context import complete
+
 from ..logging_setup import get_logger
 from ..config import Settings
 from ..llm import LLMClient
@@ -47,7 +49,7 @@ class Editor:
             get_logger().info("editor.batch_started", extra={"extra_fields": {
                 "offset": start, "cards": len(chunk), "total": len(candidates),
             }})
-            for card in self._edit_batch(chunk):
+            for card in self._edit_batch(chunk, offset=start):
                 key = (card.kind, card.text.lower())
                 if key not in seen:
                     seen.add(key)
@@ -57,7 +59,7 @@ class Editor:
             }})
         return edited
 
-    def _edit_batch(self, candidates: list[CardCandidate]) -> list[CardCandidate]:
+    def _edit_batch(self, candidates: list[CardCandidate], *, offset=0) -> list[CardCandidate]:
         # source_index is local to this chunk; resolve provenance before merging.
         listing = "\n".join(
             f'{i}. [{c.kind}] {c.text}' for i, c in enumerate(candidates)
@@ -67,7 +69,7 @@ class Editor:
             f"{listing}\n\n"
             "Return the polished, de-duplicated subset."
         )
-        data = self.llm.complete_json(system=SYSTEM + maturity_direction(self.settings.maturity_max), user=user, temperature=0.4)
+        data = complete(self.llm, "editor", units=len(candidates), batch=offset, system=SYSTEM + maturity_direction(self.settings.maturity_max), user=user, temperature=0.4)
         raw = data.get("cards", data) if isinstance(data, dict) else data
         seen: set[tuple[str, str]] = set()
         edited: list[CardCandidate] = []

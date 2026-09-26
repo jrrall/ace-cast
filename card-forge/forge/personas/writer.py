@@ -7,6 +7,8 @@ short phrases. Malformed candidates are dropped at model construction.
 
 from __future__ import annotations
 
+from ..call_context import complete
+
 from ..balance import balanced_cards, type_budget
 from ..config import Settings
 from ..llm import LLMClient
@@ -40,7 +42,7 @@ class Writer:
         self.card_limit = settings.cards_per_theme if card_limit is None else card_limit
         self.prompt_limit = type_budget(self.card_limit)["prompt"] if prompt_limit is None else prompt_limit
 
-    def run(self, theme: Theme) -> list[CardCandidate]:
+    def run(self, theme: Theme, *, batch=None) -> list[CardCandidate]:
         theme_block = wrap_feed_data(
             f"title: {theme.title}\nangle: {theme.angle}\nsource excerpt: {theme.raw_excerpt}"
         )
@@ -50,7 +52,7 @@ class Writer:
             f"{self.card_limit - self.prompt_limit} answer cards. "
             "Do not substitute kinds or pad; fewer or none is fine. Vary the situations."
         )
-        data = self.llm.complete_json(system=self.phase_system("write"), user=user)
+        data = complete(self.llm, "write", units=self.card_limit, persona=self.name, batch=batch, system=self.phase_system("write"), user=user)
         raw = data.get("cards", data) if isinstance(data, dict) else data
         cards: list[CardCandidate] = []
         for entry in raw or []:
@@ -71,7 +73,7 @@ class Writer:
 
     def answer(self, setup):
         """Optional answer phase; ordinary runs still use write()."""
-        data = self.llm.complete_json(
+        data = complete(self.llm, "answer", units=self.card_limit, persona=self.name,
             system=self.phase_system("answer"),
             user=wrap_feed_data(setup) + f"\nWrite up to {self.card_limit} answer cards only.",
         )

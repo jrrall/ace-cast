@@ -362,3 +362,28 @@ def test_curator_format_normalization_rejects_conflicts_and_invalid_scores():
             row['unexpected'] = True
         with pytest.raises(ValueError):
             Curator._validate_response(Curator._normalize_response(response), 0, 1)
+
+
+def test_curator_checkpoint_reuses_scored_batches_after_failure(settings, sample_moderated, tmp_path, monkeypatch):
+    import pytest
+    from forge.checkpoint import Checkpoint
+    from forge.llm import LLMError
+    settings.curator_batch_size = 2
+    def timeout(_):
+        raise LLMError('timeout')
+    with Checkpoint(tmp_path/'run', settings) as cp:
+        with pytest.raises(LLMError):
+            Curator(FakeLLM([rated_selection([0, 1]), timeout]), FakeContentClient(),
+                    settings, checkpoint=cp).run(sample_moderated)
+        assert len(list((cp.path/'curator_batches').glob('*.json'))) == 1
+    # Editorial prompt text can change without discarding valid scoring work.
+    monkeypatch.setattr('forge.personas.curator.SYSTEM', 'Updated format wording')
+    with Checkpoint(tmp_path/'run', settings, resume=True) as cp:
+        llm = FakeLLM([rated_selection([2])])
+        result = Curator(llm, FakeContentClient(), settings, checkpoint=cp).run(sample_moderated)
+        assert len(llm.calls) == 1 and len(result.cards) == 3
+        assert '2. [' in llm.calls[0]['user']
+        changed = [sample_moderated[0].model_copy(update={'text': 'Changed ____.'}), *sample_moderated[1:]]
+        fresh = FakeLLM([rated_selection([0, 1]), rated_selection([2])])
+        Curator(fresh, FakeContentClient(), settings, checkpoint=cp).run(changed)
+        assert len(fresh.calls) == 2

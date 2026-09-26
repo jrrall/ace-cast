@@ -886,3 +886,30 @@ updated persona directory before starting that new run.
 Shared prompt changes require the updated code/image as well as persona files.
 Start a fresh run to use neutral research seeds and the new review instructions;
 existing checkpoints retain their saved source material and persona snapshots.
+
+
+### Bounded calls and curator recovery
+
+Fresh model requests have phase-specific output-token limits: 256 tokens of JSON
+headroom plus 160 per written card, 256 per scout theme or curator evaluation,
+192 per edited/shortened card, 128 per moderation verdict, 320 per critique,
+160 per revision, 64 per repaired group label, or 16 per source selection.
+Every request is capped at 16,384 output tokens; unclassified calls use 4,096.
+Truncated output remains invalid and gets only the configured JSON-format retries.
+These are initial budgets, not measured latency guarantees.
+
+`LLM_TIMEOUT_RETRIES=1` retries a timed-out request once after two seconds, across
+all JSON-format attempts for that call. Set it to `0` to fail immediately.
+It does not stack with nonzero `LLM_MAX_RETRIES` (SDK retries); comparisons disable
+transport retries to preserve their time budget. A backend stall can still time out.
+
+Call logs include phase, persona and batch where applicable, input characters,
+output-token limit, and returned prompt/completion token usage. No extra diagnostic
+model requests run. Existing successful response-cache entries remain reusable.
+
+Validated curator batches are saved under `curator_batches/`. Resume reuses them
+when the exact card pool, batch boundaries, prior group context, model, maturity,
+and rubric match, even if prompt wording changed. Changed cards or batch sizes
+cause affected scoring to run again. API corpus deduplication and final ranking
+still run on resume. Older runs gain these batch checkpoints as scoring completes;
+previous successful calls can still be reused through the existing response cache.

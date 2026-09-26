@@ -62,7 +62,7 @@ class FreshCalls:
         # Reserve enough time for every format attempt. SDK transport retries are disabled.
         settings = self.settings.model_copy(update={
             'llm_timeout': min(self.settings.llm_timeout, remaining / (self.settings.llm_json_retries + 1)),
-            'llm_max_retries': 0,
+            'llm_max_retries': 0, 'llm_timeout_retries': 0,
         })
         llm = self.factory(settings)
         record = {**self.context, 'call': len(self.calls) + 1, 'timestamp': time.time(),
@@ -139,7 +139,7 @@ def compare(source, output, connection, *, persona_count=2, max_calls=24, max_se
     if stories is None:
         stories = stories_from_items([FeedItem(**item) for item in research['items']])
     settings = Settings(_env_file=None, **{**manifest['settings'], 'llm_api_key': connection.llm_api_key,
-                                          'llm_timeout': timeout, 'llm_max_retries': 0,
+                                          'llm_timeout': timeout, 'llm_max_retries': 0, 'llm_timeout_retries': 0,
                                           'llm_json_retries': connection.llm_json_retries,
                                           **({'llm_base_url': base_url} if base_url else {})})
     output.mkdir(parents=True, exist_ok=False)  # never mix fresh measurements with an earlier run

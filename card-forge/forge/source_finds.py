@@ -1,4 +1,6 @@
 """Select short, verbatim b3ta finds by index, never model-invented quotations."""
+from .call_context import complete
+
 import json
 from .models import CardCandidate
 from .prompts import INJECTION_NOTICE, wrap_feed_data
@@ -17,7 +19,7 @@ def find_cards(llm, items, limit=6):
     pool = pool[:80]
     if not pool or limit == 0:
         return []
-    data = llm.complete_json(
+    data = complete(llm, 'source_find', units=limit,
         system=('Select short source phrases that work as standalone answer cards. '
                 'Assess card format without imposing a humor style. Select up to the limit '
                 'or none. Do not rewrite or complete a phrase. Return {"selected":[0,1]} '

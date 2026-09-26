@@ -108,8 +108,8 @@ class Pipeline:
         else:
             for writer in writers:
                 writer_cards: list[CardCandidate] = []
-                for theme in by_writer[writer.name]:
-                    drafts = [c.model_copy(update={"generation_route": "writer"}) for c in writer.run(theme)]
+                for theme_index, theme in enumerate(by_writer[writer.name]):
+                    drafts = [c.model_copy(update={"generation_route": "writer"}) for c in writer.run(theme, batch=theme_index)]
                     generated.extend(drafts)
                     writer_cards.extend(drafts)
                 log_stage(self.log, writer.name, generated=len(writer_cards), **type_counts(writer_cards))
@@ -135,7 +135,7 @@ class Pipeline:
         log_stage(self.log, Moderator.name, moderated=len(moderated), **type_counts(moderated))
 
         # 5. Curator
-        batch = Curator(self.llm, self.content, self.settings).run(moderated)
+        batch = Curator(self.llm, self.content, self.settings, checkpoint=self.checkpoint).run(moderated)
         if self.checkpoint:
             self.checkpoint.write("final", batch.payload())
         summary.assembled = len(batch.cards)

@@ -8,6 +8,7 @@ import os
 from pathlib import Path
 
 from .logging_setup import get_logger
+from .call_context import CALL_CONTEXT
 
 
 class Checkpoint:
@@ -26,7 +27,7 @@ class Checkpoint:
             # on resume, but model, generation and review settings must match.
             config = self.settings.model_dump(mode='json', exclude={
                 'llm_api_key', 'content_api_token', 'llm_timeout', 'llm_max_retries',
-                'llm_json_retries', 'content_api_timeout', 'feed_timeout', 'comedy_trace_path',
+                'llm_json_retries', 'llm_timeout_retries', 'content_api_timeout', 'feed_timeout', 'comedy_trace_path',
                 'moderator_batch_size', 'curator_batch_size', 'personas_dir', 'persona_scout',
             })
             manifest = self.read('manifest')
@@ -34,7 +35,7 @@ class Checkpoint:
                 if manifest is None or manifest.get('version') != 1:
                     raise ValueError('No supported checkpoint found; start a new run directory')
                 saved_config = {k: v for k, v in manifest['settings'].items()
-                                if k not in ('moderator_batch_size', 'curator_batch_size', 'personas_dir', 'persona_scout')}
+                                if k not in ('llm_timeout_retries', 'moderator_batch_size', 'curator_batch_size', 'personas_dir', 'persona_scout')}
                 if manifest.get('scout_protocol') != 'batches-v1':
                     saved_config.pop('scout_batch_size', None)
                     config.pop('scout_batch_size', None)
@@ -123,7 +124,7 @@ class CheckpointLLM:
         name = f'calls/{digest}'
         cached = self.checkpoint.read(name)
         if cached is not None:
-            get_logger().info('checkpoint.call_reused', extra={'extra_fields': {'call': digest}})
+            get_logger().info('checkpoint.call_reused', extra={'extra_fields': {'call': digest, **CALL_CONTEXT.get()}})
             return cached['response']
         self.last_call_source = 'generation'
         try:

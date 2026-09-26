@@ -1,6 +1,8 @@
 """One bounded challenge/revision exchange; never asks the LLM to pick a winner."""
 from __future__ import annotations
 
+from .call_context import complete
+
 import json
 from pathlib import Path
 from uuid import uuid4
@@ -87,7 +89,7 @@ class ComedyRoom:
                 common = {'theme_index': theme_number, 'theme': theme.title,
                           'source_url': theme.url, 'research': theme.raw_excerpt}
                 contexts[writer.name] = (theme, common)
-                drafts[writer.name] = [c.model_copy(update={"generation_route": "writer"}) for c in writer.run(theme)]
+                drafts[writer.name] = [c.model_copy(update={"generation_route": "writer"}) for c in writer.run(theme, batch=theme_number)]
                 self.record({**common, 'stage': 'draft', 'writer': writer.name,
                              'cards': [c.model_dump() for c in drafts[writer.name]]})
             for writer in writers:
@@ -102,7 +104,7 @@ class ComedyRoom:
                 challenger = by_name.get(partner) or writers[(writers.index(writer) + 1) % len(writers)]
                 context = json.dumps({'theme': theme.title, 'angle': theme.angle,
                                       'cards': [c.model_dump() for c in originals]}, ensure_ascii=False)
-                data = self.llm.complete_json(
+                data = complete(self.llm, 'critique', units=len(originals), persona=challenger.name, batch=theme_number,
                     system=(challenger.phase_system('critique', format_rules=FORMAT)
                             + ' For each draft return a critique and proposed card. ' + INJECTION_NOTICE
                             + ' Return {"challenges":[{"index":0,"critique":"short specific note",'
@@ -119,7 +121,7 @@ class ComedyRoom:
                              'challenger': challenger.name, 'challenges': challenges})
                 revisions = {}
                 if challenges:
-                    data = self.llm.complete_json(
+                    data = complete(self.llm, 'revise', units=len(challenges), persona=writer.name, batch=theme_number,
                         system=(writer.phase_system('revise', format_rules=FORMAT)
                                 + ' Return only improved cards; omit indexes you want unchanged. ' + INJECTION_NOTICE
                                 + ' Return {"revisions":[{"index":0,"kind":"answer","text":"revised card"}]}.'),

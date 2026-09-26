@@ -11,7 +11,10 @@ the review queue.
 
 from __future__ import annotations
 
+from ..call_context import complete
+
 import json
+import hashlib
 from copy import deepcopy
 
 from ..balance import type_budget
@@ -46,11 +49,12 @@ class Curator:
     name = "curator"
 
     def __init__(
-        self, llm: LLMClient, content: ContentClient, settings: Settings
+        self, llm: LLMClient, content: ContentClient, settings: Settings, checkpoint=None
     ) -> None:
         self.llm = llm
         self.content = content
         self.settings = settings
+        self.checkpoint = checkpoint
 
     def _existing_norms(self) -> set[str]:
         # ALL statuses (incl. denied) so denied text is treated as a duplicate
@@ -97,7 +101,22 @@ class Curator:
             get_logger().info("curator.batch_started", extra={"extra_fields": {
                 "offset": start, "cards": end - start, "total": len(pool),
             }})
-            chunk_order, chunk_evaluations = self._score_chunk(user, start, end)
+            # Include all scoring inputs, not prompt wording. Version when scoring semantics change.
+            identity = {"version": 1, "pool": [c.model_dump(mode="json") for c in pool],
+                        "start": start, "end": end, "groups": groups,
+                        "model": self.settings.llm_model, "maturity": self.settings.maturity_max,
+                        "weights": self.settings.quality_weights, "rubric": RUBRIC}
+            digest = hashlib.sha256(json.dumps(identity, sort_keys=True).encode()).hexdigest()
+            key = f"curator_batches/{digest}"
+            saved = self.checkpoint.read(key) if self.checkpoint else None
+            if saved is not None:
+                chunk_order, chunk_evaluations = self._validate_response(saved, start, end)
+                get_logger().info("curator.batch_reused", extra={"extra_fields": {"offset": start}})
+            else:
+                chunk_order, chunk_evaluations = self._score_chunk(user, start, end)
+                if self.checkpoint:
+                    self.checkpoint.write(key, {"selected": chunk_order, "evaluations": [
+                        e.model_dump(exclude_none=True) for e in chunk_evaluations.values()]})
             order.extend(chunk_order)
             evaluations.update(chunk_evaluations)
             get_logger().info("curator.batch_completed", extra={"extra_fields": {
@@ -131,7 +150,7 @@ class Curator:
         system = SYSTEM + maturity_direction(self.settings.maturity_max)
         request = user
         for attempt in range(self.settings.llm_json_retries + 1):
-            data = self.llm.complete_json(
+            data = complete(self.llm, 'curator', units=end-start, batch=start,
                 system=system, user=request, temperature=0.3 if attempt == 0 else 0.0,
             )
             data = self._normalize_response(data)
@@ -192,7 +211,7 @@ class Curator:
         # Confirm all scores/indexes are valid before spending a call on labels.
         self._validate_response(repaired, start, end)
         get_logger().warning("curator.group_repair", extra={"extra_fields": {"indexes": missing}})
-        response = self.llm.complete_json(
+        response = complete(self.llm, 'group_repair', units=len(missing), batch=start,
             system=("Assign duplicate-premise labels only. Cards with the same situation "
                     "AND payoff share a label; shared topics alone are not duplicates. "
                     "Reuse existing labels when appropriate. Return ONLY JSON "

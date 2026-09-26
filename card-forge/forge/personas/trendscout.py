@@ -7,6 +7,8 @@ passed only inside explicit delimiters as DATA.
 
 from __future__ import annotations
 
+from ..call_context import complete
+
 import json
 
 from collections.abc import Callable
@@ -106,7 +108,7 @@ class Trendscout:
         )
         request = user
         for attempt in range(self.settings.llm_json_retries + 1):
-            data = self.llm.complete_json(
+            data = complete(self.llm, 'scout', units=self.settings.themes_per_run, persona=writer.name,
                 system=writer.phase_system('scout', format_rules=SYSTEM), user=request,
             )
             try:
@@ -167,7 +169,7 @@ class Trendscout:
             f"Propose up to {regular_count} distinct themes. "
             "Prefer distinct stories across sources; leave their creative interpretation to the writers."
         )
-        data = self.llm.complete_json(system=SYSTEM, user=user) if regular_count else {"themes": []}
+        data = complete(self.llm, 'scout', units=regular_count, persona=self.name, system=SYSTEM, user=user) if regular_count else {"themes": []}
         raw_themes = data.get("themes", data) if isinstance(data, dict) else data
         themes: list[Theme] = []
         for entry in raw_themes or []:

@@ -1,4 +1,6 @@
 """One bounded shortening pass before final review."""
+from .call_context import complete
+
 import json
 from .models import CardCandidate
 from .prompts import INJECTION_NOTICE, wrap_feed_data
@@ -20,7 +22,7 @@ def tighten_cards(llm, cards):
     rewrite = [(i, card) for i, card in long if card.generation_route != 'source_find']
     replacements = {}
     if rewrite:
-        data = llm.complete_json(
+        data = complete(llm, 'tighten', units=len(rewrite),
             system=('Shorten supplied cards; preserve payoff, voice, profanity, and specific image. '
                     'Prompts: at most 24 words and 160 characters, exactly one ____ accepting '
                     'an unrelated noun phrase. Answers: at most 12 words and 90 characters, '

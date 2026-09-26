@@ -12,7 +12,9 @@ import json
 import time
 from typing import Any
 
-from openai import OpenAI
+from openai import OpenAI, APITimeoutError
+
+from .call_context import CALL_CONTEXT
 
 from .config import Settings
 from .logging_setup import get_logger
@@ -22,6 +24,10 @@ LOG = get_logger("forge.llm")
 
 class LLMError(RuntimeError):
     """Raised when the LLM call fails or returns unparseable output."""
+
+
+class _TimeoutResponseError(LLMError):
+    """A transport timeout eligible for a separate bounded retry."""
 
 
 class _JSONResponseError(LLMError):
@@ -88,25 +94,36 @@ class LLMClient:
         """
         self.last_call_source = 'generation'
         self.last_call_stats = {'model_attempts': 0, 'format_retries': 0}
-        for attempt in range(self.settings.llm_json_retries + 1):
+        format_attempt = timeout_attempt = 0
+        while True:
             self.last_call_stats['model_attempts'] += 1
-            self.last_call_stats['format_retries'] += int(attempt > 0)
             try:
                 return self._complete_json_once(
-                    system=system, user=user, temperature=temperature if attempt == 0 else 0.0,
-                    format_retry=attempt > 0,
+                    system=system, user=user, temperature=temperature if format_attempt == 0 else 0.0,
+                    format_retry=format_attempt > 0,
                 )
-            except _JSONResponseError as exc:
-                if attempt >= self.settings.llm_json_retries:
-                    raise LLMError(f"LLM JSON failed after {attempt + 1} attempts: {exc}") from exc
-                LOG.warning("llm.json_retry", extra={"extra_fields": {
-                    "model": self.model, "attempt": attempt + 1, "error": str(exc),
+            except _TimeoutResponseError:
+                if self.settings.llm_max_retries or timeout_attempt >= self.settings.llm_timeout_retries:
+                    raise
+                timeout_attempt += 1
+                LOG.warning("llm.timeout_retry", extra={"extra_fields": {
+                    **CALL_CONTEXT.get(), "model": self.model, "attempt": timeout_attempt,
+                    "delay_s": 2,
                 }})
-        raise AssertionError("unreachable")
+                time.sleep(2)
+            except _JSONResponseError as exc:
+                if format_attempt >= self.settings.llm_json_retries:
+                    raise LLMError(f"LLM JSON failed after {format_attempt + 1} attempts: {exc}") from exc
+                format_attempt += 1
+                self.last_call_stats['format_retries'] += 1
+                LOG.warning("llm.json_retry", extra={"extra_fields": {
+                    **CALL_CONTEXT.get(), "model": self.model, "attempt": format_attempt, "error": str(exc),
+                }})
 
     def _complete_json_once(self, *, system: str, user: str, temperature: float,
                             format_retry: bool) -> Any:
-        kwargs: dict[str, Any] = {}
+        context = {"phase": "unspecified", "max_tokens": 4096, **CALL_CONTEXT.get()}
+        kwargs: dict[str, Any] = {"max_tokens": context["max_tokens"]}
         if self.settings.llm_reasoning_effort:
             kwargs["reasoning_effort"] = self.settings.llm_reasoning_effort
         if format_retry:
@@ -117,7 +134,8 @@ class LLMClient:
                 "Use valid JSON escapes: an apostrophe needs no escaping. "
                 "Do not include markdown, commentary, or backslash line continuations."
             )
-        LOG.info("llm.call_started", extra={"extra_fields": {"model": self.model}})
+        LOG.info("llm.call_started", extra={"extra_fields": {**context, "model": self.model,
+            "input_chars": len(system) + len(user)}})
         started = time.monotonic()
         try:
             resp = self._client.chat.completions.create(
@@ -137,17 +155,20 @@ class LLMClient:
             LOG.error(
                 "llm.call_failed",
                 extra={"extra_fields": {
-                    "model": self.model,
+                    **context, "model": self.model,
                     "elapsed_s": round(time.monotonic() - started, 1),
                     "max_retries": self.settings.llm_max_retries,
                     "error": str(exc),
                 }},
             )
-            raise LLMError(f"LLM request failed: {exc}") from exc
+            error = _TimeoutResponseError if isinstance(exc, APITimeoutError) else LLMError
+            raise error(f"LLM request failed: {exc}") from exc
         LOG.info(
             "llm.call",
             extra={"extra_fields": {
-                "model": self.model,
+                **context, "model": self.model,
+                "prompt_tokens": getattr(getattr(resp, "usage", None), "prompt_tokens", None),
+                "completion_tokens": getattr(getattr(resp, "usage", None), "completion_tokens", None),
                 "elapsed_s": round(time.monotonic() - started, 1),
                 "finish_reason": resp.choices[0].finish_reason if resp.choices else None,
             }},
