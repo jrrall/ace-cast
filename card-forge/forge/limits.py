@@ -25,12 +25,11 @@ PROMPT_LENGTH_RULE = (
     "including spaces, punctuation, and all four characters of ____. "
 )
 ANSWER_LENGTH_RULE = (
-    "Answers: prefer 2 or 3 non-filler words, but use a longer phrase when the joke needs it. "
-    f"Hard maximum: {ANSWER_MAX_WORDS} non-filler words and {ANSWER_MAX_CHARS} total characters. "
-    "The maximum is a ceiling, not a target. One word is fine. "
-    "Count whitespace-separated words, ignoring edge punctuation and these filler words "
-    "case-insensitively: " + ", ".join(sorted(ANSWER_FILLER_WORDS)) + ". "
-    "All text, including filler words and spaces, counts toward the character limit. "
+    "Answers: prefer 2 or 3 non-filler words; longer phrases are fine when needed. "
+    f"Maximum {ANSWER_MAX_WORDS} non-filler words / {ANSWER_MAX_CHARS} total characters. "
+    "Count whitespace-separated words, ignoring edge punctuation, case, and fillers: "
+    + ", ".join(sorted(ANSWER_FILLER_WORDS)) + ". "
+    "All text counts toward the character limit. "
 )
 LENGTH_RULES = PROMPT_LENGTH_RULE + ANSWER_LENGTH_RULE
 
