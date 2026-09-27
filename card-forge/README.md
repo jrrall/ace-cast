@@ -610,9 +610,16 @@ with `python scripts/measure_prompt_lengths.py /path/to/cah-all-full.json`.
 Before editing, overlong drafts go back to their originating persona's saved
 voice and `revise` instructions, in one shortening call per author. Review checks
 again after editing so an editor cannot expand a card beyond its limit.
-Answers should usually be two or three words, with a hard maximum of **three
-whitespace-separated words** (articles count; one word is fine) and the existing
-90-character cap. Overlong answers use the same persona shortening passes.
+Answers should prefer two or three words but preserve names and specific comic
+details when they need four or five words. The hard maximum is **five
+whitespace-separated words** (articles count; one word is fine), with the existing
+90-character cap. The same pinned dataset has 24,830 answer entries averaging
+4.93798 words (median 4); only 41.74% fit within three words. The 4,661 official
+answers average 5.03154 words. Five rounds the overall mean, following the
+prompt policy; it covers 65.44% of source answers, so this remains a deliberately
+compact cap rather than an attempt to admit every reference card. Reproduce
+with `python scripts/measure_prompt_lengths.py /path/to/cah-all-full.json --kind answer`.
+Overlong answers use the same persona shortening passes.
 Writer, challenger, revision, and editor system prompts share both limits; final
 submission validation enforces them independently. Failed or still-long rewrites
 are dropped. Source finds must also meet the answer limits; overlong quotes are

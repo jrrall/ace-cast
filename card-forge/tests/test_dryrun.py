@@ -130,6 +130,6 @@ def test_answer_shortens_before_editing_and_after_editor_expansion(settings):
     assert batch.cards[1].text == 'Trench-coat raccoons.'
     assert batch.cards[1].writer == 'writer.deadpan'
     for index in (10, 12):
-        assert 'at most 3 words' in llm.calls[index]['system']
+        assert 'up to 5 words' in llm.calls[index]['system']
         assert '"current_words": 6' in llm.calls[index]['user']
     assert 'Trench-coat raccoons.' in llm.calls[11]['user']

@@ -37,9 +37,9 @@ def test_find_bypasses_rewriting_reaches_judgment_with_source(settings, monkeypa
 
 def test_overlong_quotes_are_dropped_without_rewriting_or_consuming_post_limit():
     source = item()
-    source.finds.insert(0, {'text': 'A much longer quotation', 'url': source.finds[0]['url']})
+    source.finds.insert(0, {'text': 'A much longer six word quotation', 'url': source.finds[0]['url']})
     llm = FakeLLM([{'selected': [0, 1, 2]}])
     cards = find_cards(llm, [source])
     assert [c.text for c in cards] == ['Urethra Franklin', 'Bellender Carlisle']
     assert len(llm.calls) == 1
-    assert 'at most 3 words' in llm.calls[0]['system']
+    assert 'up to 5 words' in llm.calls[0]['system']

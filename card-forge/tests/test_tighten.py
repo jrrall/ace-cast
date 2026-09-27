@@ -47,7 +47,7 @@ def test_prompt_character_boundary_and_submission_guard():
 
 @pytest.mark.parametrize('kind, short, long', [
     ('prompt', 'The new policy requires ____.', 'Long ' * 20 + '____.'),
-    ('answer', 'The thermostat police.', 'A federal thermostat investigation.'),
+    ('answer', 'The thermostat police.', 'A federal investigation into thermostat tampering.'),
 ])
 def test_shortening_uses_each_authors_voice_and_rejects_cross_author_indexes(settings, kind, short, long):
     from forge.personas.writer import DeadpanWriter, UnhingedWriter
@@ -72,7 +72,7 @@ def test_shortening_uses_each_authors_voice_and_rejects_cross_author_indexes(set
         assert writer.voice in call['system']
         assert writer.definition.phases['revise'] in call['system']
         assert '54 characters' in call['system']
-        assert 'at most 3 words' in call['system']
+        assert 'up to 5 words' in call['system']
         assert 'current_characters' in call['user']
 
 
@@ -81,7 +81,9 @@ def test_shortening_uses_each_authors_voice_and_rejects_cross_author_indexes(set
     ('Existential dread.', True),
     ('The thermostat police.', True),
     ('The\tthermostat\npolice.', True),
-    ('The federal thermostat police.', False),
+    ('The federal thermostat police.', True),
+    ("Michelle Obama's mysterious dancing bulge", True),
+    ('A federal investigation into thermostat tampering.', False),
     ('é' * 90, True),
     ('é' * 91, False),
 ])
