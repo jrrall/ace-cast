@@ -3,37 +3,41 @@ from .call_context import complete
 
 import json
 from .models import CardCandidate
+from .limits import LENGTH_RULES, too_long
 from .prompts import INJECTION_NOTICE, wrap_feed_data
 from .logging_setup import get_logger
 
-LIMITS = {'prompt': (24, 160), 'answer': (12, 90)}
 
-
-def too_long(card):
-    words, chars = LIMITS[card.kind]
-    return len(card.text.split()) > words or len(card.text) > chars
-
-
-def tighten_cards(llm, cards):
+def tighten_cards(llm, cards, *, writers=()):
     long = [(i, card) for i, card in enumerate(cards) if too_long(card)]
     if not long:
         return cards
     # Verbatim finds are already bounded; do not silently turn a quote into a rewrite.
     rewrite = [(i, card) for i, card in long if card.generation_route != 'source_find']
     replacements = {}
-    if rewrite:
-        data = complete(llm, 'tighten', units=len(rewrite),
-            system=('Shorten supplied cards; preserve payoff, voice, profanity, and specific image. '
-                    'Prompts: at most 24 words and 160 characters, exactly one ____ accepting '
-                    'an unrelated noun phrase. Answers: at most 12 words and 90 characters, '
-                    'no blank; acts, objects, situations and puns are valid. Keep the kind. '
-                    'Omit a card if shortening destroys the joke. Return '
-                    '{"cards":[{"index":0,"kind":"answer","text":"shorter card"}]}. '
-                    + INJECTION_NOTICE),
-            user=wrap_feed_data(json.dumps([{'index': i, **card.model_dump()} for i, card in rewrite], ensure_ascii=False)),
+    by_name = {writer.name: writer for writer in writers}
+    groups = {}
+    for i, card in rewrite:
+        groups.setdefault(card.writer, []).append((i, card))
+    for author, group in groups.items():
+        writer = by_name.get(author)
+        rules = ('Rewrite these overlong cards shorter; preserve payoff, voice, profanity, '
+                 'and specific image. ' + LENGTH_RULES
+                 + 'Prompts: exactly one ____ accepting an unrelated noun phrase. '
+                 'Answers: no blank; acts, objects, situations and puns are valid. '
+                 'Keep the kind. Omit a card if shortening destroys the joke. Return '
+                 '{"cards":[{"index":0,"kind":"answer","text":"shorter card"}]}. '
+                 + INJECTION_NOTICE)
+        system = writer.phase_system('revise', format_rules=rules) if writer else rules
+        data = complete(llm, 'tighten', units=len(group), persona=author,
+            system=system,
+            user=wrap_feed_data(json.dumps([
+                {'index': i, **card.model_dump(), 'current_characters': len(card.text)}
+                for i, card in group
+            ], ensure_ascii=False)),
             temperature=0.3)
         from .comedy_room import _indexed
-        allowed = {i for i, _ in rewrite}
+        allowed = {i for i, _ in group}
         for idx, row in _indexed(data, 'cards', len(cards)).items():
             if idx not in allowed:
                 continue

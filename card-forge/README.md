@@ -597,11 +597,23 @@ in admin review/library; no writer persona is falsely credited. Writers-only
 live tests print source finds alongside writer output, even when Trendscout
 selects a theme from another source.
 
-Before moderation, review flags prompts exceeding 24 words or 160 characters
-and answers exceeding 12 words or 90 characters. One batched shortening call
-preserves the comic payoff, kind, voice, and provenance. Failed or still-long
-rewrites are dropped. Verbatim finds that exceed the final limit are dropped
-rather than silently rewritten. `review.shorten` logs originals and revisions.
+Generated prompts have a hard maximum of **54 characters**, counting spaces,
+punctuation, and all four characters of `____` (Python Unicode character count).
+This is the rounded mean of all 6,870 black-card entries across 205 packs in
+[JSON Against Humanity](https://github.com/crhallberg/json-against-humanity/blob/b32d50173381d66a5a7515b822a3f344d818a939/cah-all-full.json):
+54.11965 characters and 10.64687 whitespace-separated words. The measurement
+uses raw `text`, includes official and fan packs and repeated entries, and does
+not expand the dataset's single-character blanks or strip formatting. For
+comparison, the 1,041 official entries average 59.41691 characters. Reproduce
+with `python scripts/measure_prompt_lengths.py /path/to/cah-all-full.json`.
+
+Before editing, overlong drafts go back to their originating persona's saved
+voice and `revise` instructions, in one shortening call per author. Review checks
+again after editing so an editor cannot expand a prompt beyond the limit.
+Answers retain their existing 12-word/90-character limits. Writer, challenger,
+revision, and editor system prompts share the same prompt limit; final submission
+validation enforces it independently. Failed or still-long rewrites are dropped.
+Verbatim finds that exceed the final limit are dropped rather than silently rewritten. `review.shorten` logs originals and revisions.
 The writers-only test bypasses this review pass and shows raw output.
 
 Deploy the game migration before using the updated Forge if source links and

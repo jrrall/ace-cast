@@ -99,3 +99,19 @@ def _feed():
     from forge.feeds import FeedItem
 
     return [FeedItem(title="Everyone became a freelance goblin", source="r/memes")]
+
+
+def test_persona_shortens_before_editing_and_after_editor_expansion(settings):
+    llm = _scripted_llm()
+    long = 'Our incredibly elaborate new company policy requires ____.'
+    llm._responses[1]['cards'][0]['text'] = long
+    llm._responses[10]['cards'][0] = {'source_index': 0, 'kind': 'prompt', 'text': long}
+    rewrite = {'cards': [{'index': 0, 'kind': 'prompt', 'text': 'Company policy requires ____.'}]}
+    llm._responses.insert(10, rewrite)
+    llm._responses.insert(12, rewrite)
+    pipeline = Pipeline(settings, llm, FakeContentClient(), fetch_fn=lambda s: _feed())
+    _, batch = pipeline.run(dry_run=True)
+    assert next(c for c in batch.cards if c.kind == 'prompt').text == 'Company policy requires ____.'
+    assert '54 characters' in llm.calls[10]['system']
+    assert '54 characters' in llm.calls[12]['system']
+    assert 'Company policy requires ____.' in llm.calls[11]['user']
