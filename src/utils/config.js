@@ -44,7 +44,7 @@ const config = {
     // (bots answer; a human is always the Card Czar). Set BOT_TARGET=0 to disable.
     botTargetDefault: toInt(process.env.BOT_TARGET, 4),
     // After the game is won, hold on the results for this long (a visible
-    // countdown), then release the room/session.
+    // countdown), then finish the session and return the table to the lobby.
     gameOverCloseMs: toInt(process.env.GAME_OVER_CLOSE_MS, 20 * 1000),
     // Once enough players are seated the lobby auto-starts after a short
     // countdown (host can Start now / Hold). How long that countdown runs.

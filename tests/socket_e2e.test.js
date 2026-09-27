@@ -62,6 +62,7 @@ const waitUntil = (predicate, timeout = 5000) => new Promise((resolve, reject) =
 
 beforeAll(async () => {
   process.env.PORT = '0';
+  process.env.GAME_OVER_CLOSE_MS = '150';
   // Keep this a pure human-flow test — no auto-fill bots. Set before the server
   // (and config) are required so rooms are created with botTarget 0.
   process.env.BOT_TARGET = '0';
@@ -138,6 +139,16 @@ test('plays a full MadLad round through real sockets', async () => {
   expect(tvJudging).toBeDefined();
   expect(tvJudging.submissions.every((s) => !s.playerName)).toBe(true);
 
+  // Keep the next game under test control; the table must stay connected.
+  const room = gameManager.getRoom(roomCode);
+  room.autoStart = false;
+  const lobbyReturns = [host, tv, ...players].map((socket) => {
+    const states = [];
+    socket.on('room-state', (state) => states.push(state));
+    return states;
+  });
+  const socketIds = players.map((socket) => socket.id);
+
   // Judge crowns a winner; target score of 1 ends the game.
   judge.emit('player-action', { action: 'pick-winner', data: { submissionId: judge.last.submissions[0].id } });
   await waitUntil(() => players.every((p) => p.last.phase === 'gameover'));
@@ -147,6 +158,25 @@ test('plays a full MadLad round through real sockets', async () => {
   expect(topScore).toBe(1);
   expect(tv.last.winnerName).toBeTruthy();
   expect(tv.last.lastWinner.playerName).toBeTruthy();
+
+  await waitUntil(() => lobbyReturns.every((states) => states.some((state) => !state.isGameActive)));
+  expect(gameManager.getRoom(roomCode)).toBe(room);
+  expect([host, tv, ...players].every((socket) => socket.connected)).toBe(true);
+  expect(players.map((socket) => socket.id)).toEqual(socketIds);
+  expect(room.gameOverTimer).toBeNull();
+  expect(room.startCountdownTimer).toBeNull(); // respects the host's pause
+
+  host.emit('start-game', { gameType: 'madlad', options: { targetScore: 1 } });
+  await waitUntil(() => players.every((socket) => socket.last.phase === 'answering' && socket.last.hand.length === 8));
+  expect(players[0].last.scores.every((entry) => entry.score === 0)).toBe(true);
+  const nextJudge = players.find((socket) => socket.last.you.isJudge);
+  players.filter((socket) => socket !== nextJudge).forEach((socket) => {
+    socket.emit('player-action', { action: 'submit-card', data: { cardIndex: 0 } });
+  });
+  await waitUntil(() => nextJudge.last.phase === 'judging');
+  nextJudge.emit('player-action', { action: 'pick-winner', data: { submissionId: nextJudge.last.submissions[0].id } });
+  await waitUntil(() => lobbyReturns.every((states) => states.filter((state) => !state.isGameActive).length === 2));
+  expect(players.map((socket) => socket.id)).toEqual(socketIds);
 }, 30000);
 
 test('bot controls change visible seats without accumulating hidden clicks', async () => {
@@ -200,3 +230,40 @@ test('bot controls change visible seats without accumulating hidden clicks', asy
   host.emit('join-room', { roomCode, deviceType: 'host' });
   expect((await refreshed).players).toHaveLength(fullSize);
 }, 30000);
+
+test('two connected phones finish a bot-assisted game and automatically play again', async () => {
+  const { body: { roomCode } } = await request(app).post('/api/create-room');
+  const room = gameManager.getRoom(roomCode);
+  room.botTarget = 3;
+  room.autoStart = false;
+  const host = connect();
+  await waitConnect(host);
+  const hostJoined = once(host, 'room-state');
+  host.emit('join-room', { roomCode, deviceType: 'host' });
+  await hostJoined;
+  const phones = [connect(), connect()];
+  await Promise.all(phones.map((socket) => waitConnect(socket)));
+  await Promise.all(phones.map((socket, i) => {
+    const joined = once(socket, 'room-state');
+    socket.emit('join-room', { roomCode, playerName: `Phone ${i}`, deviceType: 'player', clientId: `phone-${i}` });
+    return joined;
+  }));
+  host.emit('start-game', { gameType: 'madlad', options: { targetScore: 1 } });
+  await waitUntil(() => phones.every((socket) => socket.last?.phase === 'answering'));
+  const judge = phones.find((socket) => socket.last.you.isJudge);
+  const answerer = phones.find((socket) => socket !== judge);
+  answerer.emit('player-action', { action: 'submit-card', data: { cardIndex: 0 } });
+  await waitUntil(() => judge.last.phase === 'judging', 10000);
+  const originalEngine = room.gameEngine;
+  const ids = phones.map((socket) => socket.id);
+  room.autoStart = true;
+  judge.emit('player-action', { action: 'pick-winner', data: { submissionId: judge.last.submissions[0].id } });
+  await waitUntil(() => phones.every((socket) => socket.last.phase === 'gameover'));
+  await waitUntil(() => room.gameEngine && room.gameEngine !== originalEngine
+    && phones.every((socket) => socket.last.phase === 'answering'), 10000);
+  expect(phones.map((socket) => socket.id)).toEqual(ids);
+  expect(phones.every((socket) => socket.connected && socket.last.hand.length === 8)).toBe(true);
+  expect(room.getHumanPlayers()).toHaveLength(2);
+  expect(room.getBotPlayers()).toHaveLength(1);
+  expect(phones[0].last.scores.every((entry) => entry.score === 0)).toBe(true);
+}, 20000);

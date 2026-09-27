@@ -1052,8 +1052,8 @@ async function sweepSessions() {
   }
 }
 
-// After a game is won, hold on the results for a visible countdown, then release
-// the room (free the session). Idempotent — at most one countdown per room.
+// After a win, finish the session but keep the table and its sockets alive.
+// Idempotent — at most one return-to-lobby countdown per room.
 function startGameOverCountdown(room) {
   if (!room || room.gameOverTimer || !room.gameEngine) return;
   if (typeof room.gameEngine.getPublicState !== 'function') return;
@@ -1065,18 +1065,29 @@ function startGameOverCountdown(room) {
     const r = gameManager.getRoom(room.code);
     if (!r) return;
     bots.clearBotTimers(r);
+    r.resettingGame = true;
     r.endGame();
-    // Tell clients the session is over so they leave cleanly.
-    io.to(r.code).emit('session-closed', {});
-    // AWAIT the terminal status before tearing the room down. This matters:
-    // removeRoom() force-disconnects every socket, and those phones auto-
-    // reconnect + re-join within milliseconds. If the row were still 'active'
-    // they'd rehydrate a zombie game (stuck at 'gameover'). Committing
-    // 'completed' first closes that race — and the await also lets the
-    // session-closed packet flush before the sockets are dropped.
+    // Drain writes from the completed game before marking it done. Prevent a
+    // host or a joining player from starting its replacement during this await.
+    await flushSnapshots();
     await markSession(r.code, 'completed');
-    gameManager.removeRoom(r.code);
-    console.log(`Room ${r.code} released after game over`);
+    if (gameManager.getRoom(r.code) !== r) return;
+    r.resettingGame = false;
+    r.gameOverTimer = null;
+
+    // Ending a game is not leaving the table. Server-forced disconnects do not
+    // auto-reconnect in Socket.IO, and deleting the room invalidates every QR.
+    io.to(r.code).emit('game-ended', {});
+    const state = r.getRoomState();
+    io.to(r.code).emit('room-state', {
+      roomCode: state.code,
+      players: state.players,
+      isGameActive: false,
+      gameType: state.gameType,
+    });
+    // eslint-disable-next-line no-use-before-define
+    reconcileBots(r);
+    console.log(`Room ${r.code} returned to lobby after game over`);
   }, config.room.gameOverCloseMs);
   if (room.gameOverTimer.unref) room.gameOverTimer.unref();
 }
@@ -1105,6 +1116,7 @@ function defaultGame() {
 // card-backed games (engine stays pure), then boots the engine and bots. May
 // throw (bad options / engine); callers decide how to surface it.
 async function startGameNow(room, gameType, options = {}) {
+  if (room.resettingGame) throw new Error('The table is getting ready. Try again in a moment.');
   const game = registry.getGame(gameType);
   let startOptions = options || {};
 
@@ -1147,7 +1159,7 @@ function cancelStartCountdown(room, notify = true) {
 // countdown is already running, auto-start is held, there is no default game,
 // or there aren't enough active players yet.
 function maybeStartCountdown(room) {
-  if (!room || room.isGameActive || room.startCountdownTimer || !room.autoStart) return;
+  if (!room || room.isGameActive || room.resettingGame || room.startCountdownTimer || !room.autoStart) return;
   const game = defaultGame();
   if (!game) return;
   if (room.getActivePlayerCount() < game.minPlayers) return;
