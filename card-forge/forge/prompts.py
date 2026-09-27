@@ -18,13 +18,19 @@ MADLIB_RULES = (
 )
 
 
+def clean_research_text(text: str) -> str:
+    """Remove the retired injected label, including from saved research."""
+    notice = "Unverified forum humor, not factual reporting."
+    return "\n".join(line for line in text.split("\n") if line.strip() != notice)
+
+
 def wrap_feed_data(text: str) -> str:
     """Wrap untrusted feed text in explicit delimiters as DATA, not instructions.
 
     Any stray delimiter tokens in the source are neutralised so feed content
     cannot forge a closing delimiter and break out of the data region.
     """
-    safe = text.replace(FEED_OPEN, "").replace(FEED_CLOSE, "")
+    safe = clean_research_text(text).replace(FEED_OPEN, "").replace(FEED_CLOSE, "")
     return f"{FEED_OPEN}\n{safe}\n{FEED_CLOSE}"
 
 

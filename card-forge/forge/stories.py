@@ -3,6 +3,7 @@ import hashlib
 import json
 
 from .models import Theme
+from .prompts import clean_research_text
 
 
 def stories_from_items(items):
@@ -29,7 +30,7 @@ def prompt_ids(stories):
 def request_payload(stories, *, max_themes, excerpt_chars=800, tabloid_percent=25):
     return {
         'stories': [dict(id=alias, source=s['source'][:160], title=s['title'][:300],
-                         excerpt=s['excerpt'][:excerpt_chars]) for alias, s in prompt_ids(stories).items()],
+                         excerpt=clean_research_text(s['excerpt'])[:excerpt_chars]) for alias, s in prompt_ids(stories).items()],
         'max_themes': max_themes, 'tabloid_preference_percent': tabloid_percent,
     }
 

@@ -606,6 +606,11 @@ in admin review/library; no writer persona is falsely credited. Writers-only
 live tests print source finds alongside writer output, even when Trendscout
 selects a theme from another source.
 
+Model-facing research omits the retired forum disclaimer, including when saved
+research is reused. Critique and shortening inputs carry card text/kind and the
+indexes or limits they need; writer, route, URL, and blank-count metadata stay
+in code/checkpoints rather than being repeated to the model.
+
 Shared Mad Lib rules cover only playability: one blank accepts varied noun phrases
 without changing the grammar, and the player's fill supplies the payoff. Writing,
 review, and shortening stages silently test unrelated fills without putting those

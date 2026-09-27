@@ -60,7 +60,7 @@ def tighten_cards(llm, cards, *, writers=()):
         system += ' Length repair is required: do not keep an unchanged over-limit card.'
         pending, feedback = group, {}
         for attempt in range(2):
-            request = [dict(index=i, **card.model_dump(), limits=_limits(card),
+            request = [dict(index=i, kind=card.kind, text=card.text, limits=_limits(card),
                             current_characters=len(card.text),
                             current_words=(count_answer_words(card.text) if card.kind == 'answer'
                                            else len(card.text.split())),
