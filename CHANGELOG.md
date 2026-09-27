@@ -1,3 +1,7 @@
+## <small>1.31.1 (2026-09-27)</small>
+
+* fix(admin): display dealt and prompt exposure counts (#83) ([018906d](https://github.com/jrrall/ace-cast/commit/018906d)), closes [#83](https://github.com/jrrall/ace-cast/issues/83)
+
 ## 1.31.0 (2026-09-26)
 
 * feat: track durable card deals and prompt exposures (#82) ([eae7b79](https://github.com/jrrall/ace-cast/commit/eae7b79)), closes [#82](https://github.com/jrrall/ace-cast/issues/82)
