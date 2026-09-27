@@ -1,3 +1,9 @@
+## <small>1.31.3 (2026-09-27)</small>
+
+* fix(admin): include pending cards in writer approved share (#86) ([c756c12](https://github.com/jrrall/ace-cast/commit/c756c12)), closes [#86](https://github.com/jrrall/ace-cast/issues/86)
+* fix(card-forge): enforce compact cards and playable Mad Lib prompts (#87) ([5cd88f6](https://github.com/jrrall/ace-cast/commit/5cd88f6)), closes [#87](https://github.com/jrrall/ace-cast/issues/87)
+* fix(game): keep players connected between completed games (#85) ([49d03de](https://github.com/jrrall/ace-cast/commit/49d03de)), closes [#85](https://github.com/jrrall/ace-cast/issues/85)
+
 ## <small>1.31.2 (2026-09-27)</small>
 
 * fix(game): avoid similar answers in the same hand (#84) ([be92baf](https://github.com/jrrall/ace-cast/commit/be92baf)), closes [#84](https://github.com/jrrall/ace-cast/issues/84)
