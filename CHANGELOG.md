@@ -1,3 +1,7 @@
+## <small>1.31.4 (2026-09-27)</small>
+
+* fix(cardforge): polish final card capitalization and punctuation (#88) ([81fb6ff](https://github.com/jrrall/ace-cast/commit/81fb6ff)), closes [#88](https://github.com/jrrall/ace-cast/issues/88)
+
 ## <small>1.31.3 (2026-09-27)</small>
 
 * fix(admin): include pending cards in writer approved share (#86) ([c756c12](https://github.com/jrrall/ace-cast/commit/c756c12)), closes [#86](https://github.com/jrrall/ace-cast/issues/86)
