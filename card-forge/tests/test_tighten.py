@@ -2,11 +2,12 @@ import pytest
 
 from forge.tighten import tighten_cards, too_long
 from forge.models import CardCandidate
+from forge.limits import ANSWER_MAX_WORDS, ANSWER_MAX_CHARS
 from conftest import FakeLLM
 
 
 def test_one_shortening_call_preserves_joke_metadata_and_short_cards():
-    long = CardCandidate(kind='answer', text='An unnecessarily elaborate explanation of an emergency investigation into who touched the thermostat at dinner.', writer='writer.hatemonger', generation_route='paired_revision')
+    long = CardCandidate(kind='answer', text='An unnecessarily elaborate explanation. ' * 10, writer='writer.hatemonger', generation_route='paired_revision')
     short = CardCandidate(kind='answer', text='Urethra Franklin', generation_route='source_find', source_url='https://b3ta.com/questions/x/post1')
     llm = FakeLLM([{'cards': [{'index': 0, 'kind': 'answer', 'text': 'Fucking thermostat police.'}]}])
     result = tighten_cards(llm, [long, short])
@@ -20,14 +21,14 @@ def test_one_shortening_call_preserves_joke_metadata_and_short_cards():
 def test_no_call_for_short_cards_and_drop_failed_shortening():
     short = CardCandidate(kind='prompt', text='The new rule prohibits ____.')
     assert tighten_cards(FakeLLM([]), [short]) == [short]
-    long = CardCandidate(kind='answer', text='Very ' * 30 + 'long')
+    long = CardCandidate(kind='answer', text='Very ' * 38 + 'long')
     assert tighten_cards(FakeLLM([{'cards': [{'index': 0, 'kind': 'answer', 'text': long.text}]}]), [long]) == []
 
 
 def test_shortening_does_not_change_kind_or_rewrite_found_quote():
     long = CardCandidate(kind='prompt', text='Really ' * 30 + '____.')
     assert tighten_cards(FakeLLM([{'cards': [{'index': 0, 'kind': 'answer', 'text': 'Different kind'}]}]), [long]) == []
-    quote = CardCandidate(kind='answer', text='Long ' * 30, generation_route='source_find')
+    quote = CardCandidate(kind='answer', text='Long ' * 38, generation_route='source_find')
     assert tighten_cards(FakeLLM([]), [quote]) == []
 
 
@@ -47,7 +48,7 @@ def test_prompt_character_boundary_and_submission_guard():
 
 @pytest.mark.parametrize('kind, short, long', [
     ('prompt', 'The new policy requires ____.', 'Long ' * 20 + '____.'),
-    ('answer', 'The thermostat police.', 'A federal investigation into thermostat tampering.'),
+    ('answer', 'The thermostat police.', 'word ' * 38),
 ])
 def test_shortening_uses_each_authors_voice_and_rejects_cross_author_indexes(settings, kind, short, long):
     from forge.personas.writer import DeadpanWriter, UnhingedWriter
@@ -72,7 +73,7 @@ def test_shortening_uses_each_authors_voice_and_rejects_cross_author_indexes(set
         assert writer.voice in call['system']
         assert writer.definition.phases['revise'] in call['system']
         assert '54 characters' in call['system']
-        assert 'up to 5 words' in call['system']
+        assert f'{ANSWER_MAX_WORDS} non-filler words' in call['system']
         assert 'current_characters' in call['user']
 
 
@@ -83,9 +84,12 @@ def test_shortening_uses_each_authors_voice_and_rejects_cross_author_indexes(set
     ('The\tthermostat\npolice.', True),
     ('The federal thermostat police.', True),
     ("Michelle Obama's mysterious dancing bulge", True),
-    ('A federal investigation into thermostat tampering.', False),
-    ('é' * 90, True),
-    ('é' * 91, False),
+    ('A federal investigation into thermostat tampering.', True),
+    (' '.join(['cat'] * ANSWER_MAX_WORDS), True),
+    (' '.join(['cat'] * (ANSWER_MAX_WORDS + 1)), False),
+    ('the ' + ' '.join(['cat'] * ANSWER_MAX_WORDS), True),
+    ('é' * ANSWER_MAX_CHARS, True),
+    ('é' * (ANSWER_MAX_CHARS + 1), False),
 ])
 def test_answer_length_and_submission_guard(text, valid):
     from forge.models import SubmitCard
@@ -98,3 +102,21 @@ def test_answer_length_and_submission_guard(text, valid):
     else:
         with pytest.raises(ValueError, match='answer must be at most'):
             SubmitCard(**fields)
+
+
+@pytest.mark.parametrize('text, expected', [
+    ('A raccoon in a trench coat.', 3),
+    ('THE, raccoon AND a goose.', 2),
+    ('Not my problem.', 3),
+    ("Michelle Obama's mysterious dancing bulge", 5),
+    ('Rock-and-roll with fries.', 2),
+    ('a an the and or but of to in on at by for with from as', 0),
+])
+def test_answer_word_count_excludes_only_fixed_fillers(text, expected):
+    from forge.limits import count_answer_words
+    assert count_answer_words(text) == expected
+
+
+def test_answer_fillers_do_not_trigger_rewrite():
+    card = CardCandidate(kind='answer', text='the ' + ' '.join(['cat'] * ANSWER_MAX_WORDS))
+    assert tighten_cards(FakeLLM([]), [card]) == [card]

@@ -3,7 +3,7 @@ from .call_context import complete
 
 import json
 from .models import CardCandidate
-from .limits import LENGTH_RULES, too_long
+from .limits import LENGTH_RULES, too_long, count_answer_words
 from .prompts import INJECTION_NOTICE, wrap_feed_data
 from .logging_setup import get_logger
 
@@ -33,7 +33,8 @@ def tighten_cards(llm, cards, *, writers=()):
             system=system,
             user=wrap_feed_data(json.dumps([
                 {'index': i, **card.model_dump(), 'current_characters': len(card.text),
-                 'current_words': len(card.text.split())}
+                 'current_words': (count_answer_words(card.text) if card.kind == 'answer'
+                                   else len(card.text.split()))}
                 for i, card in group
             ], ensure_ascii=False)),
             temperature=0.3)

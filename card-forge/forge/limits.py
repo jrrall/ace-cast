@@ -1,17 +1,36 @@
 """Shared generated-card length policy (see README for corpus measurement)."""
+import re
 
 PROMPT_MAX_CHARS = 54
-ANSWER_MAX_WORDS = 5
+# Compact answer cap; filler words do not count.
+ANSWER_MAX_WORDS = 8
 ANSWER_MAX_CHARS = 90
+ANSWER_FILLER_WORDS = frozenset(
+    "a an the and or but of to in on at by for with from as".split()
+)
+
+
+def count_answer_words(text):
+    """Count whitespace-separated tokens, excluding fixed, case-insensitive fillers.
+
+    Edge punctuation is ignored for matching; internal apostrophes and hyphens
+    stay intact. Negations and pronouns are meaningful and still count.
+    """
+    tokens = (re.sub(r"^\W+|\W+$", "", token).casefold() for token in text.split())
+    return sum(bool(token) and token not in ANSWER_FILLER_WORDS for token in tokens)
+
+
 PROMPT_LENGTH_RULE = (
     f"Prompt text must be at most {PROMPT_MAX_CHARS} characters total, "
     "including spaces, punctuation, and all four characters of ____. "
 )
 ANSWER_LENGTH_RULE = (
-    f"Answers: prefer 2 or 3 words, allowing up to {ANSWER_MAX_WORDS} words "
-    f"and {ANSWER_MAX_CHARS} characters. One word is fine. "
-    "Keep names and specific comic details when they need four or five words. "
-    "Count words separated by whitespace, including articles. "
+    "Answers: prefer 2 or 3 non-filler words, but use a longer phrase when the joke needs it. "
+    f"Hard maximum: {ANSWER_MAX_WORDS} non-filler words and {ANSWER_MAX_CHARS} total characters. "
+    "The maximum is a ceiling, not a target. One word is fine. "
+    "Count whitespace-separated words, ignoring edge punctuation and these filler words "
+    "case-insensitively: " + ", ".join(sorted(ANSWER_FILLER_WORDS)) + ". "
+    "All text, including filler words and spaces, counts toward the character limit. "
 )
 LENGTH_RULES = PROMPT_LENGTH_RULE + ANSWER_LENGTH_RULE
 
@@ -19,4 +38,4 @@ LENGTH_RULES = PROMPT_LENGTH_RULE + ANSWER_LENGTH_RULE
 def too_long(card):
     if card.kind == 'prompt':
         return len(card.text) > PROMPT_MAX_CHARS
-    return len(card.text.split()) > ANSWER_MAX_WORDS or len(card.text) > ANSWER_MAX_CHARS
+    return count_answer_words(card.text) > ANSWER_MAX_WORDS or len(card.text) > ANSWER_MAX_CHARS

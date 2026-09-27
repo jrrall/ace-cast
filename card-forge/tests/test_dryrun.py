@@ -10,6 +10,7 @@ import json
 import logging
 
 from forge.models import BLANK_MARKER
+from forge.limits import ANSWER_MAX_WORDS
 from forge.pipeline import Pipeline
 
 from conftest import rated_selection, FakeContentClient, FakeLLM
@@ -119,7 +120,7 @@ def test_persona_shortens_before_editing_and_after_editor_expansion(settings):
 
 def test_answer_shortens_before_editing_and_after_editor_expansion(settings):
     llm = _scripted_llm()
-    long = 'A raccoon wearing a trench coat.'
+    long = 'the ' + ' '.join(['cat'] * (ANSWER_MAX_WORDS + 1))
     llm._responses[1]['cards'][1]['text'] = long
     llm._responses[10]['cards'][1] = {'source_index': 1, 'kind': 'answer', 'text': long}
     rewrite = {'cards': [{'index': 1, 'kind': 'answer', 'text': 'Trench-coat raccoons.'}]}
@@ -130,6 +131,6 @@ def test_answer_shortens_before_editing_and_after_editor_expansion(settings):
     assert batch.cards[1].text == 'Trench-coat raccoons.'
     assert batch.cards[1].writer == 'writer.deadpan'
     for index in (10, 12):
-        assert 'up to 5 words' in llm.calls[index]['system']
-        assert '"current_words": 6' in llm.calls[index]['user']
+        assert f'{ANSWER_MAX_WORDS} non-filler words' in llm.calls[index]['system']
+        assert f'"current_words": {ANSWER_MAX_WORDS + 1}' in llm.calls[index]['user']
     assert 'Trench-coat raccoons.' in llm.calls[11]['user']

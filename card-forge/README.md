@@ -610,15 +610,20 @@ with `python scripts/measure_prompt_lengths.py /path/to/cah-all-full.json`.
 Before editing, overlong drafts go back to their originating persona's saved
 voice and `revise` instructions, in one shortening call per author. Review checks
 again after editing so an editor cannot expand a card beyond its limit.
-Answers should prefer two or three words but preserve names and specific comic
-details when they need four or five words. The hard maximum is **five
-whitespace-separated words** (articles count; one word is fine), with the existing
-90-character cap. The same pinned dataset has 24,830 answer entries averaging
-4.93798 words (median 4); only 41.74% fit within three words. The 4,661 official
-answers average 5.03154 words. Five rounds the overall mean, following the
-prompt policy; it covers 65.44% of source answers, so this remains a deliberately
-compact cap rather than an attempt to admit every reference card. Reproduce
-with `python scripts/measure_prompt_lengths.py /path/to/cah-all-full.json --kind answer`.
+Answers should prefer two or three non-filler words but keep longer phrases when
+the joke needs them. The hard limits are **eight non-filler words / 90 total
+characters**. The reference set includes outlier titles and lists: the raw maximum
+is 43 words overall and 38 in official packs (37 non-filler words / 249 characters
+in both). These outliers are measured for comparison, not used as writing targets.
+The eight-word cap covers 95.2% of official reference answers by word count alone.
+One-word answers are fine.
+
+The fixed filler list is `a an the and or but of to in on at by for with from as`.
+Counting splits on whitespace and ignores case and edge punctuation when matching
+fillers; internal apostrophes and hyphens stay intact. Negations and pronouns count.
+Filler words still count toward the character limit. Measurement, rewrite checks,
+system instructions, and submission validation use this same rule. Reproduce with
+`python scripts/measure_prompt_lengths.py /path/to/cah-all-full.json --kind answer`.
 Overlong answers use the same persona shortening passes.
 Writer, challenger, revision, and editor system prompts share both limits; final
 submission validation enforces them independently. Failed or still-long rewrites

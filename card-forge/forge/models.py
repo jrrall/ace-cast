@@ -24,7 +24,7 @@ import re
 
 from pydantic import BaseModel, Field, field_validator, model_validator
 
-from .limits import PROMPT_MAX_CHARS, ANSWER_MAX_WORDS, ANSWER_MAX_CHARS
+from .limits import PROMPT_MAX_CHARS, ANSWER_MAX_WORDS, ANSWER_MAX_CHARS, count_answer_words
 
 BLANK_MARKER = "____"
 
@@ -137,8 +137,8 @@ class SubmitCard(BaseModel):
         if self.kind == "prompt" and len(self.text) > PROMPT_MAX_CHARS:
             raise ValueError(f"prompt must be at most {PROMPT_MAX_CHARS} characters")
         if self.kind == "answer":
-            if len(self.text.split()) > ANSWER_MAX_WORDS:
-                raise ValueError(f"answer must be at most {ANSWER_MAX_WORDS} words")
+            if count_answer_words(self.text) > ANSWER_MAX_WORDS:
+                raise ValueError(f"answer must be at most {ANSWER_MAX_WORDS} non-filler words")
             if len(self.text) > ANSWER_MAX_CHARS:
                 raise ValueError(f"answer must be at most {ANSWER_MAX_CHARS} characters")
         marker_count = self.text.count(BLANK_MARKER)
