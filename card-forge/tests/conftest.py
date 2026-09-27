@@ -5,8 +5,13 @@ from __future__ import annotations
 import pytest
 
 from forge.config import Settings
+from forge.persona_registry import load_personas
+
 from forge.feeds import FeedItem
 from forge.models import CardCandidate, ModeratedCard, Theme
+
+BUILTIN_PERSONAS = tuple(p for p in load_personas() if p.enabled)
+WRITER_COUNT = len(BUILTIN_PERSONAS)
 
 
 class FakeLLM:
@@ -59,12 +64,13 @@ def settings():
     return Settings(
         _env_file=None,
         PERSONA_SCOUT=False,
+        WRITERS_PER_RUN=0,
         LLM_API_KEY="test-key",
         CONTENT_API_TOKEN="test-token",
         DENY_LIST="",
         MATURITY_MAX=2,
         THEMES_PER_RUN=4,
-        CARDS_PER_THEME=16,
+        CARDS_PER_THEME=max(16, 2 * WRITER_COUNT),
         BATCH_MIN=2,
         BATCH_MAX=20,
     )

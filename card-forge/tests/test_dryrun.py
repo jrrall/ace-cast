@@ -1,10 +1,12 @@
 """End-to-end dry-run: assembled batch is all-valid and nothing is submitted.
 
-Also asserts observability: 13 distinct persona stage log entries and a POST
-that never happens in dry-run.
+Also asserts one log entry per writer and research/review stage, and that dry-run
+never submits cards.
 """
 
 from __future__ import annotations
+
+from conftest import BUILTIN_PERSONAS, WRITER_COUNT
 
 import json
 import logging
@@ -17,7 +19,7 @@ from conftest import rated_selection, FakeContentClient, FakeLLM
 
 
 def _scripted_llm():
-    # exactly one theme -> all nine writers called once -> 13 LLM calls total
+    # exactly one theme -> all enabled writers called once plus four research/review calls
     return FakeLLM(
         [
             {"themes": [{"title": "Burnout", "angle": "work is a scam"}]},
@@ -35,6 +37,8 @@ def _scripted_llm():
             {"cards": []},  # Toxic Positivity
             {"cards": []},  # Intrusive Thoughts
             {"cards": []},  # Super Bitch
+            {"cards": []},  # Boomer
+            *[{"cards": []} for _ in BUILTIN_PERSONAS[10:]],
             {
                 "cards": [
                     {"kind": "prompt", "text": "My new hustle is just ____."},
@@ -77,7 +81,7 @@ def test_dry_run_batch_all_valid(settings):
     json.dumps(batch.payload())
 
 
-def test_dry_run_thirteen_distinct_persona_calls(settings, caplog):
+def test_dry_run_distinct_persona_calls(settings, caplog):
     llm = _scripted_llm()
     content = FakeContentClient(corpus=[])
     pipeline = Pipeline(settings, llm, content, fetch_fn=lambda s: _feed())
@@ -91,9 +95,9 @@ def test_dry_run_thirteen_distinct_persona_calls(settings, caplog):
         if isinstance(getattr(r, "extra_fields", None), dict)
         and r.extra_fields.get("stage")
     ]
-    assert personas == ["trendscout", "writer.deadpan", "writer.unhinged", "writer.pr_spin_doctor", "writer.petty_villain", "writer.banned_from_4chan", "writer.hatemonger", "writer.toxic_positivity", "writer.intrusive_thoughts", "writer.super_bitch", "editor", "moderator", "curator"]
-    # 13 distinct underlying LLM calls
-    assert len(llm.calls) == 13
+    assert personas == ["trendscout", *[p.writer_name for p in BUILTIN_PERSONAS], "editor", "moderator", "curator"]
+    # One underlying LLM call per writer and research/review stage.
+    assert len(llm.calls) == WRITER_COUNT + 4
 
 
 def _feed():
@@ -106,26 +110,26 @@ def test_prompt_over_54_characters_survives_pipeline_without_shortening(settings
     llm = _scripted_llm()
     text = "The court ruled we're slaves because ____ won't toggle a feature."
     llm._responses[1]['cards'][0]['text'] = text
-    llm._responses[10]['cards'][0] = {'source_index': 0, 'kind': 'prompt', 'text': text}
+    llm._responses[WRITER_COUNT + 1]['cards'][0] = {'source_index': 0, 'kind': 'prompt', 'text': text}
     pipeline = Pipeline(settings, llm, FakeContentClient(), fetch_fn=lambda s: _feed())
     _, batch = pipeline.run(dry_run=True)
     assert next(c for c in batch.cards if c.kind == 'prompt').text == text
-    assert len(llm.calls) == 13
+    assert len(llm.calls) == WRITER_COUNT + 4
 
 
 def test_answer_shortens_before_editing_and_after_editor_expansion(settings):
     llm = _scripted_llm()
     long = 'the ' + ' '.join(['cat'] * (ANSWER_MAX_WORDS + 1))
     llm._responses[1]['cards'][1]['text'] = long
-    llm._responses[10]['cards'][1] = {'source_index': 1, 'kind': 'answer', 'text': long}
+    llm._responses[WRITER_COUNT + 1]['cards'][1] = {'source_index': 1, 'kind': 'answer', 'text': long}
     rewrite = {'cards': [{'index': 1, 'kind': 'answer', 'text': 'Trench-coat raccoons.'}]}
-    llm._responses.insert(10, rewrite)
-    llm._responses.insert(12, rewrite)
+    llm._responses.insert(WRITER_COUNT + 1, rewrite)
+    llm._responses.insert(WRITER_COUNT + 3, rewrite)
     pipeline = Pipeline(settings, llm, FakeContentClient(), fetch_fn=lambda s: _feed())
     _, batch = pipeline.run(dry_run=True)
     assert batch.cards[1].text == 'Trench-coat raccoons'
     assert batch.cards[1].writer == 'writer.deadpan'
-    for index in (10, 12):
+    for index in (WRITER_COUNT + 1, WRITER_COUNT + 3):
         assert f'{ANSWER_MAX_WORDS} non-filler words' in llm.calls[index]['system']
         assert f'"current_words": {ANSWER_MAX_WORDS + 1}' in llm.calls[index]['user']
-    assert 'Trench-coat raccoons.' in llm.calls[11]['user']
+    assert 'Trench-coat raccoons.' in llm.calls[WRITER_COUNT + 2]['user']

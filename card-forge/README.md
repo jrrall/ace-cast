@@ -36,15 +36,18 @@ a local model. Logs record stage counts and model call timing.
 | 2g | **Toxic Positivity** | `Theme` → `[CardCandidate]` | Self-congratulatory charity, privilege lectures, and demands for gratitude. |
 | 2h | **Intrusive Thoughts** | `Theme` → `[CardCandidate]` | Dangerous curiosity, forbidden associations, and catastrophically inappropriate possibilities. |
 | 2i | **Super Bitch** | `Theme` → `[CardCandidate]` | Vicious queen bee: weaponized compliments, fake concern, and surgical social humiliations. |
+| 2j–2t | **Boomer and broad archetypes** | `Theme` → `[CardCandidate]` | See the persona descriptions below; every enabled writer participates in the selection pool. |
 | 3 | **Editor** | `[CardCandidate]` → `[CardCandidate]` | Repair wording; drop broken/duplicate cards; preserve unusual jokes. |
 | 4 | **Moderator** | `[CardCandidate]` → `[ModeratedCard]` | Assign maturity 0–3, cap at the configured generator ceiling, drop out-of-policy + deny-listed. |
 | 5 | **Curator** | `[ModeratedCard]` → `SubmitBatch` | Fetch the existing corpus (incl. denied), drop near-dups, rank/select up to `BATCH_MAX` (default 50). |
 
 Final cards receive a Python-only presentation pass when assembled into `SubmitCard`: collapse whitespace, capitalize the opening word without changing internal casing, add missing terminal periods to prompts, and remove ordinary trailing periods from answers. Existing question marks, exclamation marks, ellipses, prompt colons, and leading prompt blanks are preserved. Drafts retain their original wording; answer length checks include the final punctuation.
 
-`CARDS_PER_THEME` is the total budget shared by all nine writers (minimum 9 when all are selected).
-Leftover cards are allocated in roster order: Deadpan, Unhinged, PR Spin Doctor,
-Petty Villain, Banned From 4chan, Hatemonger, Toxic Positivity, Intrusive Thoughts, then Super Bitch. The editor preserves their different voices;
+`CARDS_PER_THEME` is the total budget shared by the selected writers. Defaults
+select eight random writers from the twenty-persona pool and allocate 16 cards
+(one prompt and one answer each). Selecting everyone requires at least 20 cards.
+Leftover cards are allocated in the `order` defined by the persona profiles.
+The editor preserves their different voices;
 the curator chooses strong cards across the roster without forcing a quota.
 
 Then `client.py` POSTs the batch; the server re-validates, dedupes on
@@ -118,7 +121,7 @@ moderated / deduped / assembled / submitted counts.
 20 for a smaller review queue; use multiple runs to accumulate roughly 100
 candidates a day. Each run still submits one API request. No scheduler is added.
 The cap is a ceiling, not a target: `THEMES_PER_RUN` and `CARDS_PER_THEME` control
-how many drafts are generated (defaults: 4 × 9), and review may remove cards.
+how many drafts are generated (defaults: 4 × 16), and review may remove cards.
 `EDITOR_BATCH_SIZE=12` bounds cards per editor request; lower it to 6 if editing
 still times out. This does not change the final batch cap. Exact duplicate edits
 are removed across chunks; the curator checks repeated premises across the full
@@ -508,8 +511,8 @@ feeds, including b3ta, before the normal editing and review stages.
 Hatemonger (`writer.hatemonger`) writes as a paranoid uncle whose certainty
 exposes his own ridiculous reasoning. His invented stats concern absurd habits
 and objects; conspiracies scramble cause and effect. Cards retain the same
-prompt/answer formats and author tracking as the other writers. With all nine writers,
-`CARDS_PER_THEME` must be at least 9 for new runs; use 18 to give each writer one prompt and
+prompt/answer formats and author tracking as the other writers. With all twenty writers,
+`CARDS_PER_THEME` must be at least 20 for new runs; use 40 to give each writer one prompt and
 one answer per theme. No franchise roleplay is included.
 
 ### Archived conspiracy research
@@ -560,8 +563,8 @@ revision, which can retain the original. No model declares a winner. Invalid or
 kind-changing revisions retain the original; malformed response envelopes fail
 the run before submission. The judging pool keeps originals and distinct revisions; final submission budgets stay unchanged.
 
-With all nine writers, this adds up to eighteen LLM calls per round (nine challenges
-and nine revisions) to the nine drafting calls. Calls remain sequential for local Ollama. It is off
+With all twenty writers, this adds up to forty LLM calls per round (twenty challenges
+and twenty revisions) to the twenty drafting calls. Calls remain sequential for local Ollama. It is off
 by default while human comparison establishes whether it improves the jokes.
 Original writer attribution reaches the API; challenger and revision history
 are in the local trace, not new admin fields.
@@ -570,7 +573,7 @@ From `card-forge/`, compare original and revised cards on a fixed theme:
 
 ```bash
 docker build -t card-forge:dev .
-docker run --rm --env-file .env -e MATURITY_MAX=3 -e CARDS_PER_THEME=12 \
+docker run --rm --env-file .env -e MATURITY_MAX=3 -e WRITERS_PER_RUN=6 -e CARDS_PER_THEME=12 \
   --entrypoint python card-forge:dev /app/scripts/live_smoke.py \
   --writers-only --comedy-loop \
   --theme 'A family reunion introduces a rule nobody wants to explain.' \
@@ -674,7 +677,7 @@ mkdir -p runs
 caffeinate -i docker run --rm --env-file .env \
   -v "$PWD/runs:/output" \
   -e LLM_MODEL=huihui_ai/gemma-4-abliterated:12b \
-  -e LLM_TIMEOUT=300 -e QUALITY_MIN=70 -e CARDS_PER_THEME=12 \
+  -e LLM_TIMEOUT=300 -e QUALITY_MIN=70 -e WRITERS_PER_RUN=6 -e CARDS_PER_THEME=12 \
   card-forge:local --dry-run --run-dir /output/gemma-01
 ```
 
@@ -725,9 +728,9 @@ lectures about privilege, and the gap between her moral self-image and her
 entitled decisions. Normal deck mixing supplies the cross-persona combinations;
 there is no separate swap round or `OPPOSITES_ROUND` flag.
 
-Use `CARDS_PER_THEME=18` to give each of the nine writers one prompt and one
+Use `CARDS_PER_THEME=40` to give each of the twenty writers one prompt and one
 answer per theme. The total is shared across writers; it is not a per-writer
-count. Fresh runs selecting all eight need at least 8. Existing checkpoints preserve their saved
+count. Fresh runs selecting all twenty need at least 20. Existing checkpoints preserve their saved
 roster; checkpoints created before roster tracking retain the original six.
 Start a new run directory to include newly added writers.
 
@@ -779,7 +782,7 @@ and any completed scouting or writing results.
 `PERSONAS_DIR` selects a replacement folder. Its optional `_defaults.toml`
 overrides bundled phase defaults. Invalid files, duplicate IDs, unknown phases,
 and empty enabled rosters fail with an error. `WRITERS_PER_RUN=0` uses all enabled
-writers; set it to `6` to randomly select six without replacement each new run.
+writers; the default `8` randomly selects eight without replacement each new run.
 `CARDS_PER_THEME` is the total budget across the selected roster; use 12 for six
 writers to each get one prompt and one answer. Winners/fitness and automated
 persona rewriting are not implemented; selection is currently random.
@@ -982,8 +985,8 @@ card still needs a concrete terrible decision or self-own underneath it. Each ph
 
 New runs load these definitions. Resuming a checkpoint preserves its old roster
 and frozen voices, even if the TOMLs change. `WRITERS_PER_RUN=6` samples six of the
-nine enabled personas, so either writer can be absent from a particular run.
-Use `WRITERS_PER_RUN=0` and `CARDS_PER_THEME=18` to run all nine with one prompt
+twenty enabled personas, so either writer can be absent from a particular run.
+Use `WRITERS_PER_RUN=0` and `CARDS_PER_THEME=40` to run all twenty with one prompt
 and one answer slot per writer per theme. Deploy the updated image or mount the
 updated persona directory before starting that new run.
 
@@ -1056,7 +1059,7 @@ over generic insults. In the optional comedy loop, her challenger is drawn
 randomly from the other personas in that round.
 
 New runs can select her; existing checkpoints retain their saved roster and
-voices. Use `WRITERS_PER_RUN=0` and `CARDS_PER_THEME=18` to give all nine writers
+voices. Use `WRITERS_PER_RUN=0` and `CARDS_PER_THEME=40` to give all twenty writers
 one prompt and one answer slot per theme.
 
 ### Incomplete moderation responses
@@ -1067,3 +1070,37 @@ If any unresolved cards remain, the run fails before submission instead of
 silently discarding them. Deny-listed cards, explicit disallow decisions, and
 ratings above the configured maturity ceiling still exclude cards normally.
 Checkpointed model responses remain reusable after an interrupted retry.
+
+### Boomer writer
+
+`writer.boomer` delivers unsolicited advice with absolute confidence: hard work,
+firm handshakes, printed resumes, pension-funded bootstrap lectures, and
+“Israel is our greatest ally.” His central contradiction is limitless support
+for war spending alongside fiscal lectures and absolute fury when austerity
+threatens his own Social Security check. The joke is his obsolete solution or
+self-serving double standard, delivered sincerely.
+The enabled profile lives in `forge/persona_profiles/boomer.toml`; new runs
+include it in the selection pool, while resumed runs keep their saved roster.
+
+### Broad archetype writers
+
+Ten more enabled profiles can interpret any topic through a distinct worldview:
+
+| Persona | Comic approach |
+| --- | --- |
+| Doomer | Accepts impending collapse; still irritated by ordinary obligations. |
+| Conspiracy Theorist | Turns trivial evidence into elaborate hidden plots. |
+| Know-It-All | Confident corrections expose precise misunderstandings. |
+| Contrarian | Defends the opposite position at an absurd practical cost. |
+| Degenerate | Repurposes normal situations for sex, gambling, or intoxication. |
+| Chronic Victim | Narrates self-inflicted consequences as personal persecution. |
+| Normie | Applies familiar conventions until the absurd becomes acceptable. |
+| Edgelord | Tries desperately to shock; reveals a need for approval. |
+| Elitist | Moves the standard of superiority whenever someone else wins. |
+| Hypocrite | Applies firm principles to others and convenient exceptions to himself. |
+
+Each profile supplies scout, write, answer, critique, and revise instructions.
+`WRITERS_PER_RUN=6` randomly samples six of the twenty enabled voices without
+replacement. Use `CARDS_PER_THEME=12` for a prompt and answer slot per selected
+writer. To include everyone, use `WRITERS_PER_RUN=0` and `CARDS_PER_THEME=40`.
+Existing checkpoints retain their frozen roster and voices.

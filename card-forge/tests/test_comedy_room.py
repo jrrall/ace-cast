@@ -3,7 +3,7 @@ import pytest
 from forge.comedy_room import ComedyRoom, _indexed
 from forge.models import CardCandidate, Theme
 from forge.persona_registry import load_personas
-from conftest import FakeLLM
+from conftest import WRITER_COUNT, FakeLLM
 
 
 class RoundWriter:
@@ -61,23 +61,23 @@ def test_resume_reuses_challenger_draw_after_interrupted_critique(settings, tmp_
 
 
 def responses(revision=None):
-    drafts = [{'cards': [{'kind': 'answer', 'text': f'Original idea {i}'}]} for i in range(9)]
-    for i in range(9):
+    drafts = [{'cards': [{'kind': 'answer', 'text': f'Original idea {i}'}]} for i in range(WRITER_COUNT)]
+    for i in range(WRITER_COUNT):
         drafts += [{'challenges': [{'index': 0, 'kind': 'answer', 'text': f'Partner idea {i}', 'critique': 'Make the consequence specific'}]},
                    {'revisions': revision if revision is not None else [{'index': 0, 'kind': 'answer', 'text': f'Revised idea {i}', 'writer': 'spoofed'}]}]
     return drafts
 
 
 def test_one_exchange_blind_drafts_attribution_and_trace(settings, tmp_path):
-    settings.cards_per_theme = 18
+    settings.cards_per_theme = 2 * WRITER_COUNT
     settings.comedy_trace_path = str(tmp_path/'run.jsonl')
     events = []
     llm = FakeLLM(responses())
     final = ComedyRoom(llm, settings, emit=events.append).run([Theme(title='Family rule')])
-    assert len(llm.calls) == 27
-    assert all('Original idea' not in call['user'] for call in llm.calls[:9])
-    assert [e['stage'] for e in events[:9]] == ['draft'] * 9
-    assert len(final) == 18
+    assert len(llm.calls) == 3 * WRITER_COUNT
+    assert all('Original idea' not in call['user'] for call in llm.calls[:WRITER_COUNT])
+    assert [e['stage'] for e in events[:WRITER_COUNT]] == ['draft'] * WRITER_COUNT
+    assert len(final) == 2 * WRITER_COUNT
     assert all(c.generation_route == "writer" for c in final[::2])
     assert all(c.generation_route == "paired_revision" for c in final[1::2])
     revisions = [e for e in events if e['stage'] == 'revision']
@@ -85,7 +85,7 @@ def test_one_exchange_blind_drafts_attribution_and_trace(settings, tmp_path):
     for i, (event, card) in enumerate(zip(revisions, final[1::2])):
         assert event['challenger'] != card.writer
         assert event['challenger'] in {c.writer for c in final}
-        assert profiles[event['challenger']].voice in llm.calls[9 + 2*i]['system']
+        assert profiles[event['challenger']].voice in llm.calls[WRITER_COUNT + 2*i]['system']
         assert event['original']['text'] == f'Original idea {i}'
         assert event['revision']['text'] == f'Revised idea {i}'
         assert event['revision']['writer'] == card.writer
@@ -99,18 +99,18 @@ def test_one_exchange_blind_drafts_attribution_and_trace(settings, tmp_path):
     [{'index': 0, 'kind': 'answer', 'text': 'bad ____'}],
     [{'index': 0, 'kind': 'answer', 'text': 'First'}, {'index': 0, 'kind': 'answer', 'text': 'Duplicate'}]])
 def test_invalid_or_declined_revision_keeps_original(settings, revision):
-    settings.cards_per_theme = 18
+    settings.cards_per_theme = 2 * WRITER_COUNT
     cards = ComedyRoom(FakeLLM(responses(revision)), settings, emit=lambda e: None).run([Theme(title='Rule')])
-    assert [c.text for c in cards] == [f'Original idea {i}' for i in range(9)]
+    assert [c.text for c in cards] == [f'Original idea {i}' for i in range(WRITER_COUNT)]
 
 
 def test_failed_challenge_preserves_written_drafts(settings, tmp_path):
-    settings.cards_per_theme = 18
+    settings.cards_per_theme = 2 * WRITER_COUNT
     settings.comedy_trace_path = str(tmp_path/'run.jsonl')
-    llm = FakeLLM(responses()[:9] + [{'not_challenges': []}])
+    llm = FakeLLM(responses()[:WRITER_COUNT] + [{'not_challenges': []}])
     with pytest.raises(ValueError, match='challenges list'):
         ComedyRoom(llm, settings, emit=lambda e: None).run([Theme(title='Rule')])
-    assert len((tmp_path/'run.jsonl').read_text().splitlines()) == 9
+    assert len((tmp_path/'run.jsonl').read_text().splitlines()) == WRITER_COUNT
 
 
 def test_duplicate_and_out_of_range_indexes_are_rejected():
@@ -118,22 +118,24 @@ def test_duplicate_and_out_of_range_indexes_are_rejected():
 
 
 def test_pipeline_loop_flows_through_review_without_submission(settings, monkeypatch):
-    settings.curator_batch_size = 9
+    settings.curator_batch_size = WRITER_COUNT
+    settings.moderator_batch_size = WRITER_COUNT
+    settings.batch_max = 2 * WRITER_COUNT
     from forge.pipeline import Pipeline
     from forge.personas import Trendscout
     from conftest import FakeContentClient, rated_selection
-    settings.cards_per_theme = 18
+    settings.cards_per_theme = 2 * WRITER_COUNT
     settings.comedy_loop = True
-    settings.editor_batch_size = 18
+    settings.editor_batch_size = 2 * WRITER_COUNT
     monkeypatch.setattr(Trendscout, 'run', lambda self: [Theme(title='Rule')])
-    cards = [{'source_index': 2*i+1, 'kind': 'answer', 'text': f'Revised idea {i}'} for i in range(9)]
+    cards = [{'source_index': 2*i+1, 'kind': 'answer', 'text': f'Revised idea {i}'} for i in range(WRITER_COUNT)]
     llm = FakeLLM(responses() + [{'cards': cards},
-        {'verdicts': [{'index': i, 'allowed': True, 'maturity_rating': 2} for i in range(9)]},
-        rated_selection(list(range(9)))])
+        {'verdicts': [{'index': i, 'allowed': True, 'maturity_rating': 2} for i in range(WRITER_COUNT)]},
+        rated_selection(list(range(WRITER_COUNT)))])
     content = FakeContentClient()
     summary, batch = Pipeline(settings, llm, content).run(dry_run=True)
-    assert summary.generated == 18
-    assert len(batch.cards) == 9
-    assert len({c.writer for c in batch.cards}) == 9
+    assert summary.generated == 2 * WRITER_COUNT
+    assert len(batch.cards) == WRITER_COUNT
+    assert len({c.writer for c in batch.cards}) == WRITER_COUNT
     assert all(c.text.startswith('Revised idea') for c in batch.cards)
     assert content.submitted == []
