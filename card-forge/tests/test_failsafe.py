@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from conftest import BUILTIN_PERSONAS
+
 import pytest
 
 from forge import cli
@@ -60,6 +62,8 @@ def test_api_error_on_submit_surfaces_and_nothing_persists(settings):
             {"cards": []},  # Toxic Positivity
             {"cards": []},  # Intrusive Thoughts
             {"cards": []},  # Super Bitch
+            {"cards": []},  # Boomer
+            *[{"cards": []} for _ in BUILTIN_PERSONAS[10:]],
             {"cards": [{"kind": "answer", "text": "Tax fraud."}]},
             {"verdicts": [{"index": 0, "maturity_rating": 1, "allowed": True}]},
             rated_selection([0]),

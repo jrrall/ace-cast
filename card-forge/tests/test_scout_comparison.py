@@ -180,16 +180,17 @@ def test_interrupt_preserves_partial_artifacts(settings, tmp_path):
     assert (output/'report.md').exists()
 
 
-def test_comparison_accepts_all_nine_saved_personas(settings, tmp_path):
+def test_comparison_accepts_all_enabled_saved_personas(settings, tmp_path):
+    from conftest import WRITER_COUNT
     settings.themes_per_run = 1
     source = tmp_path/'source'
     with Checkpoint(source, settings) as cp:
-        assert len(cp.personas) == 9
+        assert len(cp.personas) == WRITER_COUNT
         cp.write('research', {'stories': stories_from_items(feed())})
     def empty(call):
         return {'theme': None} if 'Return only {"theme":' in call['system'] else {'themes': []}
-    llm = FakeLLM([empty] * 18)
-    report = compare(source, tmp_path/'all-nine', settings, persona_count=9, factory=lambda _: llm)
+    llm = FakeLLM([empty] * (2 * WRITER_COUNT))
+    report = compare(source, tmp_path/'all-enabled', settings, persona_count=WRITER_COUNT, max_calls=2 * WRITER_COUNT, factory=lambda _: llm)
     assert report['status'] == 'complete'
-    assert len(llm.calls) == 18
-    assert len(report['results']['batches']['themes_by_persona']) == 9
+    assert len(llm.calls) == 2 * WRITER_COUNT
+    assert len(report['results']['batches']['themes_by_persona']) == WRITER_COUNT

@@ -10,6 +10,8 @@ card in the final batch. Two guarantees are exercised:
 
 from __future__ import annotations
 
+from conftest import BUILTIN_PERSONAS
+
 from forge.feeds import FeedItem
 from forge.pipeline import Pipeline
 from forge.prompts import FEED_CLOSE, FEED_OPEN
@@ -49,6 +51,8 @@ def test_injection_does_not_leak_policy_violating_card(settings):
             {"cards": []},  # Toxic Positivity
             {"cards": []},  # Intrusive Thoughts
             {"cards": []},  # Super Bitch
+            {"cards": []},  # Boomer
+            *[{"cards": []} for _ in BUILTIN_PERSONAS[10:]],
             {
                 "cards": [
                     {"kind": "answer", "text": "A forbiddenword card."},

@@ -2,7 +2,7 @@ from forge.source_finds import find_cards
 from forge.feeds import FeedItem
 from forge.models import Theme
 from forge.limits import ANSWER_MAX_WORDS
-from conftest import FakeLLM, FakeContentClient, rated_selection
+from conftest import WRITER_COUNT, FakeLLM, FakeContentClient, rated_selection
 
 
 def item():
@@ -26,7 +26,7 @@ def test_find_bypasses_rewriting_reaches_judgment_with_source(settings, monkeypa
         self.fetched = [item()]
         return [Theme(title='Rule')]
     monkeypatch.setattr(Trendscout, 'run', research)
-    llm = FakeLLM([{'cards': []} for _ in range(9)] + [
+    llm = FakeLLM([{'cards': []} for _ in range(WRITER_COUNT)] + [
         {'selected': [0]}, {'verdicts': [{'index': 0, 'allowed': True, 'maturity_rating': 2}]}, rated_selection([0])])
     summary, batch = Pipeline(settings, llm, FakeContentClient()).run(dry_run=True)
     card = batch.payload()['cards'][0]
