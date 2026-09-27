@@ -1,3 +1,7 @@
+## 1.33.0 (2026-09-27)
+
+* feat(card-forge): rewrite denied cards from reviewer feedback (#90) ([73840c6](https://github.com/jrrall/ace-cast/commit/73840c6)), closes [#90](https://github.com/jrrall/ace-cast/issues/90)
+
 ## 1.32.0 (2026-09-27)
 
 * feat(card-forge): expand persona pool and sample eight writers (#89) ([d8406d9](https://github.com/jrrall/ace-cast/commit/d8406d9)), closes [#89](https://github.com/jrrall/ace-cast/issues/89)
