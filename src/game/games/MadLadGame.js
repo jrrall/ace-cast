@@ -1,5 +1,6 @@
 const { randomUUID } = require('crypto');
 const BaseGame = require('./BaseGame');
+const { answerWords, wordOverlap, SIMILARITY_THRESHOLD } = require('../answerSimilarity');
 
 const HAND_SIZE = 8;
 const DEFAULT_TARGET_SCORE = 5;
@@ -98,12 +99,30 @@ class MadLadGame extends BaseGame {
     return shuffled;
   }
 
-  drawWhite() {
+  drawWhite(avoidCards = []) {
     if (this.drawPile.length === 0) {
       this.drawPile = this.shuffle(this.discardPile);
       this.discardPile = [];
     }
-    return this.drawPile.pop() || { id: null, text: '(blank card)' };
+    if (this.drawPile.length === 0) return { id: null, text: '(blank card)' };
+    if (avoidCards.length === 0) return this.drawPile.pop();
+
+    const existingWords = avoidCards.map((card) => answerWords(card.text));
+    let bestIndex = this.drawPile.length - 1;
+    let lowestOverlap = Infinity;
+    // Keep shuffled order whenever a candidate is sufficiently different.
+    // Only remove the selected card: rejected candidates remain available to
+    // other hands, and an all-similar deck cannot trap us in a redraw loop.
+    for (let i = this.drawPile.length - 1; i >= 0; i -= 1) {
+      const candidateWords = answerWords(this.drawPile[i].text);
+      const overlap = Math.max(...existingWords.map((words) => wordOverlap(words, candidateWords)));
+      if (overlap < lowestOverlap) {
+        bestIndex = i;
+        lowestOverlap = overlap;
+      }
+      if (overlap < SIMILARITY_THRESHOLD) break;
+    }
+    return this.drawPile.splice(bestIndex, 1)[0];
   }
 
   drawBlack() {
@@ -126,9 +145,9 @@ class MadLadGame extends BaseGame {
     return this.getActiveIds().filter((id) => id !== this.state.judgeId);
   }
 
-  refillHand(player) {
+  refillHand(player, avoidCards = []) {
     while (player.hand.length < HAND_SIZE) {
-      const card = this.drawWhite();
+      const card = this.drawWhite([...player.hand, ...avoidCards]);
       player.hand.push(card);
       this.trackExposure(card, 'answer_dealt');
     }
@@ -309,7 +328,7 @@ class MadLadGame extends BaseGame {
 
     const [card] = player.hand.splice(cardIndex, 1);
     this.discardPile.push(card);
-    this.refillHand(player); // draws exactly one replacement back up to HAND_SIZE
+    this.refillHand(player, [card]); // also avoid a near-copy of the swapped card
     player.discardsThisRound = (player.discardsThisRound || 0) + 1;
     return { ok: true };
   }
