@@ -91,12 +91,13 @@ def test_shortening_uses_each_authors_voice_and_rejects_cross_author_indexes(set
 ])
 def test_answer_length_and_submission_guard(text, valid):
     from forge.models import SubmitCard
+    from forge.text import finish_card_text
 
     card = CardCandidate(kind='answer', text=text)
     assert too_long(card) is not valid
     fields = dict(kind='answer', text=text, blanks=0, maturity_rating=1, pack='test')
     if valid:
-        assert SubmitCard(**fields).text == text
+        assert SubmitCard(**fields).text == finish_card_text(text, kind="answer")
     else:
         with pytest.raises(ValueError, match='answer must be at most'):
             SubmitCard(**fields)
@@ -166,9 +167,10 @@ def test_failed_retries_log_reason_and_are_bounded(caplog):
 
 def test_answer_soft_character_target_does_not_trigger_rewrite():
     from forge.models import SubmitCard
+    from forge.text import finish_card_text
     text = 'A spectacularly unnecessary bureaucratic administrative intervention'
     card = CardCandidate(kind='answer', text=text)
     assert 54 < len(text) < ANSWER_MAX_CHARS
     assert not too_long(card)
     assert tighten_cards(FakeLLM([]), [card]) == [card]
-    assert SubmitCard(kind='answer', text=text, blanks=0, maturity_rating=1, pack='test').text == text
+    assert SubmitCard(kind='answer', text=text, blanks=0, maturity_rating=1, pack='test').text == finish_card_text(text, kind="answer")

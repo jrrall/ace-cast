@@ -71,7 +71,7 @@ def test_injection_does_not_leak_policy_violating_card(settings):
 
     texts = [c.text for c in batch.cards]
     assert not any("forbiddenword" in t.lower() for t in texts)
-    assert "Knife-wielding geese." in texts
+    assert "Knife-wielding geese" in texts
 
 
 def test_feed_text_is_delimited_not_instruction(settings):

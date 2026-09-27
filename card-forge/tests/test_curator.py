@@ -8,6 +8,7 @@ from __future__ import annotations
 
 from forge.models import ModeratedCard, SubmitBatch
 from forge.personas import Curator
+from forge.text import finish_card_text
 
 from conftest import rated_selection, FakeContentClient, FakeLLM
 
@@ -19,7 +20,7 @@ def test_curator_assembles_batch(settings, sample_moderated):
 
     assert isinstance(batch, SubmitBatch)
     assert len(batch.cards) == 3
-    assert batch.cards[0].text == "Crippling student debt."  # selection order honored
+    assert batch.cards[0].text == "Crippling student debt"  # selection order honored
     assert all(c.pack == settings.pack_slug for c in batch.cards)
 
 
@@ -38,8 +39,8 @@ def test_curator_drops_duplicate_including_denied(settings):
     batch = Curator(llm, content, settings).run(moderated)
 
     texts = [c.text for c in batch.cards]
-    assert "A haunted Roomba." not in texts
-    assert "Fresh original card." in texts
+    assert "A haunted Roomba" not in texts
+    assert "Fresh original card" in texts
     assert content.list_calls == 1
 
 
@@ -73,7 +74,7 @@ def test_scoring_gates_quality_independently_of_style(settings, sample_moderated
     response['evaluations'][1]['quality'] = dict.fromkeys(response['evaluations'][1]['quality'], 5)
     response['evaluations'][2]['quality'] = dict.fromkeys(response['evaluations'][2]['quality'], 2)
     batch = Curator(FakeLLM([response]), FakeContentClient(), settings).run(sample_moderated)
-    assert [c.text for c in batch.cards] == [sample_moderated[1].text]
+    assert [c.text for c in batch.cards] == [finish_card_text(sample_moderated[1].text, kind=sample_moderated[1].kind)]
 
 
 def test_same_premise_keeps_strongest_even_when_ranked_later(settings, sample_moderated):
@@ -82,7 +83,7 @@ def test_same_premise_keeps_strongest_even_when_ranked_later(settings, sample_mo
     response['evaluations'][1]['premise_group'] = ' viking music video '
     response['evaluations'][1]['quality'] = dict.fromkeys(response['evaluations'][1]['quality'], 5)
     batch = Curator(FakeLLM([response]), FakeContentClient(), settings).run(sample_moderated)
-    assert [c.text for c in batch.cards] == [sample_moderated[1].text]
+    assert [c.text for c in batch.cards] == [finish_card_text(sample_moderated[1].text, kind=sample_moderated[1].kind)]
 
 
 def test_missing_or_invalid_scores_fail_closed(settings, sample_moderated):
@@ -107,14 +108,14 @@ def test_prompt_first_ranking_reserves_answer_slots(settings):
     ]
     llm = FakeLLM([rated_selection(list(range(8))), rated_selection([8])])
     batch = Curator(llm, FakeContentClient(), settings).run(pool)
-    assert [c.text for c in batch.cards] == [pool[i].text for i in [0, 1, 5, 6, 7]]
+    assert [c.text for c in batch.cards] == [finish_card_text(pool[i].text, kind=pool[i].kind) for i in [0, 1, 5, 6, 7]]
 
 
 def test_type_shortfall_does_not_restore_unselected_cards(settings, sample_moderated):
     settings.batch_max = 2
     llm = FakeLLM([rated_selection([1, 2])])
     batch = Curator(llm, FakeContentClient(), settings).run(sample_moderated)
-    assert [c.text for c in batch.cards] == [sample_moderated[1].text]
+    assert [c.text for c in batch.cards] == [finish_card_text(sample_moderated[1].text, kind=sample_moderated[1].kind)]
 
 
 def test_misspelled_diagnostic_does_not_lose_valid_batch(settings, sample_moderated, caplog):
@@ -142,7 +143,7 @@ def test_compact_response_preserves_selection(settings, sample_moderated):
     for evaluation in response["evaluations"]:
         del evaluation["style"]
     batch = Curator(FakeLLM([response]), FakeContentClient(), settings).run(sample_moderated)
-    assert [c.text for c in batch.cards] == [sample_moderated[i].text for i in [2, 0, 1]]
+    assert [c.text for c in batch.cards] == [finish_card_text(sample_moderated[i].text, kind=sample_moderated[i].kind) for i in [2, 0, 1]]
 
 
 def test_uncertain_joke_survives_unless_quality_cutoff_is_enabled(settings, sample_moderated):
@@ -153,7 +154,7 @@ def test_uncertain_joke_survives_unless_quality_cutoff_is_enabled(settings, samp
     }
     settings.quality_min = 0
     batch = Curator(FakeLLM([response]), FakeContentClient(), settings).run(sample_moderated)
-    assert [c.text for c in batch.cards] == [sample_moderated[0].text]
+    assert [c.text for c in batch.cards] == [finish_card_text(sample_moderated[0].text, kind=sample_moderated[0].kind)]
     settings.quality_min = 70
     batch = Curator(FakeLLM([response]), FakeContentClient(), settings).run(sample_moderated)
     assert batch.cards == []
@@ -201,7 +202,7 @@ def test_curator_ranks_and_dedupes_globally_across_chunks(settings, sample_moder
         responses[2]['evaluations'][0]['quality'], 5)
     llm = FakeLLM(responses)
     batch = Curator(llm, FakeContentClient(), settings).run(sample_moderated)
-    assert [c.text for c in batch.cards] == [sample_moderated[i].text for i in (2, 1)]
+    assert [c.text for c in batch.cards] == [finish_card_text(sample_moderated[i].text, kind=sample_moderated[i].kind) for i in (2, 1)]
     assert 'shared joke' in llm.calls[2]['user']
 
 
@@ -226,7 +227,7 @@ def test_positional_scores_without_reason_preserve_weighted_selection(settings, 
     assert evaluation.quality.total(settings.quality_weights) == 81
     assert evaluation.reason is None
     batch = Curator(FakeLLM([response]), FakeContentClient(), settings).run(sample_moderated)
-    assert [c.text for c in batch.cards] == [c.text for c in sample_moderated[:2]]
+    assert [c.text for c in batch.cards] == [finish_card_text(c.text, kind=c.kind) for c in sample_moderated[:2]]
 
 
 def test_positional_scores_still_require_five_strict_valid_dimensions(settings, sample_moderated):
