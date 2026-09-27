@@ -1,3 +1,7 @@
+## <small>1.31.2 (2026-09-27)</small>
+
+* fix(game): avoid similar answers in the same hand (#84) ([be92baf](https://github.com/jrrall/ace-cast/commit/be92baf)), closes [#84](https://github.com/jrrall/ace-cast/issues/84)
+
 ## <small>1.31.1 (2026-09-27)</small>
 
 * fix(admin): display dealt and prompt exposure counts (#83) ([018906d](https://github.com/jrrall/ace-cast/commit/018906d)), closes [#83](https://github.com/jrrall/ace-cast/issues/83)
