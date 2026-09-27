@@ -53,6 +53,7 @@ async function insertPending(rows) {
         blanks: row.blanks,
         maturity_rating: row.maturity_rating,
         pack_id: row.pack_id,
+        rewrite_of: row.rewrite_of || null,
         writer: row.writer || null,
         generation_route: row.generation_route || null,
         source_url: row.source_url || null,
@@ -81,15 +82,16 @@ async function list({
   const query = db()('cards')
     .select(
       'cards.id',
-      'game_id',
+      'cards.game_id',
       'kind',
       'text',
       'blanks',
       'maturity_rating',
       'pack_id',
       'status',
-      'source',
+      'cards.source',
       'writer',
+      'rewrite_of',
       'generation_route',
       'source_url',
       'reviewed_at',
@@ -98,6 +100,7 @@ async function list({
       'cards.created_at',
     )
     .orderBy('cards.id', 'desc');
+  query.leftJoin('packs as p', 'p.id', 'cards.pack_id').select('p.slug as pack_slug');
   query.leftJoin('card_stats as cs', 'cs.card_id', 'cards.id')
     .select(...['plays', 'wins', 'deals', 'prompt_exposures'].map(
       (name) => db().raw('COALESCE(??, 0) as ??', [`cs.${name}`, name]),

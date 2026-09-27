@@ -414,8 +414,14 @@ function validateCandidate(card, pack) {
   }
 
   const generationRoute = card.generation_route == null ? null : card.generation_route;
-  if (generationRoute !== null && !['writer', 'paired_revision', 'source_find'].includes(generationRoute)) {
+  const generationRoutes = ['writer', 'paired_revision', 'source_find', 'review_rewrite'];
+  if (generationRoute !== null && !generationRoutes.includes(generationRoute)) {
     return { ok: false, reason: 'invalid generation_route' };
+  }
+  const rewriteOf = card.rewrite_of == null ? null : card.rewrite_of;
+  if ((rewriteOf !== null && (!Number.isSafeInteger(rewriteOf) || rewriteOf <= 0))
+      || ((generationRoute === 'review_rewrite') !== (rewriteOf !== null))) {
+    return { ok: false, reason: 'review_rewrite requires rewrite_of' };
   }
   const sourceUrl = card.source_url == null ? null : card.source_url;
   if (sourceUrl !== null) {
@@ -462,6 +468,7 @@ function validateCandidate(card, pack) {
       maturity_rating: maturity,
       writer,
       generation_route: generationRoute,
+      rewrite_of: rewriteOf,
       source_url: sourceUrl,
       pack_id: pack.id,
     },
@@ -585,6 +592,28 @@ app.post('/api/content/cards', requireContentScope('content:write'), async (req,
         continue;
       }
 
+      if (card.rewrite_of != null) {
+        // eslint-disable-next-line no-await-in-loop
+        const parent = await dbmod.db()('cards').where({ id: card.rewrite_of })
+          .first();
+        if (!parent || parent.status !== 'denied' || !parent.denied_reason?.trim()
+            || !parent.writer || parent.writer !== card.writer || parent.kind !== card.kind
+            || parent.pack_id !== pack.id || parent.blanks !== result.row.blanks
+            || parent.maturity_rating !== result.row.maturity_rating) {
+          rejected.push({ index: i, reason: 'invalid rewrite parent' });
+          // eslint-disable-next-line no-continue
+          continue;
+        }
+        // eslint-disable-next-line no-await-in-loop
+        const previous = await dbmod.db()('cards').where({ rewrite_of: parent.id })
+          .first();
+        if (previous || survivors.some((row) => row.rewrite_of === parent.id)) {
+          skipped += 1;
+          // eslint-disable-next-line no-continue
+          continue;
+        }
+      }
+
       // Dedupe on (pack_id, text) across every status (incl. denied) so denied
       // content can't re-flood the queue.
       if (!existingCache.has(pack.id)) {
@@ -700,7 +729,13 @@ app.get('/admin/content', requireAdmin, async (req, res) => {
     );
     const packNameById = new Map();
     packLists.flat().forEach((pack) => packNameById.set(pack.id, pack.name));
-    const cards = pending.map((c) => ({ ...c, packName: packNameById.get(c.pack_id) || null }));
+    const parentIds = pending.map((c) => c.rewrite_of).filter(Boolean);
+    const parents = parentIds.length ? await dbmod.db()('cards').whereIn('id', parentIds)
+      .select('id', 'text', 'denied_reason') : [];
+    const parentById = new Map(parents.map((parent) => [parent.id, parent]));
+    const cards = pending.map((c) => ({
+      ...c, packName: packNameById.get(c.pack_id) || null, rewriteParent: parentById.get(c.rewrite_of),
+    }));
 
     const startOfDay = new Date();
     startOfDay.setHours(0, 0, 0, 0);

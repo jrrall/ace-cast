@@ -83,7 +83,7 @@ class CardCandidate(BaseModel):
     text: str
     blanks: int = 0
     writer: str | None = Field(default=None, max_length=64)
-    generation_route: Literal["writer", "paired_revision", "source_find"] | None = None
+    generation_route: Literal["writer", "paired_revision", "source_find", "review_rewrite"] | None = None
     source_url: str | None = Field(default=None, max_length=2048)
 
     @field_validator("text")
@@ -124,8 +124,9 @@ class SubmitCard(BaseModel):
     blanks: int
     maturity_rating: int = Field(ge=0, le=3)
     pack: str
+    rewrite_of: int | None = Field(default=None, gt=0)
     writer: str | None = Field(default=None, max_length=64)
-    generation_route: Literal["writer", "paired_revision", "source_find"] | None = None
+    generation_route: Literal["writer", "paired_revision", "source_find", "review_rewrite"] | None = None
     source_url: str | None = Field(default=None, max_length=2048)
 
     @field_validator("text")
@@ -188,6 +189,7 @@ class SubmitBatch(BaseModel):
                     "blanks": c.blanks,
                     "maturity_rating": c.maturity_rating,
                     "pack": c.pack,
+                    **({"rewrite_of": c.rewrite_of} if c.rewrite_of is not None else {}),
                     **({"generation_route": c.generation_route} if c.generation_route else {}),
                     **({"source_url": c.source_url} if c.source_url else {}),
                     **({"writer": c.writer} if c.writer is not None else {}),
