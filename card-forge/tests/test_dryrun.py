@@ -123,7 +123,7 @@ def test_answer_shortens_before_editing_and_after_editor_expansion(settings):
     llm._responses.insert(12, rewrite)
     pipeline = Pipeline(settings, llm, FakeContentClient(), fetch_fn=lambda s: _feed())
     _, batch = pipeline.run(dry_run=True)
-    assert batch.cards[1].text == 'Trench-coat raccoons.'
+    assert batch.cards[1].text == 'Trench-coat raccoons'
     assert batch.cards[1].writer == 'writer.deadpan'
     for index in (10, 12):
         assert f'{ANSWER_MAX_WORDS} non-filler words' in llm.calls[index]['system']

@@ -19,7 +19,7 @@ def test_author_survives_rewrite_moderation_and_submission(settings, sample_them
     moderated = Moderator(llm, settings).run(edited)
     batch = Curator(llm, FakeContentClient(), settings).run(moderated)
     assert batch.payload()['cards'][0]['writer'] == 'writer.unhinged'
-    assert batch.cards[0].text == 'An edited draft.'
+    assert batch.cards[0].text == 'An edited draft'
 
 
 @pytest.mark.parametrize('index', [True, -1, 8, '0', None])

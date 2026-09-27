@@ -1,6 +1,8 @@
 """Shared generated-card length policy (see README for corpus measurement)."""
 import re
 
+from .text import finish_card_text
+
 ANSWER_TARGET_CHARS = 54
 # Compact answer cap; filler words do not count.
 ANSWER_MAX_WORDS = 8
@@ -37,4 +39,5 @@ LENGTH_RULES = PROMPT_LENGTH_RULE + ANSWER_LENGTH_RULE
 def too_long(card):
     if card.kind == 'prompt':
         return False
-    return count_answer_words(card.text) > ANSWER_MAX_WORDS or len(card.text) > ANSWER_MAX_CHARS
+    text = finish_card_text(card.text, kind=card.kind)
+    return count_answer_words(text) > ANSWER_MAX_WORDS or len(text) > ANSWER_MAX_CHARS

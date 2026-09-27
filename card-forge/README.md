@@ -40,6 +40,8 @@ a local model. Logs record stage counts and model call timing.
 | 4 | **Moderator** | `[CardCandidate]` → `[ModeratedCard]` | Assign maturity 0–3, cap at the configured generator ceiling, drop out-of-policy + deny-listed. |
 | 5 | **Curator** | `[ModeratedCard]` → `SubmitBatch` | Fetch the existing corpus (incl. denied), drop near-dups, rank/select up to `BATCH_MAX` (default 50). |
 
+Final cards receive a Python-only presentation pass when assembled into `SubmitCard`: collapse whitespace, capitalize the opening word without changing internal casing, add missing terminal periods to prompts, and remove ordinary trailing periods from answers. Existing question marks, exclamation marks, ellipses, prompt colons, and leading prompt blanks are preserved. Drafts retain their original wording; answer length checks include the final punctuation.
+
 `CARDS_PER_THEME` is the total budget shared by all nine writers (minimum 9 when all are selected).
 Leftover cards are allocated in roster order: Deadpan, Unhinged, PR Spin Doctor,
 Petty Villain, Banned From 4chan, Hatemonger, Toxic Positivity, Intrusive Thoughts, then Super Bitch. The editor preserves their different voices;
