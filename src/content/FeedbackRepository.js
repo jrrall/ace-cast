@@ -10,6 +10,7 @@
  */
 const { db } = require('../db');
 const CardFlagRepository = require('./CardFlagRepository');
+const CardStatsRepository = require('./CardStatsRepository');
 
 /**
  * Per-card feedback row: play/win counts, win-rate (null below the min-plays
@@ -39,6 +40,8 @@ async function cardStats({ minPlays = 10 } = {}) {
       'c.retired_at',
       'p.slug as pack_slug',
       'p.name as pack_name',
+      knex.raw('COALESCE(cs.deals, 0) as deals'),
+      knex.raw('COALESCE(cs.prompt_exposures, 0) as prompt_exposures'),
       knex.raw('COALESCE(cs.plays, 0) as plays'),
       knex.raw('COALESCE(cs.wins, 0) as wins'),
     )
@@ -69,6 +72,8 @@ async function cardStats({ minPlays = 10 } = {}) {
       retiredAt: r.retired_at || null,
       plays,
       wins,
+      deals: Number(r.deals),
+      promptExposures: Number(r.prompt_exposures),
       winRate: insufficientData ? null : rawWinRate,
       insufficientData,
       flags,
@@ -153,6 +158,7 @@ async function buildDashboard({ minPlays = 10, thresholds = {} } = {}) {
       lowWinRateThreshold,
       highFlagRateThreshold,
     },
+    exposureTracking: await CardStatsRepository.exposureTracking(),
     cards: stats,
     topWinners: topWinners(stats),
     deadWeight: deadWeight(stats),

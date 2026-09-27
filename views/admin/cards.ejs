@@ -36,6 +36,7 @@
             <button class="secondary-btn" type="submit">Apply filters</button>
             <a href="/admin/cards<%= adminToken ? '?token=' + encodeURIComponent(adminToken) : '' %>">Reset</a>
         </form>
+        <%- include("exposure-note", { exposureTracking }) %>
         <p role="status"><strong><%= total %></strong> matching cards · Page <%= page %> of <%= pages %></p>
         <% if (!cards.length) { %><section class="panel"><h2>No cards match</h2><p>Try another search or clear your filters.</p></section><% } %>
         <div class="card-grid">
@@ -43,6 +44,7 @@
             <article class="library-card <%= card.kind === 'prompt' ? 'prompt-card' : 'answer-card' %>">
                 <div class="card-meta"><span><%= card.kind %> · #<%= card.id %></span><span class="badge"><%= card.status %><%= card.retired_at ? ' / retired' : '' %></span></div>
                 <p class="card-copy"><%= card.text %></p>
+                <p class="help-text card-stats"><% if (card.kind === 'answer') { %>Dealt: <strong><%= card.deals %></strong><% } else { %>Prompt exposures: <strong><%= card.promptExposures %></strong><% } %> · Plays: <strong><%= card.plays %></strong> · Wins: <strong><%= card.wins %></strong></p>
                 <footer><span><%= card.packName || 'No pack' %></span><span><%= card.writer || (card.generation_route === "source_find" ? "Found phrase" : "Unknown writer") %> · <%= card.source %> · Maturity <%= card.maturity_rating %></span><% if (card.generation_route) { %><span><%= card.generation_route %></span><% } %><% if (card.source_url) { %><a href="<%= card.source_url %>" target="_blank" rel="noopener noreferrer">Original source</a><% } %></footer>
                 <% if (card.denied_reason) { %><details><summary>Rejection reason</summary><p><%= card.denied_reason %></p></details><% } %>
             </article>

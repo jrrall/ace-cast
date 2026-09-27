@@ -1,4 +1,5 @@
 const { db } = require('../db');
+const CardStatsRepository = require('./CardStatsRepository');
 
 async function overview() {
   const rows = await db()('cards').select('status')
@@ -60,7 +61,10 @@ async function library(query = {}) {
   const pages = Math.max(1, Math.ceil(total / pageSize));
   const requested = Number(value('page'));
   const page = Math.min(pages, Number.isSafeInteger(requested) && requested > 0 ? requested : 1);
-  const cards = await base.clone().select('c.*', 'p.name as packName')
+  const cards = await base.clone().leftJoin('card_stats as cs', 'cs.card_id', 'c.id')
+    .select('c.*', 'p.name as packName', ...['deals', 'prompt_exposures', 'plays', 'wins'].map(
+      (name) => db().raw('COALESCE(??, 0) as ??', [`cs.${name}`, name]),
+    ))
     .orderBy('c.id', 'desc')
     .limit(pageSize)
     .offset((page - 1) * pageSize);
@@ -71,7 +75,14 @@ async function library(query = {}) {
     .orderBy('writer');
   return {
     writers: writerRows.map((row) => row.writer),
-    cards,
+    cards: cards.map((card) => ({
+      ...card,
+      deals: Number(card.deals),
+      promptExposures: Number(card.prompt_exposures),
+      plays: Number(card.plays),
+      wins: Number(card.wins),
+    })),
+    exposureTracking: await CardStatsRepository.exposureTracking(),
     packs,
     filters,
     total,
