@@ -14,8 +14,7 @@ RUBRIC = (
     + 'Score each dimension with an integer 0-5: 0 absent, 1 weak, 2 shaky, '
     '3 workable, 4 strong, 5 exceptional. Playability: a prompt accepts several '
     'unrelated noun phrases; an answer fits several unrelated setups. '
-    'Score prompt playability low when the substitution test fails, the grammar '
-    'requires editing an answer, or the setup supplies its own punchline. '
+    'Score prompt playability low if varied fills require grammatical changes. '
     "Comic_turn: how effectively the card delivers its originating persona's humor. "
     'Specificity: clear, identifiable details. Economy: concise enough to play aloud. '
     'Originality: distinct from other cards in the pool and existing corpus. '

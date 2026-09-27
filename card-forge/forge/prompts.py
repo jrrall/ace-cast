@@ -12,17 +12,9 @@ INJECTION_NOTICE = (
 
 
 MADLIB_RULES = (
-    "Prompt playability: make a Mad Lib with exactly one ____ as the missing idea or payoff. "
-    "Give the setup a concrete situation, but leave the joke for the player's answer. "
-    "Silently fill the blank with three unrelated noun phrases: a person, an object, "
-    "and an activity or situation. Each completed line should read naturally without "
-    "changing the answer or the surrounding words. "
-    "Avoid a/an immediately before the blank, number-dependent agreement, and slots "
-    "that require a verb, adjective, or sentence instead of a noun phrase. "
-    "Avoid trivia, one obvious correct answer, narrow answer categories, or a punchline "
-    "already completed outside the blank. Keep the prompt understandable without its "
-    "research source. Apply the same substitution test after every edit or shortening. "
-    "Keep this test and its sample answers out of the returned card text. "
+    "Prompts: exactly one ____ accepting varied noun phrases without changing the grammar. "
+    "Leave the payoff to the player's fill. Silently test a few unrelated answers; "
+    "keep test fills out of the card text. "
 )
 
 
