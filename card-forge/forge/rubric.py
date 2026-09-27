@@ -2,6 +2,7 @@
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator
 
 from .logging_setup import get_logger
+from .prompts import MADLIB_RULES
 
 # Positional order matches the quality fields listed in the curator prompt.
 QUALITY_NAMES = ("playability", "comic_turn", "specificity", "economy", "originality")
@@ -9,9 +10,12 @@ QUALITY_WEIGHTS = {'playability': .30, 'comic_turn': .25, 'specificity': .15,
                    'economy': .10, 'originality': .20}
 STYLE_NAMES = ('unhinged', 'lewd', 'dark', 'gross', 'blasphemous', 'deadpan', 'implication')
 RUBRIC = (
-    'Score each dimension with an integer 0-5: 0 absent, 1 weak, 2 shaky, '
+    MADLIB_RULES
+    + 'Score each dimension with an integer 0-5: 0 absent, 1 weak, 2 shaky, '
     '3 workable, 4 strong, 5 exceptional. Playability: a prompt accepts several '
     'unrelated noun phrases; an answer fits several unrelated setups. '
+    'Score prompt playability low when the substitution test fails, the grammar '
+    'requires editing an answer, or the setup supplies its own punchline. '
     "Comic_turn: how effectively the card delivers its originating persona's humor. "
     'Specificity: clear, identifiable details. Economy: concise enough to play aloud. '
     'Originality: distinct from other cards in the pool and existing corpus. '

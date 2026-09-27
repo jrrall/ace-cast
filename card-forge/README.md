@@ -597,6 +597,16 @@ in admin review/library; no writer persona is falsely credited. Writers-only
 live tests print source finds alongside writer output, even when Trendscout
 selects a theme from another source.
 
+Prompts must work as Mad Lib setups: one blank supplies the missing idea or
+payoff, and the player's answer completes the joke. Writers, challengers,
+revisers, editors, and the shortening pass silently try a person, an object, and
+an activity/situation in the slot. Each should read naturally without editing
+the answer or surrounding words. Avoid article/agreement traps, verb/adjective
+slots, trivia with one expected answer, narrow categories, and completed jokes
+with a decorative blank. Keep the setup concrete and understandable without
+its source. The curator uses the same test when scoring playability; sample
+fills and reasoning stay out of card text.
+
 Generated prompts have a hard maximum of **54 characters**, counting spaces,
 punctuation, and all four characters of `____` (Python Unicode character count).
 This is the rounded mean of all 6,870 black-card entries across 205 packs in

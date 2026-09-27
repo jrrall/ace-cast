@@ -14,11 +14,11 @@ from ..logging_setup import get_logger
 from ..config import Settings
 from ..llm import LLMClient
 from ..models import BLANK_MARKER, CardCandidate
-from ..prompts import maturity_direction
+from ..prompts import MADLIB_RULES, maturity_direction
 from ..limits import LENGTH_RULES
 
 SYSTEM = (
-    LENGTH_RULES
+    LENGTH_RULES + MADLIB_RULES
     + "Copy-edit party cards. Preserve each persona's premise, voice, and intentional wording; "
     "fix wording and format without adding jokes or a house style.\n"
     "Cut research attribution, planning commentary, and explanations of the joke. "

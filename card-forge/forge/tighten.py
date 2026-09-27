@@ -4,7 +4,7 @@ from .call_context import complete
 import json
 from .models import CardCandidate
 from .limits import LENGTH_RULES, too_long, count_answer_words
-from .prompts import INJECTION_NOTICE, wrap_feed_data
+from .prompts import MADLIB_RULES, INJECTION_NOTICE, wrap_feed_data
 from .logging_setup import get_logger
 
 
@@ -22,7 +22,7 @@ def tighten_cards(llm, cards, *, writers=()):
     for author, group in groups.items():
         writer = by_name.get(author)
         rules = ('Rewrite these overlong cards shorter; preserve payoff, voice, profanity, '
-                 'and specific image. ' + LENGTH_RULES
+                 'and specific image. ' + LENGTH_RULES + MADLIB_RULES
                  + 'Prompts: exactly one ____ accepting an unrelated noun phrase. '
                  'Answers: no blank; acts, objects, situations and puns are valid. '
                  'Keep the kind. Omit a card if shortening destroys the joke. Return '
