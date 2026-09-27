@@ -245,6 +245,7 @@ class PlayerController {
         });
 
         this.socket.on('game-ended', () => {
+            this.clearGameOverCountdown();
             this.gameState = null;
             this.lastPlayedCardText = null;
             this.lastPlayedCard = null;
@@ -272,7 +273,7 @@ class PlayerController {
             el.className = 'gameover-timer';
             document.body.appendChild(el);
         }
-        const render = () => { el.textContent = remaining > 0 ? `New session in ${remaining}s…` : 'Closing…'; };
+        const render = () => { el.textContent = remaining > 0 ? `Back to the table in ${remaining}s…` : 'Returning to the table…'; };
         render();
         this._goTimer = setInterval(() => {
             remaining -= 1;
