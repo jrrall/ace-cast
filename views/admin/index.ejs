@@ -24,10 +24,10 @@
         </div>
         <section class="panel">
             <h2>Writer review outcomes</h2>
-            <p class="help-text">Approval reflects your review decisions, not a measured laugh rate. Pending cards are excluded from the approval percentage. Historical cards without attribution remain unknown.</p>
-            <table><thead><tr><th>Writer</th><th>Pending</th><th>Approved</th><th>Denied</th><th>Approval</th></tr></thead><tbody>
-            <% counts.writers.forEach(function (writer) { const reviewed = writer.approved + writer.denied; const params = new URLSearchParams({ source: 'generated', writer: writer.writer }); if (adminToken) params.set('token', adminToken); %>
-                <tr><td><a href="/admin/cards?<%= params.toString() %>"><%= writer.writer === 'unknown' ? 'Unknown' : writer.writer %></a></td><td><%= writer.pending %></td><td><%= writer.approved %></td><td><%= writer.denied %></td><td><%= reviewed ? Math.round(100 * writer.approved / reviewed) + '%' : 'Not reviewed' %></td></tr>
+            <p class="help-text">Approved share is approved cards divided by all cards from that writer, including pending and denied cards. Pending cards have not earned approval. Historical cards without attribution remain unknown.</p>
+            <table><thead><tr><th>Writer</th><th>Pending</th><th>Approved</th><th>Denied</th><th>Approved share</th></tr></thead><tbody>
+            <% counts.writers.forEach(function (writer) { const total = writer.pending + writer.approved + writer.denied; const approvedShare = total ? Math.min(writer.approved === total ? 100 : 99, Math.round(100 * writer.approved / total)) : null; const params = new URLSearchParams({ source: 'generated', writer: writer.writer }); if (adminToken) params.set('token', adminToken); %>
+                <tr><td><a href="/admin/cards?<%= params.toString() %>"><%= writer.writer === 'unknown' ? 'Unknown' : writer.writer %></a></td><td><%= writer.pending %></td><td><%= writer.approved %></td><td><%= writer.denied %></td><td><%= approvedShare === null ? 'No cards' : approvedShare + '%' %></td></tr>
             <% }); %>
             </tbody></table>
         </section>
