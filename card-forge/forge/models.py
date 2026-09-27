@@ -24,6 +24,8 @@ import re
 
 from pydantic import BaseModel, Field, field_validator, model_validator
 
+from .limits import ANSWER_MAX_WORDS, ANSWER_MAX_CHARS, count_answer_words
+
 BLANK_MARKER = "____"
 
 Kind = Literal["prompt", "answer"]
@@ -132,6 +134,11 @@ class SubmitCard(BaseModel):
 
     @model_validator(mode="after")
     def _enforce_shape(self) -> "SubmitCard":
+        if self.kind == "answer":
+            if count_answer_words(self.text) > ANSWER_MAX_WORDS:
+                raise ValueError(f"answer must be at most {ANSWER_MAX_WORDS} non-filler words")
+            if len(self.text) > ANSWER_MAX_CHARS:
+                raise ValueError(f"answer must be at most {ANSWER_MAX_CHARS} characters")
         marker_count = self.text.count(BLANK_MARKER)
         if self.kind == "prompt":
             if marker_count == 0:

@@ -9,13 +9,21 @@ QUALITY_WEIGHTS = {'playability': .30, 'comic_turn': .25, 'specificity': .15,
                    'economy': .10, 'originality': .20}
 STYLE_NAMES = ('unhinged', 'lewd', 'dark', 'gross', 'blasphemous', 'deadpan', 'implication')
 RUBRIC = (
-    'Score each dimension with an integer 0-5: 0 absent, 1 weak, 2 shaky, '
-    '3 workable, 4 strong, 5 exceptional. Playability: a prompt accepts several '
-    'unrelated noun phrases; an answer fits several unrelated setups. '
-    "Comic_turn: how effectively the card delivers its originating persona's humor. "
-    'Specificity: clear, identifiable details. Economy: concise enough to play aloud. '
-    'Originality: distinct from other cards in the pool and existing corpus. '
-    'Judge within the originating voice, without style, subject, or maturity bias. '
+    'Judge party-game combinations, not standalone jokes. Score each dimension independently '
+    'with integers 0-5: 0 unusable, 1 poor, 2 weak, 3 workable, 4 strong, 5 exceptional. '
+    'Playability: prompts accept varied noun phrases naturally; answers fit varied setups. '
+    'Silently try several unrelated combinations. If they require grammar changes, source '
+    'knowledge, or one narrowly prescribed partner, playability is at most 2. '
+    'Comic_turn: prompts create opportunities for funny fills; answers add comic potential '
+    'across setups. Neither needs a complete standalone punchline. '
+    'Specificity: a clear, usable idea or image, not the number of details or named references. '
+    'Economy: no wording removable without losing meaning, natural grammar, or comic effect; '
+    'shorter is not automatically better. '
+    'Originality: a distinct situation or payoff within the supplied comparison context; '
+    'familiar sentence structures and shared topics are not duplicates. '
+    'Respect the comic voice expressed by the card. Do not reward or penalize subject, '
+    'profanity, maturity, or conformity to a preferred humor style. '
+    'Keep trial combinations out of the response. '
 )
 
 

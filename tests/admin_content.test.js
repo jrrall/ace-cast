@@ -158,7 +158,9 @@ describe('GET /admin/content (admin gate + pending review)', () => {
     const overview = await request(app).get('/admin').query({ token: ADMIN_TOKEN });
     expect(overview.status).toBe(200);
     expect(overview.text).toContain('50%');
-    expect(overview.text).toContain('Not reviewed');
+    const writerRows = overview.text.match(/<tr>.*?<\/tr>/gs) || [];
+    const pendingWriterRow = writerRows.find((row) => row.includes('>writer.unhinged</a>'));
+    expect(pendingWriterRow).toMatch(/<td>1<\/td><td>0<\/td><td>0<\/td><td>0%<\/td>/);
     const repository = require('../src/content/AdminCardRepository');
     const counts = await repository.overview();
     expect(counts.writers.find((w) => w.writer === 'writer.deadpan')).toEqual({ writer: 'writer.deadpan', pending: 0, approved: 1, denied: 1 });

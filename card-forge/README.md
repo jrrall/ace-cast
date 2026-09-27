@@ -128,7 +128,10 @@ Prompt/answer slots remain split evenly, with an odd slot going to answers;
 unused slots of one kind are not filled with the other kind.
 
 The editor fixes wording and removes broken cards and genuine duplicates,
-preserving weird, risky, and uncertain jokes for human judgment. The curator
+preserving weird, risky, and uncertain jokes for human judgment. Its response
+needs only `source_index` and `text`; code preserves kind and provenance from the
+indexed draft. Malformed redundant kind labels are ignored, while explicit
+prompt/answer kind changes, invalid indexes, and broken card shapes are rejected. The curator
 ranks distinct playable cards instead of imposing its own short taste-based list.
 `QUALITY_MIN=70` keeps a weighted quality cutoff by default; adjust it to tune
 selectivity. Scores order the pool and playability checks remain. A low comic-turn score alone no longer discards a card.
@@ -378,8 +381,24 @@ this source. The run's date follows the container timezone (usually UTC).
 
 ### Quality rubric and writer styles
 
-Writers and the curator share a five-dimension quality rubric. The curator
-returns integer scores from 0 to 5 and a short reason for each selected card.
+The curator scores combination potential, rather than requiring each card to
+be a standalone joke. It returns five integer scores from 0 to 5 (0 unusable,
+1 poor, 2 weak, 3 workable, 4 strong, 5 exceptional):
+
+- **Playability:** prompts accept varied noun phrases; answers fit varied setups.
+  Grammar changes, source dependence, or one narrowly prescribed partner cap
+  playability at 2, below the existing selection floor.
+- **Comic turn:** prompts enable funny fills; answers add comic potential across
+  setups. Neither needs its own complete punchline.
+- **Specificity:** a clear, usable idea or image, not extra details or name-dropping.
+- **Economy:** no removable wording that preserves meaning, grammar, and comic
+  effect. Shorter is not automatically better.
+- **Originality:** a distinct situation or payoff within supplied comparisons.
+  Familiar sentence structures and shared topics are not duplicates.
+
+These criteria respect the card's comic voice without style or maturity bias.
+Optional short reasons identify a strength or weakness in a playable combination.
+
 Code calculates `20 * (0.30*playability + 0.25*comic_turn + 0.15*specificity +
 0.10*economy + 0.20*originality)`. `QUALITY_MIN` defaults to 70/100;
 `QUALITY_WEIGHTS` accepts a JSON object with all five nonnegative weights summing
@@ -389,18 +408,8 @@ Missing or invalid selection/quality evaluations fail the run rather than bypass
 the gate. Style diagnostics do not participate in selection and are optional;
 malformed style scores are omitted with a warning rather than losing a batch.
 
-Style scores are separate from quality. Writer targets in `forge/rubric.py`
-use the following starting profiles (0 absent to 5 dominant):
-
-| Writer | Unhinged | Lewd | Dark | Gross | Blasphemous | Deadpan | Implication |
-| --- | --- | --- | --- | --- | --- | --- | --- |
-| Deadpan | 1 | 1 | 3 | 1 | 2 | 5 | 4 |
-| Unhinged | 5 | 3 | 4 | 3 | 3 | 2 | 4 |
-| PR Spin Doctor | 2 | 1 | 3 | 1 | 4 | 4 | 3 |
-| Petty Villain | 3 | 2 | 2 | 1 | 2 | 3 | 5 |
-| Banned From 4chan | 4 | 4 | 4 | 3 | 4 | 4 | 5 |
-
-These profiles guide writing, not quotas or rewards for being explicit. The
+Persona profiles supply creative direction; there are no numeric style targets
+or rewards for being explicit. Optional style diagnostics stay separate. The
 curator ranks eligible cards by computed quality and keeps at most one per
 model-assigned premise group. `curator.score` JSON logs include the card text,
 quality dimensions, reason, score, and whether it was kept. Valid optional
@@ -597,11 +606,55 @@ in admin review/library; no writer persona is falsely credited. Writers-only
 live tests print source finds alongside writer output, even when Trendscout
 selects a theme from another source.
 
-Before moderation, review flags prompts exceeding 24 words or 160 characters
-and answers exceeding 12 words or 90 characters. One batched shortening call
-preserves the comic payoff, kind, voice, and provenance. Failed or still-long
-rewrites are dropped. Verbatim finds that exceed the final limit are dropped
-rather than silently rewritten. `review.shorten` logs originals and revisions.
+Model-facing research omits the retired forum disclaimer, including when saved
+research is reused. Critique and shortening inputs carry card text/kind and the
+indexes or limits they need; writer, route, URL, and blank-count metadata stay
+in code/checkpoints rather than being repeated to the model.
+
+Shared Mad Lib rules cover only playability: one blank accepts varied noun phrases
+without changing the grammar, and the player's fill supplies the payoff. Writing,
+review, and shortening stages silently test unrelated fills without putting those
+tests in card text. Personas supply the comic subject, voice, and approach.
+
+Generated prompts should be concise but have no character cutoff in generation,
+shortening, or submission. Averages are descriptive, not rejection thresholds.
+The 6,870 black-card entries across 205 packs in
+[JSON Against Humanity](https://github.com/crhallberg/json-against-humanity/blob/b32d50173381d66a5a7515b822a3f344d818a939/cah-all-full.json)
+average 54.11965 characters and 10.64687 whitespace-separated words. The measurement
+uses raw `text`, includes official and fan packs and repeated entries, and does
+not expand the dataset's single-character blanks or strip formatting. For
+comparison, the 1,041 official entries average 59.41691 characters. Reproduce
+with `python scripts/measure_prompt_lengths.py /path/to/cah-all-full.json`.
+
+Before editing, answers exceeding hard limits go back to their originating persona's saved
+voice and `revise` instructions, grouped by author. Invalid returned revisions get
+one repair attempt with their previous output, exact limits, and validation error.
+Valid rewrites are retained; intentional omissions do not retry. Kind and provenance
+come from the original card, not generated fields. Review checks
+again after editing so an editor cannot expand a card beyond its limit.
+Answers should prefer two or three non-filler words but keep longer phrases when
+the joke needs them. **54 characters is a soft answer target**; exceeding it alone
+never triggers a rewrite or rejection. Reference answers average 29.64 characters
+overall and 30.20 in official packs. The hard limits are **eight non-filler words / 90 total
+characters**. The reference set includes outlier titles and lists: the raw maximum
+is 43 words overall and 38 in official packs (37 non-filler words / 249 characters
+in both). These outliers are measured for comparison, not used as writing targets.
+The eight-word cap covers 95.2% of official reference answers by word count alone.
+One-word answers are fine.
+
+The fixed filler list is `a an the and or but of to in on at by for with from as`.
+Counting splits on whitespace and ignores case and edge punctuation when matching
+fillers; internal apostrophes and hyphens stay intact. Negations and pronouns count.
+Filler words still count toward the character limit. Measurement, rewrite checks,
+system instructions, and submission validation use this same rule. Reproduce with
+`python scripts/measure_prompt_lengths.py /path/to/cah-all-full.json --kind answer`.
+Overlong answers use the same persona shortening passes.
+Writer, challenger, revision, and editor system prompts share both limits; final
+submission validation enforces them independently. Failed or still-long rewrites
+are dropped. Source finds must also meet the answer limits; overlong quotes are
+dropped rather than rewritten. `review.shorten_rejected` logs invalid attempts;
+`review.shorten` records originals, accepted revisions, attempt counts, and a
+reason such as `too_long`, `kind_changed`, `invalid_blank`, or `omitted`.
 The writers-only test bypasses this review pass and shows raw output.
 
 Deploy the game migration before using the updated Forge if source links and

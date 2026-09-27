@@ -19,9 +19,9 @@ def test_em_dash_removed_through_submission(text):
 
 
 def test_direct_submission_also_cleans_em_dash():
-    card = SubmitCard(kind="answer", text="A court-ordered apology\u2014with ads.",
+    card = SubmitCard(kind="answer", text="Apologies\u2014with ads.",
                       blanks=0, maturity_rating=2, pack="madlad-generated")
-    assert card.text == "A court-ordered apology, with ads."
+    assert card.text == "Apologies, with ads."
 
 
 def test_prompt_without_marker_rejected():

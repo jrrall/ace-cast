@@ -119,11 +119,12 @@ class Pipeline:
         self._save_cards("drafts", generated + finds)
 
         # 3. Editor
+        from .tighten import tighten_cards
+        generated = tighten_cards(self.llm, generated, writers=writers)
         edited = Editor(self.llm, self.settings).run(generated)
         # Found phrases already are cards: preserve their exact wording for judgment.
         edited.extend(finds)
-        from .tighten import tighten_cards
-        edited = tighten_cards(self.llm, edited)
+        edited = tighten_cards(self.llm, edited, writers=writers)
         self._save_cards("edited", edited)
         summary.edited = len(edited)
         log_stage(self.log, Editor.name, edited=len(edited), **type_counts(edited))

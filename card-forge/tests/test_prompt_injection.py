@@ -38,10 +38,10 @@ def test_injection_does_not_leak_policy_violating_card(settings):
             {"themes": [{"title": "Chaos", "angle": "internet nonsense"}]},
             {
                 "cards": [
-                    {"kind": "answer", "text": "A card with forbiddenword in it."},
+                    {"kind": "answer", "text": "A forbiddenword card."},
                 ]
             },
-            {"cards": [{"kind": "answer", "text": "A goose with a knife."}]},  # unhinged writer
+            {"cards": [{"kind": "answer", "text": "Knife-wielding geese."}]},  # unhinged writer
             {"cards": []},  # PR Spin Doctor
             {"cards": []},  # Petty Villain
             {"cards": []},  # Banned From 4chan
@@ -51,8 +51,8 @@ def test_injection_does_not_leak_policy_violating_card(settings):
             {"cards": []},  # Super Bitch
             {
                 "cards": [
-                    {"kind": "answer", "text": "A card with forbiddenword in it."},
-                    {"kind": "answer", "text": "A goose with a knife."},
+                    {"kind": "answer", "text": "A forbiddenword card."},
+                    {"kind": "answer", "text": "Knife-wielding geese."},
                 ]
             },
             {
@@ -71,7 +71,7 @@ def test_injection_does_not_leak_policy_violating_card(settings):
 
     texts = [c.text for c in batch.cards]
     assert not any("forbiddenword" in t.lower() for t in texts)
-    assert "A goose with a knife." in texts
+    assert "Knife-wielding geese." in texts
 
 
 def test_feed_text_is_delimited_not_instruction(settings):

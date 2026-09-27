@@ -3,6 +3,7 @@ from .call_context import complete
 
 import json
 from .models import CardCandidate
+from .limits import ANSWER_LENGTH_RULE, too_long
 from .prompts import INJECTION_NOTICE, wrap_feed_data
 from .logging_setup import get_logger
 
@@ -20,7 +21,7 @@ def find_cards(llm, items, limit=6):
     if not pool or limit == 0:
         return []
     data = complete(llm, 'source_find', units=limit,
-        system=('Select short source phrases that work as standalone answer cards. '
+        system=(ANSWER_LENGTH_RULE + 'Select short source phrases that work as standalone answer cards. '
                 'Assess card format without imposing a humor style. Select up to the limit '
                 'or none. Do not rewrite or complete a phrase. Return {"selected":[0,1]} '
                 'using the supplied zero-based indexes. ' + INJECTION_NOTICE),
@@ -41,7 +42,7 @@ def find_cards(llm, items, limit=6):
             card = CardCandidate(kind='answer', text=row['text'], generation_route='source_find', source_url=row['url'])
         except ValueError:
             continue
-        if card.text != row['text']:
+        if card.text != row['text'] or too_long(card):
             continue  # A found phrase must survive formatting verbatim.
         counts[row['url']] = counts.get(row['url'], 0) + 1
         cards.append(card)

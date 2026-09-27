@@ -36,7 +36,7 @@ def test_bounded_crawl_and_thread_context():
     assert len(visited) == 4
     assert all(url.startswith(DEFAULT_URL) for url in visited)
     assert sum('Replies (same discussion)' in p['text'] for p in result) == 3
-    assert all('Unverified forum humor' in p['text'] for p in result)
+    assert all('Unverified forum humor' not in p['text'] for p in result)
 
 
 def test_failure_and_redirect_leave_original_posts():

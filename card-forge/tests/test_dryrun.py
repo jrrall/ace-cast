@@ -10,6 +10,7 @@ import json
 import logging
 
 from forge.models import BLANK_MARKER
+from forge.limits import ANSWER_MAX_WORDS
 from forge.pipeline import Pipeline
 
 from conftest import rated_selection, FakeContentClient, FakeLLM
@@ -23,7 +24,7 @@ def _scripted_llm():
             {
                 "cards": [
                     {"kind": "prompt", "text": "My new hustle is just ____."},
-                    {"kind": "answer", "text": "A raccoon in a trench coat."},
+                    {"kind": "answer", "text": "Trench-coat raccoons."},
                 ]
             },
             {"cards": [{"kind": "answer", "text": "Existential dread."}]},  # unhinged writer
@@ -37,7 +38,7 @@ def _scripted_llm():
             {
                 "cards": [
                     {"kind": "prompt", "text": "My new hustle is just ____."},
-                    {"kind": "answer", "text": "A raccoon in a trench coat."},
+                    {"kind": "answer", "text": "Trench-coat raccoons."},
                     {"kind": "answer", "text": "Existential dread."},
                 ]
             },
@@ -99,3 +100,32 @@ def _feed():
     from forge.feeds import FeedItem
 
     return [FeedItem(title="Everyone became a freelance goblin", source="r/memes")]
+
+
+def test_prompt_over_54_characters_survives_pipeline_without_shortening(settings):
+    llm = _scripted_llm()
+    text = "The court ruled we're slaves because ____ won't toggle a feature."
+    llm._responses[1]['cards'][0]['text'] = text
+    llm._responses[10]['cards'][0] = {'source_index': 0, 'kind': 'prompt', 'text': text}
+    pipeline = Pipeline(settings, llm, FakeContentClient(), fetch_fn=lambda s: _feed())
+    _, batch = pipeline.run(dry_run=True)
+    assert next(c for c in batch.cards if c.kind == 'prompt').text == text
+    assert len(llm.calls) == 13
+
+
+def test_answer_shortens_before_editing_and_after_editor_expansion(settings):
+    llm = _scripted_llm()
+    long = 'the ' + ' '.join(['cat'] * (ANSWER_MAX_WORDS + 1))
+    llm._responses[1]['cards'][1]['text'] = long
+    llm._responses[10]['cards'][1] = {'source_index': 1, 'kind': 'answer', 'text': long}
+    rewrite = {'cards': [{'index': 1, 'kind': 'answer', 'text': 'Trench-coat raccoons.'}]}
+    llm._responses.insert(10, rewrite)
+    llm._responses.insert(12, rewrite)
+    pipeline = Pipeline(settings, llm, FakeContentClient(), fetch_fn=lambda s: _feed())
+    _, batch = pipeline.run(dry_run=True)
+    assert batch.cards[1].text == 'Trench-coat raccoons.'
+    assert batch.cards[1].writer == 'writer.deadpan'
+    for index in (10, 12):
+        assert f'{ANSWER_MAX_WORDS} non-filler words' in llm.calls[index]['system']
+        assert f'"current_words": {ANSWER_MAX_WORDS + 1}' in llm.calls[index]['user']
+    assert 'Trench-coat raccoons.' in llm.calls[11]['user']

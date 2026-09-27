@@ -29,14 +29,14 @@ def test_pipeline_reviews_cards_from_all_writers(settings):
     settings.curator_batch_size = 9
     settings.cards_per_theme = 18
     drafts = [{'kind': 'prompt', 'text': 'The background check only asked about ____.'},
-              {'kind': 'answer', 'text': 'A babysitter sponsored by a bail bondsman.'},
-              {'kind': 'answer', 'text': 'A premium accountability opt-out.'},
-              {'kind': 'answer', 'text': 'An anonymous one-star review of a birthday party.'},
-              {'kind': 'answer', 'text': 'A verified expert in losing arguments to parking meters.'},
-              {'kind': 'answer', 'text': 'A notarized grudge against the thermostat.'},
-              {'kind': 'answer', 'text': 'A charity gala honoring my humility.'},
-              {'kind': 'answer', 'text': 'A loyalty program for the witness protection program.'},
-              {'kind': 'answer', 'text': 'A bridesmaid assigned to remote attendance.'}]
+              {'kind': 'answer', 'text': 'Bail-sponsored babysitters.'},
+              {'kind': 'answer', 'text': 'Premium accountability exemptions.'},
+              {'kind': 'answer', 'text': 'One-star birthday reviews.'},
+              {'kind': 'answer', 'text': 'Certified parking-meter losers.'},
+              {'kind': 'answer', 'text': 'Notarized thermostat grudges.'},
+              {'kind': 'answer', 'text': 'My humility gala.'},
+              {'kind': 'answer', 'text': 'Witness protection points.'},
+              {'kind': 'answer', 'text': 'Remote attendance bridesmaids.'}]
     llm = FakeLLM([
         {'themes': [{'title': 'Trust badges'}]},
         *[{'cards': [card]} for card in drafts],

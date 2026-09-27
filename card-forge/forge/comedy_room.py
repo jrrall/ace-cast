@@ -11,9 +11,12 @@ from uuid import uuid4
 from .logging_setup import get_logger
 from .models import CardCandidate
 from .personas import writing_team
-from .prompts import INJECTION_NOTICE, wrap_feed_data
+from .prompts import MADLIB_RULES, INJECTION_NOTICE, wrap_feed_data
+from .limits import LENGTH_RULES
 
-FORMAT = ('Prompts have exactly one ____ accepting an unrelated noun phrase. '
+FORMAT = (
+    LENGTH_RULES + MADLIB_RULES
+    + 'Prompts have exactly one ____ accepting an unrelated noun phrase. '
           'Answers are short standalone acts, objects, or situations with no blank. '
           'Preserve each source card kind. Return JSON only. ')
 
@@ -112,7 +115,7 @@ class ComedyRoom:
                     continue
                 challenger = by_name[challengers[writer.name]]
                 context = json.dumps({'theme': theme.title, 'angle': theme.angle,
-                                      'cards': [c.model_dump() for c in originals]}, ensure_ascii=False)
+                                      'cards': [c.model_dump(include={'kind', 'text'}) for c in originals]}, ensure_ascii=False)
                 data = complete(self.llm, 'critique', units=len(originals), persona=challenger.name, batch=theme_number,
                     system=(challenger.phase_system('critique', format_rules=FORMAT)
                             + ' For each draft return a critique and proposed card. ' + INJECTION_NOTICE

@@ -38,7 +38,8 @@ SYSTEM = (
     '{"playability":3,"comic_turn":3,"specificity":3,"economy":3,"originality":3},'
     '"premise_group":"short_label"}]}. Example scores are illustrative. '
     'Both selected and evaluations must be arrays; use ranked zero-based global indexes '
-    'and one evaluation per selected index. Optional reason: at most 12 words. '
+    'and one evaluation per selected index. Optional reason: at most 12 words naming '
+    'the main strength or weakness in a playable combination. '
     'Omit style scores and card text. Use empty arrays if none qualify.'
 )
 
