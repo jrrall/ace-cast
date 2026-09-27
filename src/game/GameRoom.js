@@ -15,8 +15,9 @@ class GameRoom {
     // Desired total table size to fill with bots (once >= 2 humans are present).
     // The server reconciles bot seats toward this; the host can nudge it.
     this.botTarget = config.room.botTargetDefault;
-    // Pending "release this room after game over" timer (set by the server).
+    // Pending return-to-lobby timer after game over (set by the server).
     this.gameOverTimer = null;
+    this.resettingGame = false;
     // Auto-start: once enough players are seated the server runs a short
     // countdown then starts the game. `autoStart` is the host's Hold/Auto
     // toggle; `startCountdownTimer` is the running countdown interval.
