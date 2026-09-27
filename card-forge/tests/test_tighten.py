@@ -22,12 +22,12 @@ def test_no_call_for_short_cards_and_drop_failed_shortening():
     short = CardCandidate(kind='prompt', text='The new rule prohibits ____.')
     assert tighten_cards(FakeLLM([]), [short]) == [short]
     long = CardCandidate(kind='answer', text='Very ' * 38 + 'long')
-    assert tighten_cards(FakeLLM([{'cards': [{'index': 0, 'kind': 'answer', 'text': long.text}]}]), [long]) == []
+    assert tighten_cards(FakeLLM([{'cards': [{'index': 0, 'kind': 'answer', 'text': long.text}]}] * 2), [long]) == []
 
 
 def test_shortening_does_not_change_kind_or_rewrite_found_quote():
     long = CardCandidate(kind='prompt', text='Really ' * 30 + '____.')
-    assert tighten_cards(FakeLLM([{'cards': [{'index': 0, 'kind': 'answer', 'text': 'Different kind'}]}]), [long]) == []
+    assert tighten_cards(FakeLLM([{'cards': [{'index': 0, 'kind': 'answer', 'text': 'Different kind'}]}] * 2), [long]) == []
     quote = CardCandidate(kind='answer', text='Long ' * 38, generation_route='source_find')
     assert tighten_cards(FakeLLM([]), [quote]) == []
 
@@ -59,6 +59,7 @@ def test_shortening_uses_each_authors_voice_and_rejects_cross_author_indexes(set
             {'index': 1, 'kind': kind, 'text': short},
         ]},
         {'cards': [{'index': 1, 'kind': kind, 'text': long}]},
+        {'cards': []},
     ])
     writers = [DeadpanWriter(llm, settings), UnhingedWriter(llm, settings)]
     cards = [CardCandidate(kind=kind, text=long,
@@ -120,3 +121,47 @@ def test_answer_word_count_excludes_only_fixed_fillers(text, expected):
 def test_answer_fillers_do_not_trigger_rewrite():
     card = CardCandidate(kind='answer', text='the ' + ' '.join(['cat'] * ANSWER_MAX_WORDS))
     assert tighten_cards(FakeLLM([]), [card]) == [card]
+
+
+def test_retry_only_invalid_revisions_with_measured_feedback(caplog):
+    import json
+    from forge.prompts import FEED_OPEN, FEED_CLOSE
+    drafts = [CardCandidate(kind='prompt', text='Long ' * 30 + '____.') for _ in range(2)]
+    llm = FakeLLM([
+        {'cards': [{'index': 0, 'text': 'First ____.'}, {'index': 1, 'text': drafts[1].text}]},
+        {'cards': [{'index': 0, 'text': 'Must not overwrite ____.'}, {'index': 1, 'text': 'Second ____.'}]},
+    ])
+    result = tighten_cards(llm, drafts)
+    assert [c.text for c in result] == ['First ____.', 'Second ____.']
+    request = json.loads(llm.calls[1]['user'].replace(FEED_OPEN, '').replace(FEED_CLOSE, ''))
+    assert [row['index'] for row in request] == [1]
+    assert 'too_long' in request[0]['validation_error']
+    assert request[0]['limits']['characters'] == 54
+    assert request[0]['previous_revision']['text'] == drafts[1].text
+    assert llm.calls[1]['temperature'] == 0
+
+
+def test_invalid_kind_label_is_not_allowed_to_erase_valid_shortening():
+    draft = CardCandidate(kind='prompt', text='Long ' * 30 + '____.', writer='writer.deadpan')
+    llm = FakeLLM([{'cards': [{'index': 0, 'kind': 'noun', 'text': 'The court demands ____.'}]}])
+    result = tighten_cards(llm, [draft])
+    assert result[0].kind == 'prompt' and result[0].writer == draft.writer
+
+
+def test_omitted_shortening_does_not_retry():
+    draft = CardCandidate(kind='answer', text='Long ' * 38)
+    llm = FakeLLM([{'cards': []}])
+    assert tighten_cards(llm, [draft]) == []
+    assert len(llm.calls) == 1
+
+
+def test_failed_retries_log_reason_and_are_bounded(caplog):
+    import logging
+    draft = CardCandidate(kind='prompt', text='Long ' * 30 + '____.')
+    llm = FakeLLM([{'cards': [{'index': 0, 'text': 'Still _____.'}]}] * 2)
+    with caplog.at_level(logging.INFO, logger='forge'):
+        assert tighten_cards(llm, [draft]) == []
+    assert len(llm.calls) == 2
+    final = next(r.extra_fields for r in caplog.records if r.message == 'review.shorten')
+    assert final['attempts'] == 2
+    assert final['reason'].startswith('invalid_blank:')

@@ -622,7 +622,10 @@ comparison, the 1,041 official entries average 59.41691 characters. Reproduce
 with `python scripts/measure_prompt_lengths.py /path/to/cah-all-full.json`.
 
 Before editing, overlong drafts go back to their originating persona's saved
-voice and `revise` instructions, in one shortening call per author. Review checks
+voice and `revise` instructions, grouped by author. Invalid returned revisions get
+one repair attempt with their previous output, exact limits, and validation error.
+Valid rewrites are retained; intentional omissions do not retry. Kind and provenance
+come from the original card, not generated fields. Review checks
 again after editing so an editor cannot expand a card beyond its limit.
 Answers should prefer two or three non-filler words but keep longer phrases when
 the joke needs them. The hard limits are **eight non-filler words / 90 total
@@ -642,7 +645,9 @@ Overlong answers use the same persona shortening passes.
 Writer, challenger, revision, and editor system prompts share both limits; final
 submission validation enforces them independently. Failed or still-long rewrites
 are dropped. Source finds must also meet the answer limits; overlong quotes are
-dropped rather than rewritten. `review.shorten` logs originals and revisions.
+dropped rather than rewritten. `review.shorten_rejected` logs invalid attempts;
+`review.shorten` records originals, accepted revisions, attempt counts, and a
+reason such as `too_long`, `kind_changed`, `invalid_blank`, or `omitted`.
 The writers-only test bypasses this review pass and shows raw output.
 
 Deploy the game migration before using the updated Forge if source links and
