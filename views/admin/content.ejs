@@ -43,7 +43,11 @@
                         <% cards.forEach(function (c) { %>
                         <tr data-card-row="<%= c.id %>">
                             <td><%= c.kind %></td>
-                            <td><%= c.text %></td>
+                            <td><%= c.text %><% if (c.rewriteParent) { %>
+                                <details><summary>Rewrite of #<%= c.rewrite_of %></summary>
+                                    <p>Original: <%= c.rewriteParent.text %></p>
+                                    <p>Your feedback: <%= c.rewriteParent.denied_reason %></p>
+                                </details><% } %></td>
                             <td><%= c.maturity_rating %></td>
                             <td><%= c.writer || (c.generation_route === "source_find" ? "Found phrase" : "Unknown") %><% if (c.generation_route) { %><br><small><%= c.generation_route %></small><% } %><% if (c.source_url) { %><br><a href="<%= c.source_url %>" target="_blank" rel="noopener noreferrer">Original source</a><% } %></td>
                             <td><%= c.source %></td>

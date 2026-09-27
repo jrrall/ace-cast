@@ -54,6 +54,30 @@ describe('Content API (/api/content/cards)', () => {
     kind: 'answer', text, blanks: 0, maturity_rating: 2, pack: 'madlad-generated',
   });
 
+  test('review rewrites preserve lineage and can only be submitted once', async () => {
+    const source = await postBatch([{ ...validAnswer('The very long original rewrite fixture'), writer: 'writer.deadpan' }]);
+    const parentId = source.body.created[0];
+    await db.db()('cards').where({ id: parentId }).update({ status: 'denied', denied_reason: 'shorter' });
+    const revision = { ...validAnswer('Short rewrite fixture'), writer: 'writer.deadpan', generation_route: 'review_rewrite', rewrite_of: parentId };
+    const badWriter = await postBatch([{ ...revision, writer: 'writer.unhinged' }]);
+    expect(badWriter.body.rejected[0].reason).toBe('invalid rewrite parent');
+    const result = await postBatch([revision]);
+    expect(result.body.created).toHaveLength(1);
+    const row = await db.db()('cards').where({ id: result.body.created[0] }).first();
+    expect(row).toMatchObject({ rewrite_of: parentId, status: 'pending', writer: 'writer.deadpan' });
+    const repeated = await postBatch([{ ...revision, text: 'Another rewrite fixture' }]);
+    expect(repeated.body.created).toHaveLength(0);
+    expect(repeated.body.skipped).toBe(1);
+    const listing = await request(app).get('/api/content/cards').set('Authorization', `Bearer ${CONTENT_TOKEN}`);
+    expect(listing.body.cards.find((card) => card.id === row.id)).toMatchObject({ rewrite_of: parentId, pack_slug: 'madlad-generated' });
+    const review = await request(app).get('/admin/content').query({ token: ADMIN_TOKEN });
+    expect(review.status).toBe(200);
+    expect(review.text).toContain(`Rewrite of #${parentId}`);
+    expect(review.text).toContain('Your feedback: shorter');
+    const missingLink = await postBatch([{ ...revision, rewrite_of: null }]);
+    expect(missingLink.body.rejected).toHaveLength(1);
+  });
+
   describe('auth', () => {
     test('missing content token → 401', async () => {
       const res = await request(app).post('/api/content/cards').send({ cards: [] });

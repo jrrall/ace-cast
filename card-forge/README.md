@@ -1104,3 +1104,29 @@ Each profile supplies scout, write, answer, critique, and revise instructions.
 replacement. Use `CARDS_PER_THEME=12` for a prompt and answer slot per selected
 writer. To include everyone, use `WRITERS_PER_RUN=0` and `CARDS_PER_THEME=40`.
 Existing checkpoints retain their frozen roster and voices.
+
+### Targeted rewrites from denial feedback
+
+After deploying the server with the card-rewrite migration, run:
+
+```bash
+uv run python forge.py --rewrite-denied --dry-run
+uv run python forge.py --rewrite-denied
+```
+
+This fetches denied cards with nonempty review comments (for example, `shorter`),
+uses the original writer's current persona definition to produce one revision,
+and submits directly as **pending** to the original pack. It bypasses research,
+the editor, moderator, curator, and comedy-room loop. Shape/length validation,
+API validation, and exact-text deduplication still apply. The original kind,
+blank count, writer, source URL, and maturity rating are retained; maturity is
+inherited, not reassessed by a model. Unknown writers are logged and skipped.
+
+`rewrite_of` links each revision to its denied parent. Existing revisions in any
+status prevent another rewrite of that parent, including from another workstation.
+To request another revision, deny the new card with another comment. Deleting a
+pending revision makes its parent eligible again. The original remains denied.
+`BATCH_MAX` bounds rewrite attempts per invocation. Dry runs don't consume feedback.
+This mode runs separately from normal generation and cannot use `--run-dir` or
+`--resume`. It uses the configured model and current persona, not the historical
+model or frozen persona from the original run. Deploy the updated API first.
