@@ -15,6 +15,7 @@
         <%- include("nav", { active: "feedback", description: "See what lands in real games and retire cards that do not." }) %>
 
         <main>
+            <%- include("exposure-note", { exposureTracking }) %>
             <section class="panel">
                 <h2>Thresholds</h2>
                 <ul class="thresholds">
@@ -32,7 +33,7 @@
                 <table>
                     <thead>
                         <tr>
-                            <th>Card</th><th>Pack</th><th>Plays</th><th>Win-rate</th><th>Flags</th><th>Why</th><th></th>
+                            <th>Card</th><th>Pack</th><th>Dealt</th><th>Prompt exposures</th><th>Plays</th><th>Win-rate</th><th>Flags</th><th>Why</th><th></th>
                         </tr>
                     </thead>
                     <tbody>
@@ -40,6 +41,8 @@
                         <tr data-card-row="<%= c.id %>">
                             <td><%= c.text %></td>
                             <td><%= c.packName || '—' %></td>
+                            <td><%= c.kind === 'answer' ? c.deals : '—' %></td>
+                            <td><%= c.kind === 'prompt' ? c.promptExposures : '—' %></td>
                             <td><%= c.plays %></td>
                             <td><%= c.winRate == null ? '—' : (c.winRate * 100).toFixed(0) + '%' %></td>
                             <td><%= c.totalFlags %></td>
@@ -58,12 +61,14 @@
             <section class="panel">
                 <h2>Top winners</h2>
                 <table>
-                    <thead><tr><th>Card</th><th>Pack</th><th>Plays</th><th>Wins</th><th>Win-rate</th></tr></thead>
+                    <thead><tr><th>Card</th><th>Pack</th><th>Dealt</th><th>Prompt exposures</th><th>Plays</th><th>Wins</th><th>Win-rate</th></tr></thead>
                     <tbody>
                         <% topWinners.forEach(function (c) { %>
                         <tr>
                             <td><%= c.text %></td>
                             <td><%= c.packName || '—' %></td>
+                            <td><%= c.kind === 'answer' ? c.deals : '—' %></td>
+                            <td><%= c.kind === 'prompt' ? c.promptExposures : '—' %></td>
                             <td><%= c.plays %></td>
                             <td><%= c.wins %></td>
                             <td><%= (c.winRate * 100).toFixed(0) %>%</td>
@@ -76,12 +81,14 @@
             <section class="panel">
                 <h2>Dead weight (low win-rate, enough plays)</h2>
                 <table>
-                    <thead><tr><th>Card</th><th>Pack</th><th>Plays</th><th>Wins</th><th>Win-rate</th></tr></thead>
+                    <thead><tr><th>Card</th><th>Pack</th><th>Dealt</th><th>Prompt exposures</th><th>Plays</th><th>Wins</th><th>Win-rate</th></tr></thead>
                     <tbody>
                         <% deadWeight.forEach(function (c) { %>
                         <tr>
                             <td><%= c.text %></td>
                             <td><%= c.packName || '—' %></td>
+                            <td><%= c.kind === 'answer' ? c.deals : '—' %></td>
+                            <td><%= c.kind === 'prompt' ? c.promptExposures : '—' %></td>
                             <td><%= c.plays %></td>
                             <td><%= c.wins %></td>
                             <td><%= (c.winRate * 100).toFixed(0) %>%</td>
@@ -94,12 +101,14 @@
             <section class="panel">
                 <h2>Most-flagged</h2>
                 <table>
-                    <thead><tr><th>Card</th><th>Pack</th><th>Plays</th><th>Not funny</th><th>Broken</th></tr></thead>
+                    <thead><tr><th>Card</th><th>Pack</th><th>Dealt</th><th>Prompt exposures</th><th>Plays</th><th>Not funny</th><th>Broken</th></tr></thead>
                     <tbody>
                         <% mostFlagged.forEach(function (c) { %>
                         <tr>
                             <td><%= c.text %></td>
                             <td><%= c.packName || '—' %></td>
+                            <td><%= c.kind === 'answer' ? c.deals : '—' %></td>
+                            <td><%= c.kind === 'prompt' ? c.promptExposures : '—' %></td>
                             <td><%= c.plays %></td>
                             <td><%= c.flags.not_funny %></td>
                             <td><%= c.flags.broken %></td>
@@ -121,7 +130,7 @@
                 <table id="all-cards-table">
                     <thead>
                         <tr>
-                            <th>Card</th><th>Kind</th><th>Pack</th><th>Plays</th><th>Wins</th>
+                            <th>Card</th><th>Kind</th><th>Pack</th><th>Dealt</th><th>Prompt exposures</th><th>Plays</th><th>Wins</th>
                             <th>Win-rate</th><th>Not funny</th><th>Broken</th><th>Status</th><th></th>
                         </tr>
                     </thead>
@@ -131,6 +140,8 @@
                             <td><%= c.text %></td>
                             <td><%= c.kind %></td>
                             <td><%= c.packName || '—' %></td>
+                            <td><%= c.kind === 'answer' ? c.deals : '—' %></td>
+                            <td><%= c.kind === 'prompt' ? c.promptExposures : '—' %></td>
                             <td><%= c.plays %></td>
                             <td><%= c.wins %></td>
                             <td><%= c.insufficientData ? 'insufficient data' : (c.winRate * 100).toFixed(0) + '%' %></td>
