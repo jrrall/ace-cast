@@ -609,11 +609,14 @@ with `python scripts/measure_prompt_lengths.py /path/to/cah-all-full.json`.
 
 Before editing, overlong drafts go back to their originating persona's saved
 voice and `revise` instructions, in one shortening call per author. Review checks
-again after editing so an editor cannot expand a prompt beyond the limit.
-Answers retain their existing 12-word/90-character limits. Writer, challenger,
-revision, and editor system prompts share the same prompt limit; final submission
-validation enforces it independently. Failed or still-long rewrites are dropped.
-Verbatim finds that exceed the final limit are dropped rather than silently rewritten. `review.shorten` logs originals and revisions.
+again after editing so an editor cannot expand a card beyond its limit.
+Answers should usually be two or three words, with a hard maximum of **three
+whitespace-separated words** (articles count; one word is fine) and the existing
+90-character cap. Overlong answers use the same persona shortening passes.
+Writer, challenger, revision, and editor system prompts share both limits; final
+submission validation enforces them independently. Failed or still-long rewrites
+are dropped. Source finds must also meet the answer limits; overlong quotes are
+dropped rather than rewritten. `review.shorten` logs originals and revisions.
 The writers-only test bypasses this review pass and shows raw output.
 
 Deploy the game migration before using the updated Forge if source links and

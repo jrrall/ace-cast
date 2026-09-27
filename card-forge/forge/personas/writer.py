@@ -15,10 +15,10 @@ from ..llm import LLMClient
 from ..models import BLANK_MARKER, CardCandidate, Theme
 from ..prompts import wrap_feed_data, maturity_direction
 from ..persona_registry import Persona, load_personas, select_personas
-from ..limits import PROMPT_LENGTH_RULE
+from ..limits import LENGTH_RULES
 
 SYSTEM = (
-    PROMPT_LENGTH_RULE
+    LENGTH_RULES
     + "Write adult fill-in-the-blank party cards in your persona's voice.\n"
     f"Prompts: short setups with exactly one {BLANK_MARKER} accepting unrelated noun phrases; "
     "leave the payoff to the player. Answers: short standalone noun phrases, no blank.\n"

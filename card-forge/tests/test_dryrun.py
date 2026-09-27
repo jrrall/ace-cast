@@ -23,7 +23,7 @@ def _scripted_llm():
             {
                 "cards": [
                     {"kind": "prompt", "text": "My new hustle is just ____."},
-                    {"kind": "answer", "text": "A raccoon in a trench coat."},
+                    {"kind": "answer", "text": "Trench-coat raccoons."},
                 ]
             },
             {"cards": [{"kind": "answer", "text": "Existential dread."}]},  # unhinged writer
@@ -37,7 +37,7 @@ def _scripted_llm():
             {
                 "cards": [
                     {"kind": "prompt", "text": "My new hustle is just ____."},
-                    {"kind": "answer", "text": "A raccoon in a trench coat."},
+                    {"kind": "answer", "text": "Trench-coat raccoons."},
                     {"kind": "answer", "text": "Existential dread."},
                 ]
             },
@@ -115,3 +115,21 @@ def test_persona_shortens_before_editing_and_after_editor_expansion(settings):
     assert '54 characters' in llm.calls[10]['system']
     assert '54 characters' in llm.calls[12]['system']
     assert 'Company policy requires ____.' in llm.calls[11]['user']
+
+
+def test_answer_shortens_before_editing_and_after_editor_expansion(settings):
+    llm = _scripted_llm()
+    long = 'A raccoon wearing a trench coat.'
+    llm._responses[1]['cards'][1]['text'] = long
+    llm._responses[10]['cards'][1] = {'source_index': 1, 'kind': 'answer', 'text': long}
+    rewrite = {'cards': [{'index': 1, 'kind': 'answer', 'text': 'Trench-coat raccoons.'}]}
+    llm._responses.insert(10, rewrite)
+    llm._responses.insert(12, rewrite)
+    pipeline = Pipeline(settings, llm, FakeContentClient(), fetch_fn=lambda s: _feed())
+    _, batch = pipeline.run(dry_run=True)
+    assert batch.cards[1].text == 'Trench-coat raccoons.'
+    assert batch.cards[1].writer == 'writer.deadpan'
+    for index in (10, 12):
+        assert 'at most 3 words' in llm.calls[index]['system']
+        assert '"current_words": 6' in llm.calls[index]['user']
+    assert 'Trench-coat raccoons.' in llm.calls[11]['user']

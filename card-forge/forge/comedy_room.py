@@ -12,10 +12,10 @@ from .logging_setup import get_logger
 from .models import CardCandidate
 from .personas import writing_team
 from .prompts import INJECTION_NOTICE, wrap_feed_data
-from .limits import PROMPT_LENGTH_RULE
+from .limits import LENGTH_RULES
 
 FORMAT = (
-    PROMPT_LENGTH_RULE
+    LENGTH_RULES
     + 'Prompts have exactly one ____ accepting an unrelated noun phrase. '
           'Answers are short standalone acts, objects, or situations with no blank. '
           'Preserve each source card kind. Return JSON only. ')

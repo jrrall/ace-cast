@@ -1,3 +1,5 @@
+import pytest
+
 from forge.tighten import tighten_cards, too_long
 from forge.models import CardCandidate
 from conftest import FakeLLM
@@ -6,7 +8,7 @@ from conftest import FakeLLM
 def test_one_shortening_call_preserves_joke_metadata_and_short_cards():
     long = CardCandidate(kind='answer', text='An unnecessarily elaborate explanation of an emergency investigation into who touched the thermostat at dinner.', writer='writer.hatemonger', generation_route='paired_revision')
     short = CardCandidate(kind='answer', text='Urethra Franklin', generation_route='source_find', source_url='https://b3ta.com/questions/x/post1')
-    llm = FakeLLM([{'cards': [{'index': 0, 'kind': 'answer', 'text': 'A federal investigation into who touched the fucking thermostat.'}]}])
+    llm = FakeLLM([{'cards': [{'index': 0, 'kind': 'answer', 'text': 'Fucking thermostat police.'}]}])
     result = tighten_cards(llm, [long, short])
     assert len(llm.calls) == 1
     assert result[0].writer == long.writer
@@ -43,18 +45,22 @@ def test_prompt_character_boundary_and_submission_guard():
         SubmitCard(text=exact + '.', **fields)
 
 
-def test_shortening_uses_each_authors_voice_and_rejects_cross_author_indexes(settings):
+@pytest.mark.parametrize('kind, short, long', [
+    ('prompt', 'The new policy requires ____.', 'Long ' * 20 + '____.'),
+    ('answer', 'The thermostat police.', 'A federal thermostat investigation.'),
+])
+def test_shortening_uses_each_authors_voice_and_rejects_cross_author_indexes(settings, kind, short, long):
     from forge.personas.writer import DeadpanWriter, UnhingedWriter
 
     llm = FakeLLM([
         {'cards': [
-            {'index': 0, 'kind': 'prompt', 'text': 'The new policy requires ____.'},
-            {'index': 1, 'kind': 'prompt', 'text': 'Do not accept this ____.'},
+            {'index': 0, 'kind': kind, 'text': short},
+            {'index': 1, 'kind': kind, 'text': short},
         ]},
-        {'cards': [{'index': 1, 'kind': 'prompt', 'text': 'Long ' * 20 + '____.'}]},
+        {'cards': [{'index': 1, 'kind': kind, 'text': long}]},
     ])
     writers = [DeadpanWriter(llm, settings), UnhingedWriter(llm, settings)]
-    cards = [CardCandidate(kind='prompt', text='Long ' * 20 + '____.',
+    cards = [CardCandidate(kind=kind, text=long,
                            writer=w.name, generation_route='paired_revision',
                            source_url='https://example.com/research') for w in writers]
     result = tighten_cards(llm, cards, writers=writers)
@@ -66,4 +72,27 @@ def test_shortening_uses_each_authors_voice_and_rejects_cross_author_indexes(set
         assert writer.voice in call['system']
         assert writer.definition.phases['revise'] in call['system']
         assert '54 characters' in call['system']
+        assert 'at most 3 words' in call['system']
         assert 'current_characters' in call['user']
+
+
+@pytest.mark.parametrize('text, valid', [
+    ('Chaos.', True),
+    ('Existential dread.', True),
+    ('The thermostat police.', True),
+    ('The\tthermostat\npolice.', True),
+    ('The federal thermostat police.', False),
+    ('é' * 90, True),
+    ('é' * 91, False),
+])
+def test_answer_length_and_submission_guard(text, valid):
+    from forge.models import SubmitCard
+
+    card = CardCandidate(kind='answer', text=text)
+    assert too_long(card) is not valid
+    fields = dict(kind='answer', text=text, blanks=0, maturity_rating=1, pack='test')
+    if valid:
+        assert SubmitCard(**fields).text == text
+    else:
+        with pytest.raises(ValueError, match='answer must be at most'):
+            SubmitCard(**fields)

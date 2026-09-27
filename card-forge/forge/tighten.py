@@ -32,7 +32,8 @@ def tighten_cards(llm, cards, *, writers=()):
         data = complete(llm, 'tighten', units=len(group), persona=author,
             system=system,
             user=wrap_feed_data(json.dumps([
-                {'index': i, **card.model_dump(), 'current_characters': len(card.text)}
+                {'index': i, **card.model_dump(), 'current_characters': len(card.text),
+                 'current_words': len(card.text.split())}
                 for i, card in group
             ], ensure_ascii=False)),
             temperature=0.3)

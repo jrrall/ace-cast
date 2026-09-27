@@ -15,10 +15,10 @@ from ..config import Settings
 from ..llm import LLMClient
 from ..models import BLANK_MARKER, CardCandidate
 from ..prompts import maturity_direction
-from ..limits import PROMPT_LENGTH_RULE
+from ..limits import LENGTH_RULES
 
 SYSTEM = (
-    PROMPT_LENGTH_RULE
+    LENGTH_RULES
     + "Copy-edit party cards. Preserve each persona's premise, voice, and intentional wording; "
     "fix wording and format without adding jokes or a house style.\n"
     "Cut research attribution, planning commentary, and explanations of the joke. "

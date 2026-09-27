@@ -26,7 +26,7 @@ def test_curator_assembles_batch(settings, sample_moderated):
 def test_curator_drops_duplicate_including_denied(settings):
     moderated = [
         ModeratedCard(kind="answer", text="A haunted Roomba.", maturity_rating=1),
-        ModeratedCard(kind="answer", text="A fresh original card.", maturity_rating=1),
+        ModeratedCard(kind="answer", text="Fresh original card.", maturity_rating=1),
     ]
     # corpus contains the first card as a DENIED row -> must still be treated as dup
     content = FakeContentClient(
@@ -39,7 +39,7 @@ def test_curator_drops_duplicate_including_denied(settings):
 
     texts = [c.text for c in batch.cards]
     assert "A haunted Roomba." not in texts
-    assert "A fresh original card." in texts
+    assert "Fresh original card." in texts
     assert content.list_calls == 1
 
 
