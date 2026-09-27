@@ -74,3 +74,36 @@ def test_failed_editor_chunk_does_not_return_partial_results(settings, sample_ca
     with pytest.raises(LLMError, match="timed out"):
         Editor(llm, settings).run(sample_candidates)
     assert len(llm.calls) == 2
+
+
+def test_editor_uses_source_kind_when_model_returns_text_or_noun_as_kind(settings):
+    from forge.models import CardCandidate
+    drafts = [
+        CardCandidate(kind='prompt', text='The hearing requires ____.', writer='writer.petty_villain'),
+        CardCandidate(kind='answer', text='Guest taxes.', writer='writer.deadpan'),
+    ]
+    llm = FakeLLM([{'cards': [
+        {'source_index': 0, 'kind': 'The hearing requires ____.', 'text': 'The hearing requires ____.'},
+        {'source_index': 1, 'kind': 'noun', 'text': 'Guest taxes.'},
+    ]}])
+    result = Editor(llm, settings).run(drafts)
+    assert result == drafts
+
+
+def test_editor_minimal_response_preserves_metadata_and_rejects_broken_prompt(settings):
+    from forge.models import CardCandidate
+    draft = CardCandidate(kind='prompt', text='The hearing requires ____.',
+                          writer='writer.petty_villain', generation_route='paired_revision',
+                          source_url='https://example.com/story')
+    llm = FakeLLM([{'cards': [
+        {'source_index': 0, 'text': 'The court requires ____.'},
+        {'source_index': 0, 'text': 'The court requires taxes.'},
+        {'source_index': 0, 'kind': 'answer', 'text': 'Court taxes.'},
+    ]}])
+    result = Editor(llm, settings).run([draft])
+    assert len(result) == 1
+    assert result[0].kind == 'prompt'
+    assert result[0].writer == draft.writer
+    assert result[0].generation_route == draft.generation_route
+    assert result[0].source_url == draft.source_url
+    assert result[0].text == 'The court requires ____.'

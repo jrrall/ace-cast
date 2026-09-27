@@ -128,7 +128,10 @@ Prompt/answer slots remain split evenly, with an odd slot going to answers;
 unused slots of one kind are not filled with the other kind.
 
 The editor fixes wording and removes broken cards and genuine duplicates,
-preserving weird, risky, and uncertain jokes for human judgment. The curator
+preserving weird, risky, and uncertain jokes for human judgment. Its response
+needs only `source_index` and `text`; code preserves kind and provenance from the
+indexed draft. Malformed redundant kind labels are ignored, while explicit
+prompt/answer kind changes, invalid indexes, and broken card shapes are rejected. The curator
 ranks distinct playable cards instead of imposing its own short taste-based list.
 `QUALITY_MIN=70` keeps a weighted quality cutoff by default; adjust it to tune
 selectivity. Scores order the pool and playability checks remain. A low comic-turn score alone no longer discards a card.
@@ -378,8 +381,24 @@ this source. The run's date follows the container timezone (usually UTC).
 
 ### Quality rubric and writer styles
 
-Writers and the curator share a five-dimension quality rubric. The curator
-returns integer scores from 0 to 5 and a short reason for each selected card.
+The curator scores combination potential, rather than requiring each card to
+be a standalone joke. It returns five integer scores from 0 to 5 (0 unusable,
+1 poor, 2 weak, 3 workable, 4 strong, 5 exceptional):
+
+- **Playability:** prompts accept varied noun phrases; answers fit varied setups.
+  Grammar changes, source dependence, or one narrowly prescribed partner cap
+  playability at 2, below the existing selection floor.
+- **Comic turn:** prompts enable funny fills; answers add comic potential across
+  setups. Neither needs its own complete punchline.
+- **Specificity:** a clear, usable idea or image, not extra details or name-dropping.
+- **Economy:** no removable wording that preserves meaning, grammar, and comic
+  effect. Shorter is not automatically better.
+- **Originality:** a distinct situation or payoff within supplied comparisons.
+  Familiar sentence structures and shared topics are not duplicates.
+
+These criteria respect the card's comic voice without style or maturity bias.
+Optional short reasons identify a strength or weakness in a playable combination.
+
 Code calculates `20 * (0.30*playability + 0.25*comic_turn + 0.15*specificity +
 0.10*economy + 0.20*originality)`. `QUALITY_MIN` defaults to 70/100;
 `QUALITY_WEIGHTS` accepts a JSON object with all five nonnegative weights summing
@@ -389,18 +408,8 @@ Missing or invalid selection/quality evaluations fail the run rather than bypass
 the gate. Style diagnostics do not participate in selection and are optional;
 malformed style scores are omitted with a warning rather than losing a batch.
 
-Style scores are separate from quality. Writer targets in `forge/rubric.py`
-use the following starting profiles (0 absent to 5 dominant):
-
-| Writer | Unhinged | Lewd | Dark | Gross | Blasphemous | Deadpan | Implication |
-| --- | --- | --- | --- | --- | --- | --- | --- |
-| Deadpan | 1 | 1 | 3 | 1 | 2 | 5 | 4 |
-| Unhinged | 5 | 3 | 4 | 3 | 3 | 2 | 4 |
-| PR Spin Doctor | 2 | 1 | 3 | 1 | 4 | 4 | 3 |
-| Petty Villain | 3 | 2 | 2 | 1 | 2 | 3 | 5 |
-| Banned From 4chan | 4 | 4 | 4 | 3 | 4 | 4 | 5 |
-
-These profiles guide writing, not quotas or rewards for being explicit. The
+Persona profiles supply creative direction; there are no numeric style targets
+or rewards for being explicit. Optional style diagnostics stay separate. The
 curator ranks eligible cards by computed quality and keeps at most one per
 model-assigned premise group. `curator.score` JSON logs include the card text,
 quality dimensions, reason, score, and whether it was kept. Valid optional

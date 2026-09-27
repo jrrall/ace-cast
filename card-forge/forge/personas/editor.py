@@ -28,8 +28,9 @@ SYSTEM = (
     f"Prompts: exactly one {BLANK_MARKER!r} accepting unrelated noun phrases. "
     "Answers: standalone noun phrases, no blank or dependence on the source headline. "
     "Preserve kind; never invent or merge cards.\n"
-    'Return only {"cards": [{"source_index": 0, "kind": "...", "text": "..."}]}, '
-    "using each draft's zero-based source_index."
+    'Return only {"cards": [{"source_index": 0, "text": "edited card"}]}. '
+    "Use each draft's zero-based source_index; code preserves its kind and writer. "
+    "Do not return a kind field."
 )
 
 
@@ -78,20 +79,30 @@ class Editor:
         seen: set[tuple[str, str]] = set()
         edited: list[CardCandidate] = []
         for entry in raw or []:
-            try:
-                card = CardCandidate(kind=entry.get("kind"), text=entry.get("text", ""))
-            except Exception:  # noqa: BLE001 - drop invalid
+            if not isinstance(entry, dict):
                 continue
             source = None
+            kind = entry.get("kind")
             if "source_index" in entry:
                 idx = entry["source_index"]
                 if type(idx) is not int or not 0 <= idx < len(candidates):
                     get_logger().warning("editor.invalid_source_index")
                     continue
                 source = candidates[idx]
-                if source.kind != card.kind:
+                # Kind is immutable source metadata, not generated copy. Accept
+                # legacy valid kinds, but reject an explicit change of kind.
+                if kind in ("prompt", "answer") and kind != source.kind:
+                    get_logger().warning("editor.kind_change_dropped")
                     continue
-            else:
+                if kind is not None and kind != source.kind:
+                    get_logger().warning("editor.invalid_kind_ignored")
+                kind = source.kind
+            try:
+                card = CardCandidate(kind=kind, text=entry.get("text", ""))
+            except (ValueError, TypeError):
+                get_logger().warning("editor.invalid_card_dropped")
+                continue
+            if source is None:
                 # Compatibility for unchanged drafts; never infer a writer for
                 # rewritten or ambiguous text when the model omits its index.
                 matches = [c for c in candidates if c.kind == card.kind and c.text == card.text]
