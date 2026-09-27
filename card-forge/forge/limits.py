@@ -1,7 +1,7 @@
 """Shared generated-card length policy (see README for corpus measurement)."""
 import re
 
-PROMPT_MAX_CHARS = 54
+ANSWER_TARGET_CHARS = 54
 # Compact answer cap; filler words do not count.
 ANSWER_MAX_WORDS = 8
 ANSWER_MAX_CHARS = 90
@@ -21,11 +21,11 @@ def count_answer_words(text):
 
 
 PROMPT_LENGTH_RULE = (
-    f"Prompt text must be at most {PROMPT_MAX_CHARS} characters total, "
-    "including spaces, punctuation, and all four characters of ____. "
+    "Prompts: keep setups concise, with enough room for a playable premise. "
 )
 ANSWER_LENGTH_RULE = (
     "Answers: prefer 2 or 3 non-filler words; longer phrases are fine when needed. "
+    f"Aim for {ANSWER_TARGET_CHARS} characters or fewer; this is a soft target, not a rejection limit. "
     f"Maximum {ANSWER_MAX_WORDS} non-filler words / {ANSWER_MAX_CHARS} total characters. "
     "Count whitespace-separated words, ignoring edge punctuation, case, and fillers: "
     + ", ".join(sorted(ANSWER_FILLER_WORDS)) + ". "
@@ -36,5 +36,5 @@ LENGTH_RULES = PROMPT_LENGTH_RULE + ANSWER_LENGTH_RULE
 
 def too_long(card):
     if card.kind == 'prompt':
-        return len(card.text) > PROMPT_MAX_CHARS
+        return False
     return count_answer_words(card.text) > ANSWER_MAX_WORDS or len(card.text) > ANSWER_MAX_CHARS

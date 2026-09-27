@@ -102,20 +102,15 @@ def _feed():
     return [FeedItem(title="Everyone became a freelance goblin", source="r/memes")]
 
 
-def test_persona_shortens_before_editing_and_after_editor_expansion(settings):
+def test_prompt_over_54_characters_survives_pipeline_without_shortening(settings):
     llm = _scripted_llm()
-    long = 'Our incredibly elaborate new company policy requires ____.'
-    llm._responses[1]['cards'][0]['text'] = long
-    llm._responses[10]['cards'][0] = {'source_index': 0, 'kind': 'prompt', 'text': long}
-    rewrite = {'cards': [{'index': 0, 'kind': 'prompt', 'text': 'Company policy requires ____.'}]}
-    llm._responses.insert(10, rewrite)
-    llm._responses.insert(12, rewrite)
+    text = "The court ruled we're slaves because ____ won't toggle a feature."
+    llm._responses[1]['cards'][0]['text'] = text
+    llm._responses[10]['cards'][0] = {'source_index': 0, 'kind': 'prompt', 'text': text}
     pipeline = Pipeline(settings, llm, FakeContentClient(), fetch_fn=lambda s: _feed())
     _, batch = pipeline.run(dry_run=True)
-    assert next(c for c in batch.cards if c.kind == 'prompt').text == 'Company policy requires ____.'
-    assert '54 characters' in llm.calls[10]['system']
-    assert '54 characters' in llm.calls[12]['system']
-    assert 'Company policy requires ____.' in llm.calls[11]['user']
+    assert next(c for c in batch.cards if c.kind == 'prompt').text == text
+    assert len(llm.calls) == 13
 
 
 def test_answer_shortens_before_editing_and_after_editor_expansion(settings):

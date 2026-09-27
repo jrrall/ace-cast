@@ -5,14 +5,13 @@ import json
 import re
 from .models import CardCandidate
 from .limits import (LENGTH_RULES, too_long, count_answer_words,
-                     PROMPT_MAX_CHARS, ANSWER_MAX_WORDS, ANSWER_MAX_CHARS)
+                     ANSWER_MAX_WORDS, ANSWER_MAX_CHARS)
 from .prompts import MADLIB_RULES, INJECTION_NOTICE, wrap_feed_data
 from .logging_setup import get_logger
 
 
 def _limits(card):
-    return ({'characters': PROMPT_MAX_CHARS} if card.kind == 'prompt' else
-            {'characters': ANSWER_MAX_CHARS, 'non_filler_words': ANSWER_MAX_WORDS})
+    return {'characters': ANSWER_MAX_CHARS, 'non_filler_words': ANSWER_MAX_WORDS}
 
 
 def _revision(row, original):

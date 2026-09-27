@@ -616,24 +616,26 @@ without changing the grammar, and the player's fill supplies the payoff. Writing
 review, and shortening stages silently test unrelated fills without putting those
 tests in card text. Personas supply the comic subject, voice, and approach.
 
-Generated prompts have a hard maximum of **54 characters**, counting spaces,
-punctuation, and all four characters of `____` (Python Unicode character count).
-This is the rounded mean of all 6,870 black-card entries across 205 packs in
-[JSON Against Humanity](https://github.com/crhallberg/json-against-humanity/blob/b32d50173381d66a5a7515b822a3f344d818a939/cah-all-full.json):
-54.11965 characters and 10.64687 whitespace-separated words. The measurement
+Generated prompts should be concise but have no character cutoff in generation,
+shortening, or submission. Averages are descriptive, not rejection thresholds.
+The 6,870 black-card entries across 205 packs in
+[JSON Against Humanity](https://github.com/crhallberg/json-against-humanity/blob/b32d50173381d66a5a7515b822a3f344d818a939/cah-all-full.json)
+average 54.11965 characters and 10.64687 whitespace-separated words. The measurement
 uses raw `text`, includes official and fan packs and repeated entries, and does
 not expand the dataset's single-character blanks or strip formatting. For
 comparison, the 1,041 official entries average 59.41691 characters. Reproduce
 with `python scripts/measure_prompt_lengths.py /path/to/cah-all-full.json`.
 
-Before editing, overlong drafts go back to their originating persona's saved
+Before editing, answers exceeding hard limits go back to their originating persona's saved
 voice and `revise` instructions, grouped by author. Invalid returned revisions get
 one repair attempt with their previous output, exact limits, and validation error.
 Valid rewrites are retained; intentional omissions do not retry. Kind and provenance
 come from the original card, not generated fields. Review checks
 again after editing so an editor cannot expand a card beyond its limit.
 Answers should prefer two or three non-filler words but keep longer phrases when
-the joke needs them. The hard limits are **eight non-filler words / 90 total
+the joke needs them. **54 characters is a soft answer target**; exceeding it alone
+never triggers a rewrite or rejection. Reference answers average 29.64 characters
+overall and 30.20 in official packs. The hard limits are **eight non-filler words / 90 total
 characters**. The reference set includes outlier titles and lists: the raw maximum
 is 43 words overall and 38 in official packs (37 non-filler words / 249 characters
 in both). These outliers are measured for comparison, not used as writing targets.
